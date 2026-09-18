@@ -7,6 +7,7 @@ namespace RogueShooter.Player
     /// Stub hold-to-charge that only fires P0 FX hooks. Spec §7.5:
     /// 0.90s charge, green 72–84%. No bar, no LOCK table edits.
     /// Hold Mouse0 or C. Release in the green window → OnCritConfirm.
+    /// ChargeFxView sits on child BowFx (A); B lives on AimReticle, never on player root.
     /// </summary>
     public class PlayerCharge : MonoBehaviour
     {
@@ -20,9 +21,20 @@ namespace RogueShooter.Player
         void Awake()
         {
             AimReticle.Ensure();
-            _fx = GetComponent<ChargeFxView>();
+            Transform bow = transform.Find("BowFx");
+            if (bow == null)
+            {
+                var go = new GameObject("BowFx");
+                bow = go.transform;
+                bow.SetParent(transform, false);
+                bow.localPosition = new Vector3(0.08f, 0.42f, 0f);
+                float entity = JianHaiArtCatalog.EntityStubWorldScale;
+                float inv = entity > 0.01f ? 1f / entity : 1f;
+                bow.localScale = new Vector3(inv, inv, 1f);
+            }
+            _fx = bow.GetComponent<ChargeFxView>();
             if (_fx == null)
-                _fx = gameObject.AddComponent<ChargeFxView>();
+                _fx = bow.gameObject.AddComponent<ChargeFxView>();
         }
 
         void Update()

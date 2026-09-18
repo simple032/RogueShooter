@@ -55,6 +55,8 @@ namespace RogueShooter.Art
                                  * JianHaiArtCatalog.VisualScaleForCap(JianHaiArtCatalog.ReticleChargeIdle);
             if (reticleWorld > 0.801f)
                 return "reticle world > 0.8u";
+            if (rw > 48 || rh > 48)
+                return "reticle canvas > 48px";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

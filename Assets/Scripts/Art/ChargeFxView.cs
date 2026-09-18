@@ -137,15 +137,13 @@ namespace RogueShooter.Art
             _root = go.transform;
             _root.SetParent(transform, false);
             _root.localPosition = Vector3.zero;
-            float entity = JianHaiArtCatalog.EntityStubWorldScale;
-            float inv = entity > 0.01f ? 1f / entity : 1f;
-            _root.localScale = new Vector3(inv, inv, 1f);
+            _root.localScale = Vector3.one;
 
-            _string = MakeSlot("String", new Vector3(0f, 0.55f, -0.02f));
-            _pulse = MakeSlot("Pulse", new Vector3(0f, 0.55f, -0.03f));
-            _bow = MakeSlot("BowEdge", new Vector3(0.04f, 0.50f, -0.02f));
-            _tip = MakeSlot("Tip", new Vector3(0.10f, 0.42f, -0.02f));
-            _crit = MakeSlot("CritFlash", new Vector3(0f, 0.52f, -0.04f));
+            _string = MakeSlot("String", new Vector3(0f, 0.12f, -0.02f));
+            _pulse = MakeSlot("Pulse", new Vector3(0f, 0.12f, -0.03f));
+            _bow = MakeSlot("BowEdge", new Vector3(0.02f, 0.06f, -0.02f));
+            _tip = MakeSlot("Tip", new Vector3(0.06f, -0.02f, -0.02f));
+            _crit = MakeSlot("CritFlash", new Vector3(0f, 0.10f, -0.04f));
         }
 
         SpriteRenderer MakeSlot(string name, Vector3 localPos)

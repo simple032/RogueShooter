@@ -63,6 +63,8 @@ namespace RogueShooter.Art
 
         void LateUpdate()
         {
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.None;
             FollowMouse();
         }
 
