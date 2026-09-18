@@ -13,7 +13,7 @@ namespace RogueShooter.Vision
         public static CameraViewService Instance { get; private set; }
 
         [SerializeField] Camera targetCamera;
-        [SerializeField] [Min(0.1f)] float orthographicSize = 3.5f;
+        [SerializeField] [Min(0.1f)] float orthographicSize = 2.5f;
 
         public float OrthographicSize => orthographicSize;
 

@@ -13,7 +13,7 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = 3.5f;
+        [SerializeField] float orthographicSize = 2.5f;
         [SerializeField] float moveSpeed = 7f;
         [SerializeField] float spawnRetryInterval = 0.35f;
 
@@ -36,14 +36,14 @@ namespace RogueShooter.Demo
         {
             Transform root = transform;
 
-            DemoPrimitives.Quad("Floor_Corridor", new Vector3(0f, 0f, 1f), new Vector2(64f, 8f),
+            DemoPrimitives.Quad("Floor_Corridor", new Vector3(0f, 0f, 1f), new Vector2(64f, 6f),
                 new Color(0.20f, 0.19f, 0.18f), 0, root);
 
             Color wall = new Color(0.07f, 0.08f, 0.09f);
-            DemoPrimitives.Quad("Wall_N", new Vector3(0f, 4.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_S", new Vector3(0f, -4.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_W", new Vector3(-32.35f, 0f, 1f), new Vector2(0.7f, 9f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_E", new Vector3(32.35f, 0f, 1f), new Vector2(0.7f, 9f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_N", new Vector3(0f, 3.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_S", new Vector3(0f, -3.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_W", new Vector3(-32.35f, 0f, 1f), new Vector2(0.7f, 7f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_E", new Vector3(32.35f, 0f, 1f), new Vector2(0.7f, 7f), wall, 1, root);
 
             DemoPrimitives.Quad("Marker_West", new Vector3(-30f, 0f, 0f), new Vector2(1.4f, 1.4f),
                 new Color(0.85f, 0.25f, 0.75f), 2, root);
@@ -147,16 +147,17 @@ namespace RogueShooter.Demo
         {
             const int pad = 10;
             int w = 520;
-            int h = 192;
+            int h = 220;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 13 };
             var title = new GUIStyle(style) { fontSize = 16, fontStyle = FontStyle.Bold };
             GUI.Label(new Rect(pad + 8, pad + 6, w - 16, 24), "有限视野 / Limited Vision  (no fog)", title);
 
             Rect rect = _view != null ? _view.GetViewRect() : new Rect();
-            GUI.Label(new Rect(pad + 8, pad + 32, w - 16, 40),
-                $"WASD / Arrows move. Camera follows; Game view is the whole visible rect.\n" +
-                $"GetViewRect() = ({rect.xMin:F1},{rect.yMin:F1})..({rect.xMax:F1},{rect.yMax:F1})  orthoSize={orthographicSize}",
+            GUI.Label(new Rect(pad + 8, pad + 32, w - 16, 48),
+                $"WASD / Arrows. Local view — far ends (next chest / branch stand-in) stay off-screen.\n" +
+                $"GetViewRect() = ({rect.xMin:F1},{rect.yMin:F1})..({rect.xMax:F1},{rect.yMax:F1})  " +
+                $"orthoSize={orthographicSize}  (16:9 half-width ≈ {orthographicSize * 16f / 9f:F1})",
                 style);
 
             string status = !_acceptanceChecked
@@ -165,12 +166,12 @@ namespace RogueShooter.Demo
                     ? "<color=#88ff88>ACCEPTANCE PASS</color>"
                     : "<color=#ff8888>" + _acceptanceLine + "</color>");
             var rich = new GUIStyle(style) { richText = true };
-            GUI.Label(new Rect(pad + 8, pad + 74, w - 16, 22), status, rich);
+            GUI.Label(new Rect(pad + 8, pad + 84, w - 16, 22), status, rich);
 
             if (_anchors == null || _spawner == null)
                 return;
 
-            float y = pad + 98;
+            float y = pad + 108;
             for (int i = 0; i < _anchors.Length; i++)
             {
                 SpawnAnchor a = _anchors[i];
