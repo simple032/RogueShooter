@@ -1,0 +1,5 @@
+LOCKED=v0.4.2-LOCK
+DATE=2026-09-18
+INCLUDES=v0.4.2b+v0.4.2d
+HARDCODE=NO
+PRODUCER=approved_merge_no_hardcode

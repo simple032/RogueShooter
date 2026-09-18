@@ -1,18 +1,25 @@
 using System;
-using UnityEngine;
 
 namespace RogueShooter.Balance
 {
     /// <summary>
     /// Runtime catalog for v0.4.2-LOCK. Gameplay reads these fields instead of literals.
-    /// Source of truth: Assets/Resources/BalanceLock_v042.json
+    /// Source of truth: Assets/StreamingAssets/BalanceLock_v042/ (LOCK CSVs).
     /// </summary>
     [Serializable]
     public class BalanceLockData
     {
         public string lockVersion;
         public string sourceOfTruth;
+        public string intervalComposeSource;
+        public string[] loadedFiles;
+        public string[] gaps;
         public float pSpawn;
+        public int nAltar;
+        public int nChestSlots;
+        public float eBuildAlpha;
+        public float eBuildBeta;
+        public float eBuildGamma;
         public RarityWeight[] chestRarity;
         public RarityWeight[] altarRarity;
         public ClockBand[] clockBands;
@@ -20,10 +27,13 @@ namespace RogueShooter.Balance
         public SegmentMul[] segments;
         public TimeScaleMul[] timeScale;
         public SwitchAnchor[] switchAnchors;
+        public string switchAnchorSource;
         public string[] noSpawnCoreKinds;
         public float noSpawnRadius;
+        public float demoClockScale;
         public float preReadyMidMin;
         public float clearMedianMin;
+        public string shopGoldStatus;
 
         public ClockBand GetClockBand(string id)
         {
@@ -126,7 +136,9 @@ namespace RogueShooter.Balance
     {
         public string id;
         public int count;
+        public float tWaveMinSeconds;
         public float tWaveMidSeconds;
+        public float tWaveMaxSeconds;
     }
 
     [Serializable]
@@ -137,9 +149,12 @@ namespace RogueShooter.Balance
         public float hpMul;
         public float dmgMul;
         public float intervalMul;
+        public float csvCombinedIntervalMul;
         public float baseIntervalSeconds;
         public string timeRef;
         public float expectedEffInterval;
+        public float segmentClockStartMin;
+        public float segmentClockEndMin;
     }
 
     [Serializable]
@@ -185,58 +200,11 @@ namespace RogueShooter.Balance
 
     public static class BalanceLock
     {
-        public const string ResourceName = "BalanceLock_v042";
+        public static BalanceLockData Current { get; set; }
 
-        public static BalanceLockData Current { get; private set; }
-
-        public static bool TryLoadFromResources(out BalanceLockData data, out string error)
+        public static bool TryLoadFromStreamingAssets(out BalanceLockData data, out string error)
         {
-            TextAsset asset = Resources.Load<TextAsset>(ResourceName);
-            if (asset == null)
-            {
-                data = null;
-                error = "Missing Resources/" + ResourceName + ".json (v0.4.2-LOCK source of truth)";
-                return false;
-            }
-
-            return TryLoad(asset.text, out data, out error);
-        }
-
-        public static bool TryLoad(string json, out BalanceLockData data, out string error)
-        {
-            data = null;
-            error = null;
-            if (string.IsNullOrEmpty(json))
-            {
-                error = "Balance lock JSON is empty";
-                return false;
-            }
-
-            try
-            {
-                data = JsonUtility.FromJson<BalanceLockData>(json);
-            }
-            catch (Exception e)
-            {
-                error = "Failed to parse balance lock JSON: " + e.Message;
-                return false;
-            }
-
-            if (data == null)
-            {
-                error = "Balance lock JSON parsed to null";
-                return false;
-            }
-
-            error = Validate(data);
-            if (error != null)
-            {
-                data = null;
-                return false;
-            }
-
-            Current = data;
-            return true;
+            return BalanceLockLoader.TryLoad(out data, out error);
         }
 
         public static string Validate(BalanceLockData data)

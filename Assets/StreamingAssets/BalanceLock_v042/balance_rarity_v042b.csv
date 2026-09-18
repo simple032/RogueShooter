@@ -1,0 +1,11 @@
+source,rarity,weight,rarityScore,tag_bias,note
+chest,C,0.82,1,生存/机动/经济,策划同库双权重
+chest,R,0.15,2,生存/机动/经济,
+chest,E,0.03,4,生存/机动/经济,
+altar,C,0.70,1,输出/战斗,
+altar,R,0.22,2,输出/战斗,
+altar,E,0.08,4,输出/战斗,
+META,Legendary_optional,weight_chest=0.00/altar=0.00,score=7,首版可不启用
+META,E_rs_chest,1.24,
+META,E_rs_altar,1.46,
+META,no_identical_weights,1,箱≠祭坛权重

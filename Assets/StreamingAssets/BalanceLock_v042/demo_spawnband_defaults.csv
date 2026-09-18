@@ -1,0 +1,4 @@
+key,value,status,note
+no_spawn_radius,2.5,DEMO_STUB,not in LOCK CSVs; core radius for Hub/Altar/Chest/Shop/Pre skip
+no_spawn_kinds,Hub|Altar|Chest|Shop|Pre,DEMO_STUB,SpawnBand milestone cores; plus SpawnViewGate skip-in-view
+demo_clock_scale,20,DEMO_STUB,Play Mode acceleration only; wall clock still minutes from tables

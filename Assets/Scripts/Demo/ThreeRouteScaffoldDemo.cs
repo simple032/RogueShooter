@@ -18,7 +18,8 @@ namespace RogueShooter.Demo
     {
         [SerializeField] float orthographicSize = 2.5f;
         [SerializeField] float moveSpeed = 10f;
-        [SerializeField] float demoClockScale = 20f;
+        [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
+        [SerializeField] float demoClockScaleOverride = 0f;
 
         BalanceLockData _lock;
         SpawnBandClock _clock;
@@ -31,7 +32,7 @@ namespace RogueShooter.Demo
 
         IEnumerator Start()
         {
-            if (!BalanceLock.TryLoadFromResources(out _lock, out string error))
+            if (!BalanceLock.TryLoadFromStreamingAssets(out _lock, out string error))
             {
                 _status = "FAIL " + error;
                 Debug.LogError("[ThreeRouteScaffold] " + _status);
@@ -70,6 +71,9 @@ namespace RogueShooter.Demo
         void LogLock()
         {
             Debug.Log($"[BalanceLock] loaded {_lock.lockVersion} from {_lock.sourceOfTruth}");
+            Debug.Log($"[BalanceLock] files={string.Join(",", _lock.loadedFiles ?? new string[0])}");
+            Debug.Log($"[BalanceLock] P_spawn={_lock.pSpawn:0.00} n_altar={_lock.nAltar} n_chest={_lock.nChestSlots} " +
+                      $"E[B] α={_lock.eBuildAlpha:0.0} β={_lock.eBuildBeta:0.0} γ={_lock.eBuildGamma:0.0}");
             Debug.Log($"[BalanceLock] P_spawn={_lock.pSpawn:0.00} " +
                       $"chest={_lock.RarityWeight(_lock.chestRarity, "C"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "R"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "E"):0.00} " +
                       $"altar={_lock.RarityWeight(_lock.altarRarity, "C"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "R"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "E"):0.00}");
@@ -82,15 +86,15 @@ namespace RogueShooter.Demo
                 float eff = BalanceMath.ComposeSpawnInterval(seg, time);
                 WaveSpec wave = _lock.GetWave(ids[i]);
                 ClockBand clock = _lock.GetClockBand(ids[i]);
-                Debug.Log($"[BalanceLock] {ids[i]} clock {clock.startMin:0}–{clock.endMin:0}′ waves×{wave.count} t_wave={wave.tWaveMidSeconds:0} " +
-                          $"HP×{seg.hpMul} DMG×{seg.dmgMul} interval×{seg.intervalMul} " +
+                Debug.Log($"[BalanceLock] {ids[i]} clock {clock.startMin:0.##}–{clock.endMin:0.##}′ waves×{wave.count} t_wave={wave.tWaveMidSeconds:0} " +
+                          $"HP×{seg.hpMul} DMG×{seg.dmgMul} interval×{seg.intervalMul} csvCombinedInt×{seg.csvCombinedIntervalMul} " +
                           $"eff={eff:0.00}s (base {seg.baseIntervalSeconds} × seg {seg.intervalMul} × {time.id} {time.spawnIntervalMul})");
             }
 
-            for (int i = 0; i < _lock.timeScale.Length; i++)
+            if (_lock.gaps != null)
             {
-                TimeScaleMul t = _lock.timeScale[i];
-                Debug.Log($"[BalanceLock] {t.id} {t.tStartMin:0}–{t.tEndMin:0}′ attr×{t.enemyAttrMul} interval×{t.spawnIntervalMul}");
+                for (int i = 0; i < _lock.gaps.Length; i++)
+                    Debug.Log("[BalanceLock][GAP] " + _lock.gaps[i]);
             }
         }
 
@@ -189,7 +193,8 @@ namespace RogueShooter.Demo
 
             _director = gameObject.AddComponent<SpawnBandDirector>();
             _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab);
-            _clock.Bind(_lock, demoClockScale);
+            float clockScale = demoClockScaleOverride > 0.01f ? demoClockScaleOverride : _lock.demoClockScale;
+            _clock.Bind(_lock, clockScale);
 
             _demoAnchors = new[]
             {
@@ -279,14 +284,32 @@ namespace RogueShooter.Demo
                 && !_director.WasSpawned("Demo_NearCore_C01");
             bool corridorSpawn = _demoAnchors != null && _director.WasSpawned("Demo_Corridor_Z1");
 
+            bool csvOk = _lock != null && _lock.loadedFiles != null;
+            if (csvOk)
+            {
+                for (int i = 0; i < BalanceLockLoader.RequiredCsvs.Length; i++)
+                {
+                    bool found = false;
+                    for (int j = 0; j < _lock.loadedFiles.Length; j++)
+                    {
+                        if (_lock.loadedFiles[j] == BalanceLockLoader.RequiredCsvs[i])
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    csvOk &= found;
+                }
+            }
+
             SegmentMul z1 = _lock.GetSegment("Z1");
             TimeScaleMul t0 = _lock.GetTimeScale("T0");
             float z1Eff = BalanceMath.ComposeSpawnInterval(z1, t0);
 
-            _pass = idsOk && configOk && viewOk && inViewSkip && coreSkip && corridorSpawn && z1Eff > 4.5f && z1Eff < 4.9f;
+            _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && corridorSpawn && z1Eff > 4.5f && z1Eff < 4.9f;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
-            sb.Append($" idsOk={idsOk} view={viewOk} inViewSkip={inViewSkip} coreSkip={coreSkip} corridorSpawn={corridorSpawn} z1Eff={z1Eff:0.00}");
+            sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} coreSkip={coreSkip} corridorSpawn={corridorSpawn} z1Eff={z1Eff:0.00}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
             _status = sb.ToString();
@@ -330,7 +353,7 @@ namespace RogueShooter.Demo
                     $"P_spawn={_lock.pSpawn:0.00}  chest C/R/E=" +
                     $"{_lock.RarityWeight(_lock.chestRarity, "C"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "R"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "E"):0.00}" +
                     $"  altar={_lock.RarityWeight(_lock.altarRarity, "C"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "R"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "E"):0.00}\n" +
-                    $"SoT {_lock.sourceOfTruth}  ortho={orthographicSize}",
+                    $"SoT {_lock.sourceOfTruth}  shop={_lock.shopGoldStatus}  ortho={orthographicSize}",
                     style);
             }
 
@@ -383,7 +406,10 @@ namespace RogueShooter.Demo
                 "  Z2_End_gamma@A6前\n" +
                 "  Z3_End@Pre entrance\n\n" +
                 "Cores: Hub / Altar / Chest / Shop / Pre\n" +
-                "+ SpawnViewGate skip-in-view",
+                "+ SpawnViewGate skip-in-view\n\n" +
+                "SoT: StreamingAssets/BalanceLock_v042/\n" +
+                "GAP: shop gold prices (stub file)\n" +
+                "DEMO_STUB: no_spawn_radius / clock×",
                 style);
         }
 

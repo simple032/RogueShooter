@@ -1,0 +1,6 @@
+segment,waves,t_wave_min_s,t_wave_mid_s,t_wave_max_s,note
+S1,1,22,28,35,关卡并轨中位28；旧35-45作容差上限
+S2,2,28,35,45,中位35；容差上限50
+S3,2,32,40,50,中位40；S3>S1；容差上限55
+META,accept,S3_avg>S1_avg,
+META,waves,Z1x1_Z2x2_Z3x2,接迷宫草案

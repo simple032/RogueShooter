@@ -1,0 +1,13 @@
+route,metric,value,note
+ALL,topology,v0.4.1,连通不改；不扩箱槽
+ALL,n_altar,3,必出
+ALL,n_chest_slots,6,共享3+独占3
+ALL,P_spawn,0.90,策划区间0.70-0.90上限以保E≥8
+ALL,open_rate,1.0,找到即开（正常局）
+ALL,E_build_alpha,8.4,
+ALL,E_build_beta,8.8,含Reveal≈0.4
+ALL,E_build_gamma,8.4,
+ALL,full_clear_cap,9,β+Reveal=10；单路期望中心≈8.5非10
+ALL,accept_E,[8,12],
+ALL,P_B_lt8_approx,0.07-0.11,P_spawn=0.90时
+ALL,note_conflict,P≤0.85则E易<8；若要坚持p≈0.80须扩槽或放宽下限

@@ -1,0 +1,8 @@
+key,value,status,note
+file_status,MISSING_FROM_LOCK_PACK,GAP,PM listed balance_shop_gold_locked.csv; not present in jianhai_lock042.tgz
+shop_in_build,0,FROM_SISTER_TABLE,balance_power_boss_v042b.csv shop_in_power=0; 商店不计 Build
+gold_price_C,,GAP,do not invent — wait for locked shop gold table
+gold_price_R,,GAP,do not invent
+gold_price_E,,GAP,do not invent
+reroll_cost,,GAP,do not invent
+starter_gold,,GAP,do not invent

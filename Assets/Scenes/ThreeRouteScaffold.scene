@@ -281,4 +281,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   orthographicSize: 2.5
   moveSpeed: 10
-  demoClockScale: 20
+  demoClockScaleOverride: 0
