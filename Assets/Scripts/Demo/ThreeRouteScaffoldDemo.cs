@@ -298,9 +298,7 @@ namespace RogueShooter.Demo
             tm.characterSize = 0.18f;
             tm.fontSize = 24;
             tm.color = Color.white;
-            Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            if (font != null)
-                tm.font = font;
+            BuiltinUiFont.Apply(tm);
         }
 
         static SpawnAnchor MakeDemoAnchor(string id, Vector3 pos, Color color, Transform parent)

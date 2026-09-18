@@ -142,9 +142,7 @@ namespace RogueShooter.Ai
             _label.characterSize = 0.14f;
             _label.fontSize = 24;
             _label.color = Color.white;
-            Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            if (font != null)
-                _label.font = font;
+            BuiltinUiFont.Apply(_label);
         }
 
         void ApplyVisual()
