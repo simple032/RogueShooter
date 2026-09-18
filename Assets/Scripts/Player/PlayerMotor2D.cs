@@ -16,6 +16,8 @@ namespace RogueShooter.Player
 
         void Update()
         {
+            if (RunPause.IsPaused)
+                return;
             Vector2 input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             if (input.sqrMagnitude > 1f)
                 input.Normalize();

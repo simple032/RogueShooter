@@ -1,0 +1,9 @@
+source,tag,bias,note
+chest,survival,1.00,LOCK chest survival/mobility/economy
+chest,mobility,0.80,
+chest,economy,0.80,
+chest,damage,0.22,
+altar,damage,1.00,LOCK altar damage/combat
+altar,survival,0.28,
+altar,mobility,0.40,
+altar,economy,0.22,

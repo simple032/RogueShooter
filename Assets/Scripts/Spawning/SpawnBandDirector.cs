@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using RogueShooter.Ai;
 using RogueShooter.Balance;
 
 namespace RogueShooter.Spawning
@@ -19,6 +20,7 @@ namespace RogueShooter.Spawning
         BalanceLockData _lock;
         SpawnBandClock _clock;
         GameObject _stubPrefab;
+        Transform _player;
         Slot[] _slots = System.Array.Empty<Slot>();
         readonly HashSet<string> _spawned = new HashSet<string>();
         readonly List<string> _log = new List<string>();
@@ -27,12 +29,13 @@ namespace RogueShooter.Spawning
         public IReadOnlyCollection<string> SpawnedIds => _spawned;
         public IReadOnlyList<string> RecentLog => _log;
 
-        public void Bind(BalanceLockData data, SpawnBandClock clock, Slot[] slots, GameObject stubPrefab)
+        public void Bind(BalanceLockData data, SpawnBandClock clock, Slot[] slots, GameObject stubPrefab, Transform player)
         {
             _lock = data;
             _clock = clock;
             _slots = slots ?? System.Array.Empty<Slot>();
             _stubPrefab = stubPrefab;
+            _player = player;
             _timer = 0f;
             if (_clock != null)
             {
@@ -150,7 +153,6 @@ namespace RogueShooter.Spawning
             {
                 GameObject stub = Instantiate(_stubPrefab, pos, Quaternion.identity);
                 stub.name = "Stub_" + id;
-                stub.SetActive(true);
                 SegmentMul seg = _lock != null ? _lock.GetSegment(band) : null;
                 TimeScaleMul time = _lock != null && _clock != null
                     ? _lock.TimeScaleAtMinutes(_clock.WallMinutes)
@@ -162,6 +164,11 @@ namespace RogueShooter.Spawning
                 var sr = stub.GetComponent<SpriteRenderer>();
                 if (sr != null)
                     sr.color = BandColor(band);
+                stub.SetActive(true);
+                var ai = stub.GetComponent<MobFourStateAi>();
+                if (ai == null)
+                    ai = stub.AddComponent<MobFourStateAi>();
+                ai.Configure(_lock, _player);
             }
 
             return true;

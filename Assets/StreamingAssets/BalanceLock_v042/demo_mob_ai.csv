@@ -1,0 +1,9 @@
+key,value,status,note
+detect_radius,5.5,LOCK_DEFAULT,GDD detect; wide variants later
+disengage_mul,1.6,LOCK_DEFAULT,disengage = detect × mul
+alert_seconds,0.40,DEMO_STUB,Alert dwell before Chase
+patrol_speed,1.35,DEMO_STUB
+chase_speed,3.60,DEMO_STUB
+disengage_speed,2.40,DEMO_STUB
+patrol_radius,1.80,DEMO_STUB
+strike_range,1.85,DEMO_STUB,player F melee stub

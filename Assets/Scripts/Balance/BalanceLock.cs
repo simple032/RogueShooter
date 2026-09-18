@@ -39,7 +39,25 @@ namespace RogueShooter.Balance
         public float shopInheritRate;
         public float shopInheritCap;
         public int shopBuildFromShop;
+        public int shopInPower;
         public float pathPreReadySeconds;
+        public string powerFormula;
+        public float powerBuildCoef;
+        public float powerRarityCoef;
+        public RewardDef[] rewardPool;
+        public TagBias[] rewardTagBias;
+        public float interactRange;
+        public int offerCount;
+        public float mobDetectRadius;
+        public float mobDisengageMul;
+        public float mobAlertSeconds;
+        public float mobPatrolSpeed;
+        public float mobChaseSpeed;
+        public float mobDisengageSpeed;
+        public float mobPatrolRadius;
+        public float strikeRange;
+        public int shopStubPrice;
+        public int shopStartGold;
 
         public ClockBand GetClockBand(string id)
         {
@@ -106,6 +124,41 @@ namespace RogueShooter.Balance
             return 0f;
         }
 
+        public int ScoreForRarity(string rarity)
+        {
+            int s = ScoreIn(chestRarity, rarity);
+            if (s != 0)
+                return s;
+            return ScoreIn(altarRarity, rarity);
+        }
+
+        public float TagBiasFor(string source, string tag)
+        {
+            if (rewardTagBias == null || string.IsNullOrEmpty(tag))
+                return 1f;
+            for (int i = 0; i < rewardTagBias.Length; i++)
+            {
+                TagBias b = rewardTagBias[i];
+                if (b != null && b.source == source && b.tag == tag)
+                    return b.bias;
+            }
+
+            return 1f;
+        }
+
+        static int ScoreIn(RarityWeight[] table, string rarity)
+        {
+            if (table == null)
+                return 0;
+            for (int i = 0; i < table.Length; i++)
+            {
+                if (table[i] != null && table[i].rarity == rarity)
+                    return table[i].score;
+            }
+
+            return 0;
+        }
+
         public string ShopGoldValue(string key)
         {
             return FindKv(shopGold, key);
@@ -158,6 +211,22 @@ namespace RogueShooter.Balance
         public string rarity;
         public float weight;
         public int score;
+    }
+
+    [Serializable]
+    public class RewardDef
+    {
+        public string id;
+        public string rarity;
+        public string tag;
+    }
+
+    [Serializable]
+    public class TagBias
+    {
+        public string source;
+        public string tag;
+        public float bias;
     }
 
     [Serializable]
@@ -233,6 +302,11 @@ namespace RogueShooter.Balance
                 return 1f;
             return segment.dmgMul * time.enemyAttrMul;
         }
+
+        public static float Power(int buildCount, int rarityScore, float buildCoef, float rarityCoef)
+        {
+            return buildCoef * buildCount + rarityCoef * rarityScore;
+        }
     }
 
     public static class BalanceLock
@@ -266,6 +340,8 @@ namespace RogueShooter.Balance
                 return "path clock table missing";
             if (data.noSpawnRadius <= 0f)
                 return "noSpawnRadius must be > 0";
+            if (data.powerBuildCoef <= 0f || data.powerRarityCoef <= 0f)
+                return "power coefficients must be > 0";
 
             string[] ids = { "Z1", "Z2", "Z3" };
             for (int i = 0; i < ids.Length; i++)

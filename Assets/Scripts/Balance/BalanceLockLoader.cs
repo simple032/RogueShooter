@@ -88,7 +88,9 @@ namespace RogueShooter.Balance
             ApplyAnchors(files["balance_segment_enemy_v042b.csv"], data);
             ApplyPathClock(files["balance_path_clock_v042d.csv"], data);
             ApplyShopGold(files["balance_shop_gold_locked.csv"], data, gaps);
+            ApplyPower(files["balance_power_boss_v042b.csv"], data);
             ApplyDemoDefaults(defaults, data, gaps);
+            ApplyOptionalDemoTables(dir, data, loaded, gaps);
 
             data.loadedFiles = loaded.ToArray();
             data.gaps = gaps.ToArray();
@@ -347,6 +349,157 @@ namespace RogueShooter.Balance
                 if (table.Get(table.Rows[i], "status") == "DEMO_STUB")
                     gaps.Add("DEMO_STUB " + table.Get(table.Rows[i], "key") + "=" + table.Get(table.Rows[i], "value"));
             }
+        }
+
+        static void ApplyPower(CsvTable table, BalanceLockData data)
+        {
+            data.powerFormula = table.Kv("Power");
+            data.shopInPower = CsvTable.ToInt(table.Kv("shop_in_power"));
+            data.powerBuildCoef = 0.45f;
+            data.powerRarityCoef = 0.55f;
+            ParsePowerCoefs(data.powerFormula, data);
+        }
+
+        static void ParsePowerCoefs(string formula, BalanceLockData data)
+        {
+            if (string.IsNullOrEmpty(formula))
+                return;
+            string f = formula.Replace(" ", "").Replace("×", "*").Replace("·", "*");
+            int iBuild = IndexOfIgnore(f, "*buildCount");
+            int iRs = IndexOfIgnore(f, "*rarityScore");
+            if (iBuild > 0)
+            {
+                string left = f.Substring(0, iBuild);
+                int plus = left.LastIndexOf('+');
+                string raw = plus >= 0 ? left.Substring(plus + 1) : left;
+                data.powerBuildCoef = CsvTable.ToFloat(raw, data.powerBuildCoef);
+            }
+
+            if (iRs > 0)
+            {
+                string left = f.Substring(0, iRs);
+                int plus = left.LastIndexOf('+');
+                string raw = plus >= 0 ? left.Substring(plus + 1) : left;
+                data.powerRarityCoef = CsvTable.ToFloat(raw, data.powerRarityCoef);
+            }
+        }
+
+        static int IndexOfIgnore(string s, string token)
+        {
+            return s.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static void ApplyOptionalDemoTables(string dir, BalanceLockData data, List<string> loaded, List<string> gaps)
+        {
+            CsvTable pool = TryRead(dir, "demo_reward_pool.csv", loaded);
+            CsvTable bias = TryRead(dir, "demo_reward_tag_bias.csv", loaded);
+            CsvTable interact = TryRead(dir, "demo_interact.csv", loaded);
+            CsvTable ai = TryRead(dir, "demo_mob_ai.csv", loaded);
+
+            var rewards = new List<RewardDef>();
+            if (pool != null)
+            {
+                foreach (string[] row in pool.DataRows())
+                {
+                    string id = pool.Get(row, "id");
+                    if (string.IsNullOrEmpty(id))
+                        continue;
+                    rewards.Add(new RewardDef
+                    {
+                        id = id,
+                        rarity = pool.Get(row, "rarity"),
+                        tag = pool.Get(row, "tag")
+                    });
+                }
+            }
+
+            if (rewards.Count == 0)
+            {
+                gaps.Add("GAP demo_reward_pool.csv missing/empty; using built-in stub pool");
+                rewards.Add(new RewardDef { id = "VIT_C", rarity = "C", tag = "survival" });
+                rewards.Add(new RewardDef { id = "GOLD_C", rarity = "C", tag = "economy" });
+                rewards.Add(new RewardDef { id = "DMG_C", rarity = "C", tag = "damage" });
+                rewards.Add(new RewardDef { id = "VIT_R", rarity = "R", tag = "survival" });
+                rewards.Add(new RewardDef { id = "DMG_R", rarity = "R", tag = "damage" });
+                rewards.Add(new RewardDef { id = "DMG_E", rarity = "E", tag = "damage" });
+            }
+
+            data.rewardPool = rewards.ToArray();
+
+            var biases = new List<TagBias>();
+            if (bias != null)
+            {
+                foreach (string[] row in bias.DataRows())
+                {
+                    biases.Add(new TagBias
+                    {
+                        source = bias.Get(row, "source"),
+                        tag = bias.Get(row, "tag"),
+                        bias = CsvTable.ToFloat(bias.Get(row, "bias"), 1f)
+                    });
+                }
+            }
+
+            data.rewardTagBias = biases.ToArray();
+
+            data.interactRange = 1.7f;
+            data.offerCount = 3;
+            if (interact != null)
+            {
+                data.interactRange = CsvTable.ToFloat(interact.Kv("interact_range"), 1.7f);
+                data.offerCount = CsvTable.ToInt(interact.Kv("offer_count"), 3);
+                string priceKey = interact.Kv("shop_price_key");
+                string goldKey = interact.Kv("start_gold_key");
+                if (!string.IsNullOrEmpty(priceKey))
+                    data.shopStubPrice = CsvTable.ToInt(data.ShopGoldValue(priceKey));
+                if (!string.IsNullOrEmpty(goldKey))
+                    data.shopStartGold = CsvTable.ToInt(data.ShopGoldValue(goldKey));
+                NoteDemoStubs(interact, gaps);
+            }
+
+            if (data.shopStubPrice <= 0)
+                data.shopStubPrice = 25;
+            if (data.shopStartGold <= 0)
+                data.shopStartGold = 55;
+
+            data.mobDetectRadius = 5.5f;
+            data.mobDisengageMul = 1.6f;
+            data.mobAlertSeconds = 0.4f;
+            data.mobPatrolSpeed = 1.35f;
+            data.mobChaseSpeed = 3.6f;
+            data.mobDisengageSpeed = 2.4f;
+            data.mobPatrolRadius = 1.8f;
+            data.strikeRange = 1.85f;
+            if (ai != null)
+            {
+                data.mobDetectRadius = CsvTable.ToFloat(ai.Kv("detect_radius"), data.mobDetectRadius);
+                data.mobDisengageMul = CsvTable.ToFloat(ai.Kv("disengage_mul"), data.mobDisengageMul);
+                data.mobAlertSeconds = CsvTable.ToFloat(ai.Kv("alert_seconds"), data.mobAlertSeconds);
+                data.mobPatrolSpeed = CsvTable.ToFloat(ai.Kv("patrol_speed"), data.mobPatrolSpeed);
+                data.mobChaseSpeed = CsvTable.ToFloat(ai.Kv("chase_speed"), data.mobChaseSpeed);
+                data.mobDisengageSpeed = CsvTable.ToFloat(ai.Kv("disengage_speed"), data.mobDisengageSpeed);
+                data.mobPatrolRadius = CsvTable.ToFloat(ai.Kv("patrol_radius"), data.mobPatrolRadius);
+                data.strikeRange = CsvTable.ToFloat(ai.Kv("strike_range"), data.strikeRange);
+                NoteDemoStubs(ai, gaps);
+            }
+        }
+
+        static void NoteDemoStubs(CsvTable table, List<string> gaps)
+        {
+            for (int i = 0; i < table.Rows.Count; i++)
+            {
+                if (table.Get(table.Rows[i], "status") == "DEMO_STUB")
+                    gaps.Add("DEMO_STUB " + table.Get(table.Rows[i], "key") + "=" + table.Get(table.Rows[i], "value"));
+            }
+        }
+
+        static CsvTable TryRead(string dir, string name, List<string> loaded)
+        {
+            string path = Path.Combine(dir, name);
+            if (!File.Exists(path))
+                return null;
+            loaded.Add(name);
+            return CsvTable.Parse(File.ReadAllText(path));
         }
 
         static string[] FindZone(CsvTable table, string id)

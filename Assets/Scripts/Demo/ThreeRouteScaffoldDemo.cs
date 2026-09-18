@@ -1,8 +1,12 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using RogueShooter.Ai;
+using RogueShooter.Art;
 using RogueShooter.Balance;
+using RogueShooter.Build;
 using RogueShooter.Layout;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
@@ -24,6 +28,8 @@ namespace RogueShooter.Demo
         BalanceLockData _lock;
         SpawnBandClock _clock;
         SpawnBandDirector _director;
+        ChestAltarDirector _buildDir;
+        Transform _player;
         CameraViewService _view;
         readonly Dictionary<string, GameObject> _markers = new Dictionary<string, GameObject>();
         SpawnAnchor[] _demoAnchors;
@@ -50,6 +56,8 @@ namespace RogueShooter.Demo
         {
             if (_clock == null)
                 return;
+            if (_buildDir != null && _buildDir.Offering)
+                return;
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
                 _clock.JumpToBand("Z1");
             if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
@@ -66,6 +74,14 @@ namespace RogueShooter.Demo
                 _clock.SetClockScale(Mathf.Max(1f, _clock.ClockScale - 5f));
             if (Input.GetKeyDown(KeyCode.R))
                 _clock.ResetClock();
+            if (Input.GetKeyDown(KeyCode.F1))
+                TeleportTo("Chest_01");
+            if (Input.GetKeyDown(KeyCode.F2))
+                TeleportTo("A_Shared");
+            if (Input.GetKeyDown(KeyCode.F3))
+                TeleportTo("Shop_01");
+            if (Input.GetKeyDown(KeyCode.F4))
+                TeleportToNearestMob();
         }
 
         void LogLock()
@@ -93,6 +109,8 @@ namespace RogueShooter.Demo
 
             Debug.Log($"[BalanceLock] shop gold LOADED inherit={_lock.shopInheritRate:0.00} cap={_lock.shopInheritCap:0} build_from_shop={_lock.shopBuildFromShop} " +
                       $"arrive_p50={_lock.ShopGoldValue("arrive_shop_p50")} shelf={_lock.ShopGoldValue("shelf_roll")} path Pre_ready={_lock.pathPreReadySeconds:0}s");
+            Debug.Log($"[BalanceLock] Power {_lock.powerBuildCoef:0.00}*B+{_lock.powerRarityCoef:0.00}*RS formula={_lock.powerFormula} shop_in_power={_lock.shopInPower} " +
+                      $"pool={(_lock.rewardPool != null ? _lock.rewardPool.Length : 0)} detect={_lock.mobDetectRadius:0.0} disengage×{_lock.mobDisengageMul:0.0}");
             if (_lock.gaps != null)
             {
                 for (int i = 0; i < _lock.gaps.Length; i++)
@@ -103,38 +121,45 @@ namespace RogueShooter.Demo
         void BuildWorld()
         {
             Transform root = transform;
-            Color room = new Color(0.16f, 0.155f, 0.15f);
+            var siteRuntimes = new List<SiteRuntime>();
+            Color room = new Color(0.102f, 0.114f, 0.141f);
             for (int i = 0; i < LockSiteCatalog.Rooms.Length; i++)
             {
                 RoomDef r = LockSiteCatalog.Rooms[i];
                 Vector3 c = new Vector3(r.Center.x, r.Center.y, 1.1f);
-                DemoPrimitives.Quad("Room_" + r.Id, c, r.Size, room, 0, root);
+                GameObject floorGo = DemoPrimitives.Quad("Room_" + r.Id, c, r.Size, room, 0, root);
+                JianHaiBind.SetLayer(floorGo, JianHaiArtCatalog.LayerGround, 0);
             }
 
-            Color floor = new Color(0.18f, 0.175f, 0.17f);
+            Color floor = new Color(0.165f, 0.188f, 0.220f);
             for (int i = 0; i < LockSiteCatalog.Corridors.Length; i++)
             {
                 CorridorDef c = LockSiteCatalog.Corridors[i];
                 if (!LockSiteCatalog.TryGet(c.FromId, out SiteDef from) || !LockSiteCatalog.TryGet(c.ToId, out SiteDef to))
                     continue;
-                DemoPrimitives.Corridor(
+                GameObject cor = DemoPrimitives.Corridor(
                     "Corridor_" + c.FromId + "_" + c.ToId,
                     from.Position, to.Position,
                     LockSiteCatalog.CorridorWidth, floor, 1, root);
+                JianHaiBind.SetLayer(cor, JianHaiArtCatalog.LayerGround, 1);
             }
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {
                 SiteDef site = LockSiteCatalog.Sites[i];
                 Vector3 pos = new Vector3(site.Position.x, site.Position.y, 0f);
-                float size = site.Kind == SiteKind.Switch ? 0.42f : 0.7f;
-                GameObject marker = DemoPrimitives.Quad(
-                    site.Id, pos, new Vector2(size, size),
-                    LockSiteCatalog.ColorFor(site.Kind), 4, root);
+                GameObject marker = SpawnSiteMarker(site, pos, root);
                 _markers[site.Id] = marker;
 
                 if (site.IsNoSpawnCore)
                     marker.AddComponent<NoSpawnCore>().Configure(site.Id, site.Kind.ToString(), site.NoSpawnRadius);
+
+                if (site.Kind == SiteKind.Chest || site.Kind == SiteKind.Altar || site.Kind == SiteKind.Shop)
+                {
+                    var runtime = marker.AddComponent<SiteRuntime>();
+                    runtime.Configure(site, site.Kind != SiteKind.Chest);
+                    siteRuntimes.Add(runtime);
+                }
 
                 AddWorldLabel(marker, site.Id, LabelOffset(site));
             }
@@ -145,9 +170,10 @@ namespace RogueShooter.Demo
 
             GameObject player = new GameObject("Player");
             player.transform.position = startPos;
-            DemoPrimitives.AddSprite(player, new Color(0.95f, 0.84f, 0.28f), 8);
-            player.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
+            JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
             player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
+            player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
+            _player = player.transform;
 
             Camera cam = Camera.main;
             if (cam == null)
@@ -179,8 +205,7 @@ namespace RogueShooter.Demo
             GameObject stubPrefab = new GameObject("StubEnemyPrefab");
             stubPrefab.transform.SetParent(root, false);
             stubPrefab.SetActive(false);
-            DemoPrimitives.AddSprite(stubPrefab, new Color(0.86f, 0.28f, 0.24f), 6);
-            stubPrefab.transform.localScale = new Vector3(0.85f, 0.85f, 1f);
+            JianHaiBind.ApplyTo(stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             stubPrefab.AddComponent<StubEnemy>();
 
             var slots = new List<SpawnBandDirector.Slot>();
@@ -201,9 +226,12 @@ namespace RogueShooter.Demo
             }
 
             _director = gameObject.AddComponent<SpawnBandDirector>();
-            _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab);
+            _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab, _player);
             float clockScale = demoClockScaleOverride > 0.01f ? demoClockScaleOverride : _lock.demoClockScale;
             _clock.Bind(_lock, clockScale);
+
+            _buildDir = gameObject.AddComponent<ChestAltarDirector>();
+            _buildDir.Bind(_lock, _player, siteRuntimes, Environment.TickCount);
 
             _demoAnchors = new[]
             {
@@ -217,12 +245,44 @@ namespace RogueShooter.Demo
             Debug.Log("[ThreeRouteScaffold] HOOKS β: A1 DE01 Chest_07 Chest_08 A5 DE03 Chest_09 Anchor_S2_End_β");
             Debug.Log("[ThreeRouteScaffold] HOOKS γ: A4 Chest_10 Room_γCombat Chest_11 A6 Chest_12 Anchor_S2_End_γ");
             Debug.Log("[ThreeRouteScaffold] HOOKS Pre: PreBoss Shop_01 Chest_03 Anchor_S3_End BOSS");
+            Debug.Log("[JianHaiArt] PPU=" + JianHaiArtCatalog.Ppu + " filter=" + JianHaiArtCatalog.Filter
+                      + " Chest_*→" + JianHaiArtCatalog.ChestRoot + "_* A_*→" + JianHaiArtCatalog.AltarRoot
+                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot);
+        }
+
+        static GameObject SpawnSiteMarker(SiteDef site, Vector3 pos, Transform parent)
+        {
+            string root = JianHaiArtCatalog.ArtRootForHook(site.Id);
+            if (site.Kind == SiteKind.Chest || site.Kind == SiteKind.Altar || site.Kind == SiteKind.Shop
+                || site.Kind == SiteKind.Boss)
+            {
+                string artId = JianHaiArtCatalog.SpriteName(root, JianHaiArtCatalog.DefaultState(site.Kind));
+                if (site.Kind == SiteKind.Boss)
+                    artId = JianHaiArtCatalog.BossIdle;
+                GameObject go = JianHaiBind.Spawn(site.Id, pos, artId, parent);
+                if (!string.IsNullOrEmpty(root) && site.Kind != SiteKind.Boss)
+                    JianHaiSpriteSlot.Add(go, site);
+                return go;
+            }
+
+            float size = site.Kind == SiteKind.Switch ? 0.42f : 0.7f;
+            GameObject marker = DemoPrimitives.Quad(
+                site.Id, pos, new Vector2(size, size),
+                LockSiteCatalog.ColorFor(site.Kind), 4, parent);
+            string layer = site.Kind == SiteKind.DeadEnd || site.Kind == SiteKind.Switch
+                ? JianHaiArtCatalog.LayerDecal
+                : JianHaiArtCatalog.LayerProp;
+            JianHaiBind.SetLayer(marker, layer, 4);
+            return marker;
         }
 
         static Vector3 LabelOffset(SiteDef site)
         {
             if (site.Id == "Chest_02" || site.Id == "Chest_06" || site.Id == "Chest_03")
-                return new Vector3(0.7f, -0.85f, 0f);
+                return new Vector3(0.9f, -1.15f, 0f);
+            if (site.Kind == SiteKind.Chest || site.Kind == SiteKind.Altar || site.Kind == SiteKind.Shop
+                || site.Kind == SiteKind.Boss)
+                return new Vector3(0f, 1.25f, 0f);
             return new Vector3(0f, 0.85f, 0f);
         }
 
@@ -238,9 +298,7 @@ namespace RogueShooter.Demo
             tm.characterSize = 0.18f;
             tm.fontSize = 24;
             tm.color = Color.white;
-            Font font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            if (font != null)
-                tm.font = font;
+            BuiltinUiFont.Apply(tm);
         }
 
         static SpawnAnchor MakeDemoAnchor(string id, Vector3 pos, Color color, Transform parent)
@@ -311,12 +369,31 @@ namespace RogueShooter.Demo
             TimeScaleMul t0 = _lock.GetTimeScale("T0");
             float z1Eff = BalanceMath.ComposeSpawnInterval(z1, t0);
 
-            _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && corridorSpawn && z1Eff > 4.5f && z1Eff < 4.9f;
+            string buildErr = BuildSliceChecks.Run(_lock);
+            string aiErr = MobAiChecks.Run(_lock);
+            bool buildOk = buildErr == null;
+            bool aiOk = aiErr == null;
+            bool altarsOn = _buildDir != null && _buildDir.AltarCount >= 3;
+            bool powerOk = _lock != null
+                && Mathf.Abs(_lock.powerBuildCoef - 0.45f) < 0.001f
+                && Mathf.Abs(_lock.powerRarityCoef - 0.55f) < 0.001f;
+
+            string artErr = JianHaiArtChecks.Run();
+            bool artOk = artErr == null;
+            _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && corridorSpawn
+                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} coreSkip={coreSkip} corridorSpawn={corridorSpawn} z1Eff={z1Eff:0.00}");
+            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
+            if (!buildOk)
+                sb.Append(" buildErr=" + buildErr);
+            if (!aiOk)
+                sb.Append(" aiErr=" + aiErr);
+            if (!artOk)
+                sb.Append(" artErr=" + artErr);
             _status = sb.ToString();
             if (_pass)
                 Debug.Log("[ThreeRouteScaffold] " + _status);
@@ -324,17 +401,56 @@ namespace RogueShooter.Demo
                 Debug.LogError("[ThreeRouteScaffold] " + _status);
         }
 
+        void TeleportTo(string id)
+        {
+            if (_player == null || !LockSiteCatalog.TryGet(id, out SiteDef site))
+                return;
+            _player.position = new Vector3(site.Position.x, site.Position.y, 0f);
+            Debug.Log("[Teleport] " + id + " " + site.Position);
+        }
+
+        void TeleportToNearestMob()
+        {
+            if (_player == null)
+                return;
+            MobFourStateAi best = null;
+            float bestD = float.MaxValue;
+            IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                MobFourStateAi m = all[i];
+                if (m == null)
+                    continue;
+                float d = Vector2.Distance(_player.position, m.transform.position);
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = m;
+                }
+            }
+
+            if (best == null)
+            {
+                Debug.Log("[Teleport] no stub mob yet — wait for SpawnBand or walk corridor");
+                return;
+            }
+
+            Vector3 p = best.transform.position;
+            _player.position = p + new Vector3(0.8f, 0f, 0f);
+            Debug.Log("[Teleport] near " + best.name + " state=" + best.State);
+        }
+
         void OnGUI()
         {
             const int pad = 8;
-            int w = 560;
-            int h = 250;
+            int w = 580;
+            int h = 360;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             var title = new GUIStyle(style) { fontSize = 15, fontStyle = FontStyle.Bold };
             var rich = new GUIStyle(style) { richText = true };
 
-            GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 20), "三路脚手架 / Spawn bands  v0.4.2-LOCK", title);
+            GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 20), "三路脚手架 · Build + 四态AI  v0.4.2-LOCK", title);
 
             string band = _clock != null ? _clock.BandId : "?";
             float mins = _clock != null ? _clock.WallMinutes : 0f;
@@ -342,48 +458,72 @@ namespace RogueShooter.Demo
             SegmentMul seg = _lock != null ? _lock.GetSegment(band) : null;
             TimeScaleMul time = _lock != null ? _lock.TimeScaleAtMinutes(mins) : null;
             WaveSpec wave = _lock != null ? _lock.GetWave(band) : null;
+            string hp = seg != null ? seg.hpMul.ToString("0.000") : "-";
+            string dmg = seg != null ? seg.dmgMul.ToString("0.000") : "-";
+            string timeId = time != null ? time.id : "-";
+            int waveN = wave != null ? wave.count : 0;
 
-            GUI.Label(new Rect(pad + 8, pad + 26, w - 16, 70),
-                $"WASD move · 1/2/3 band · 4=Pre · Space pause · +/- clock · R reset\n" +
-                $"band={band}  wall={mins:0.00}′  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}\n" +
-                $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{(_clock != null ? _clock.WaveCount : 0)}  t_wave mid={(wave != null ? wave.tWaveMidSeconds : 0f):0}s  " +
-                $"eff interval={interval:0.00}s\n" +
-                $"HP×{(seg != null ? seg.hpMul : 0f):0.000}  DMG×{(seg != null ? seg.dmgMul : 0f):0.000}  " +
-                $"time { (time != null ? time.id : "-") } attr×{(time != null ? time.enemyAttrMul : 0f):0.00} int×{(time != null ? time.spawnIntervalMul : 0f):0.00}",
+            GUI.Label(new Rect(pad + 8, pad + 24, w - 16, 54),
+                $"WASD · E interact · F strike · N new run · F1 Chest_01 · F2 A_Shared · F3 Shop · F4 mob\n" +
+                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset\n" +
+                $"band={band}  wall={mins:0.00}′  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
+                $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  eff={interval:0.00}s  HP×{hp} DMG×{dmg} time={timeId}",
                 style);
 
             if (_lock != null)
             {
-                GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 34),
+                GUI.Label(new Rect(pad + 8, pad + 80, w - 16, 36),
                     $"P_spawn={_lock.pSpawn:0.00}  chest C/R/E=" +
                     $"{_lock.RarityWeight(_lock.chestRarity, "C"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "R"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "E"):0.00}" +
                     $"  altar={_lock.RarityWeight(_lock.altarRarity, "C"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "R"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "E"):0.00}\n" +
-                    $"SoT {_lock.sourceOfTruth}  shop={_lock.shopGoldStatus} inherit={_lock.shopInheritRate:0.00} build_from_shop={_lock.shopBuildFromShop}  ortho={orthographicSize}",
+                    $"Power {_lock.powerBuildCoef:0.00}*B+{_lock.powerRarityCoef:0.00}*RS  detect={_lock.mobDetectRadius:0.0} disengage×{_lock.mobDisengageMul:0.0}  shop price={_lock.shopStubPrice} gold0={_lock.shopStartGold}",
                     style);
             }
 
+            if (_buildDir != null && _buildDir.Build != null)
+            {
+                GUI.Label(new Rect(pad + 8, pad + 118, w - 16, 50),
+                    _buildDir.SummaryLine() + "\n" +
+                    $"chests {_buildDir.ChestPresentCount}/{_buildDir.ChestSlotCount} seed={_buildDir.Seed} empty={_buildDir.EmptyLine()}\n" +
+                    $"altars {_buildDir.AltarCount}/{_buildDir.AltarCount} always present  " +
+                    (_buildDir.Nearest != null ? _buildDir.Nearest.Prompt() : "walk to Chest/Altar/Shop then E"),
+                    style);
+            }
+
+            string flash = _buildDir != null ? _buildDir.FlashMessage() : "";
             string status = _pass
                 ? "<color=#88ff88>" + _status + "</color>"
                 : "<color=#ffcc88>" + _status + "</color>";
-            GUI.Label(new Rect(pad + 8, pad + 138, w - 16, 36), status, rich);
+            GUI.Label(new Rect(pad + 8, pad + 170, w - 16, 40), status, rich);
+            if (!string.IsNullOrEmpty(flash))
+                GUI.Label(new Rect(pad + 8, pad + 208, w - 16, 18), flash, style);
 
-            if (_demoAnchors != null && _view != null)
-            {
-                float y = pad + 176;
-                for (int i = 0; i < _demoAnchors.Length; i++)
-                {
-                    SpawnAnchor a = _demoAnchors[i];
-                    bool inView = _view.IsInCameraView(a.WorldPosition);
-                    bool spawned = _director != null && _director.WasSpawned(a.AnchorId);
-                    GUI.Label(new Rect(pad + 8, y, w - 16, 16),
-                        $"{a.AnchorId}  {(inView ? "IN VIEW" : "OUT")}  {(spawned ? "SPAWNED" : "not spawned")}",
-                        style);
-                    y += 16;
-                }
-            }
+            DrawMobStates(pad + 8, pad + 228, w - 16, style);
 
             DrawIdPanel();
             DrawViewBorder();
+            if (_buildDir != null)
+                _buildDir.DrawOfferGui();
+        }
+
+        static void DrawMobStates(int x, int y, int w, GUIStyle style)
+        {
+            IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
+            int shown = 0;
+            for (int i = 0; i < all.Count && shown < 5; i++)
+            {
+                MobFourStateAi m = all[i];
+                if (m == null)
+                    continue;
+                GUI.Label(new Rect(x, y, w, 16),
+                    m.DisplayName + "  " + m.State + "  dist=" + m.DistToPlayer.ToString("0.0"),
+                    style);
+                y += 16;
+                shown++;
+            }
+
+            if (shown == 0)
+                GUI.Label(new Rect(x, y, w, 16), "mobs: (none yet — SpawnBand stubs get Patrol/Alert/Chase/Disengage)", style);
         }
 
         void DrawIdPanel()
@@ -412,8 +552,10 @@ namespace RogueShooter.Demo
                 "  Anchor_S3_End @ Pre north\n\n" +
                 "Cores: HOOKS radii (START4 Hub3.5 A2.5 C2 Shop3 Pre4)\n" +
                 "+ SpawnViewGate skip-in-view\n" +
-                "SoT CSVs + HOOKS_v041_LOCKED.md\n" +
-                "DEMO_STUB: clock× only",
+                "Chests P_spawn=0.90 · Altars 100%\n" +
+                "Shop never increments B/RS\n" +
+                "AI: Patrol→Alert→Chase→Disengage\n" +
+                "Art PPU32 Point: Chest_*→jh_prop_chest_*",
                 style);
         }
 
