@@ -4,8 +4,8 @@ using RogueShooter.Vision;
 namespace RogueShooter.Spawning
 {
     /// <summary>
-    /// GDD §7: skip spawn when the anchor is inside the main orthographic camera view rect.
-    /// Reusable for later Chest_*, DeadEnd_*, Shop_01, A1..A4, BOSS — do not bake map topology here.
+    /// GDD §7: skip spawn when the world position is inside the main orthographic camera view rect.
+    /// Position-only — no path topology, anchor-id table, or per-path Build counters.
     /// </summary>
     public static class SpawnViewGate
     {

@@ -8,7 +8,8 @@ using RogueShooter.Vision;
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// Generic corridor + north stub for limited-vision / spawn-skip. Not the locked α/β map.
+    /// Generic test corridor for limited vision + spawn-skip-in-view.
+    /// Layout is not the campaign map (path count / anchor IDs still TBD).
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
@@ -35,26 +36,19 @@ namespace RogueShooter.Demo
         {
             Transform root = transform;
 
-            DemoPrimitives.Quad("Floor_Hall", new Vector3(0f, 0f, 1f), new Vector2(64f, 8f),
+            DemoPrimitives.Quad("Floor_Corridor", new Vector3(0f, 0f, 1f), new Vector2(64f, 8f),
                 new Color(0.20f, 0.19f, 0.18f), 0, root);
-            DemoPrimitives.Quad("Floor_NorthStub", new Vector3(0f, 12f, 1f), new Vector2(8f, 16f),
-                new Color(0.17f, 0.20f, 0.18f), 0, root);
 
             Color wall = new Color(0.07f, 0.08f, 0.09f);
-            DemoPrimitives.Quad("Wall_HallN", new Vector3(0f, 4.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_HallS", new Vector3(0f, -4.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_HallW", new Vector3(-32.35f, 0f, 1f), new Vector2(0.7f, 9f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_HallE", new Vector3(32.35f, 0f, 1f), new Vector2(0.7f, 9f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_StubW", new Vector3(-4.35f, 12.5f, 1f), new Vector2(0.7f, 15f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_StubE", new Vector3(4.35f, 12.5f, 1f), new Vector2(0.7f, 15f), wall, 1, root);
-            DemoPrimitives.Quad("Wall_StubN", new Vector3(0f, 20.35f, 1f), new Vector2(9f, 0.7f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_N", new Vector3(0f, 4.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_S", new Vector3(0f, -4.35f, 1f), new Vector2(64f, 0.7f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_W", new Vector3(-32.35f, 0f, 1f), new Vector2(0.7f, 9f), wall, 1, root);
+            DemoPrimitives.Quad("Wall_E", new Vector3(32.35f, 0f, 1f), new Vector2(0.7f, 9f), wall, 1, root);
 
             DemoPrimitives.Quad("Marker_West", new Vector3(-30f, 0f, 0f), new Vector2(1.4f, 1.4f),
                 new Color(0.85f, 0.25f, 0.75f), 2, root);
             DemoPrimitives.Quad("Marker_East", new Vector3(30f, 0f, 0f), new Vector2(1.4f, 1.4f),
                 new Color(0.25f, 0.85f, 0.40f), 2, root);
-            DemoPrimitives.Quad("Marker_North", new Vector3(0f, 18.5f, 0f), new Vector2(1.4f, 1.4f),
-                new Color(0.95f, 0.55f, 0.15f), 2, root);
 
             GameObject player = new GameObject("Player");
             player.transform.position = Vector3.zero;
@@ -93,7 +87,6 @@ namespace RogueShooter.Demo
                 MakeAnchor("Demo_Near", new Vector3(2.2f, 0f, 0f), new Color(0.35f, 0.75f, 1f), root),
                 MakeAnchor("Demo_East", new Vector3(24f, 0f, 0f), new Color(1f, 0.82f, 0.25f), root),
                 MakeAnchor("Demo_West", new Vector3(-24f, 0f, 0f), new Color(1f, 0.82f, 0.25f), root),
-                MakeAnchor("Demo_NorthFork", new Vector3(0f, 16f, 0f), new Color(1f, 0.82f, 0.25f), root),
             };
 
             GameObject stubPrefab = new GameObject("StubEnemyPrefab");
@@ -154,7 +147,7 @@ namespace RogueShooter.Demo
         {
             const int pad = 10;
             int w = 520;
-            int h = 210;
+            int h = 192;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 13 };
             var title = new GUIStyle(style) { fontSize = 16, fontStyle = FontStyle.Bold };

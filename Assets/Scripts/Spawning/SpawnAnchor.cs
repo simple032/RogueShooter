@@ -3,7 +3,8 @@ using UnityEngine;
 namespace RogueShooter.Spawning
 {
     /// <summary>
-    /// Named world-space spawn point. Ids are data (Chest_01, A3, BOSS, …) — not a baked map graph.
+    /// Named world-space spawn point. <see cref="AnchorId"/> is an opaque string
+    /// (campaign IDs are not frozen). This type does not encode path layout.
     /// </summary>
     public class SpawnAnchor : MonoBehaviour
     {

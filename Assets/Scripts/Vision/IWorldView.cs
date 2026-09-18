@@ -3,8 +3,8 @@ using UnityEngine;
 namespace RogueShooter.Vision
 {
     /// <summary>
-    /// Shared limited-vision query used by camera follow and later spawners.
-    /// Fog / explored mask is out of scope (GDD M1d Should).
+    /// Shared limited-vision query. World-space only; callers may later key
+    /// anchors/paths however they want. Fog / explored mask is out of scope.
     /// </summary>
     public interface IWorldView
     {
