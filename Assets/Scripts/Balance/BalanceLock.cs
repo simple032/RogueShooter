@@ -34,6 +34,12 @@ namespace RogueShooter.Balance
         public float preReadyMidMin;
         public float clearMedianMin;
         public string shopGoldStatus;
+        public LockKv[] shopGold;
+        public LockKv[] pathClock;
+        public float shopInheritRate;
+        public float shopInheritCap;
+        public int shopBuildFromShop;
+        public float pathPreReadySeconds;
 
         public ClockBand GetClockBand(string id)
         {
@@ -100,6 +106,29 @@ namespace RogueShooter.Balance
             return 0f;
         }
 
+        public string ShopGoldValue(string key)
+        {
+            return FindKv(shopGold, key);
+        }
+
+        public string PathClockValue(string key)
+        {
+            return FindKv(pathClock, key);
+        }
+
+        static string FindKv(LockKv[] rows, string key)
+        {
+            if (rows == null || string.IsNullOrEmpty(key))
+                return "";
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (rows[i] != null && rows[i].key == key)
+                    return rows[i].value ?? "";
+            }
+
+            return "";
+        }
+
         static T Find<T>(T[] items, string id, Func<T, string> getId) where T : class
         {
             if (items == null || string.IsNullOrEmpty(id))
@@ -113,6 +142,14 @@ namespace RogueShooter.Balance
 
             return null;
         }
+    }
+
+    [Serializable]
+    public class LockKv
+    {
+        public string key;
+        public string value;
+        public string note;
     }
 
     [Serializable]
@@ -223,6 +260,10 @@ namespace RogueShooter.Balance
                 return "waves need Z1/Z2/Z3";
             if (data.clockBands == null || data.clockBands.Length < 3)
                 return "clockBands need Z1/Z2/Z3";
+            if (data.shopGold == null || data.shopGold.Length < 8)
+                return "shop gold table missing";
+            if (data.pathClock == null || data.pathClock.Length < 3)
+                return "path clock table missing";
             if (data.noSpawnRadius <= 0f)
                 return "noSpawnRadius must be > 0";
 

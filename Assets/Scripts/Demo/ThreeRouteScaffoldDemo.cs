@@ -91,6 +91,8 @@ namespace RogueShooter.Demo
                           $"eff={eff:0.00}s (base {seg.baseIntervalSeconds} × seg {seg.intervalMul} × {time.id} {time.spawnIntervalMul})");
             }
 
+            Debug.Log($"[BalanceLock] shop gold LOADED inherit={_lock.shopInheritRate:0.00} cap={_lock.shopInheritCap:0} build_from_shop={_lock.shopBuildFromShop} " +
+                      $"arrive_p50={_lock.ShopGoldValue("arrive_shop_p50")} shelf={_lock.ShopGoldValue("shelf_roll")} path Pre_ready={_lock.pathPreReadySeconds:0}s");
             if (_lock.gaps != null)
             {
                 for (int i = 0; i < _lock.gaps.Length; i++)
@@ -353,7 +355,7 @@ namespace RogueShooter.Demo
                     $"P_spawn={_lock.pSpawn:0.00}  chest C/R/E=" +
                     $"{_lock.RarityWeight(_lock.chestRarity, "C"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "R"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "E"):0.00}" +
                     $"  altar={_lock.RarityWeight(_lock.altarRarity, "C"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "R"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "E"):0.00}\n" +
-                    $"SoT {_lock.sourceOfTruth}  shop={_lock.shopGoldStatus}  ortho={orthographicSize}",
+                    $"SoT {_lock.sourceOfTruth}  shop={_lock.shopGoldStatus} inherit={_lock.shopInheritRate:0.00} build_from_shop={_lock.shopBuildFromShop}  ortho={orthographicSize}",
                     style);
             }
 
@@ -408,7 +410,7 @@ namespace RogueShooter.Demo
                 "Cores: Hub / Altar / Chest / Shop / Pre\n" +
                 "+ SpawnViewGate skip-in-view\n\n" +
                 "SoT: StreamingAssets/BalanceLock_v042/\n" +
-                "GAP: shop gold prices (stub file)\n" +
+                "shop gold: LOADED (drop bands 假设 in table)\n" +
                 "DEMO_STUB: no_spawn_radius / clock×",
                 style);
         }

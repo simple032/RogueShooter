@@ -86,6 +86,7 @@ namespace RogueShooter.Balance
                 gaps);
             ApplyClockBands(data, gaps);
             ApplyAnchors(files["balance_segment_enemy_v042b.csv"], data);
+            ApplyPathClock(files["balance_path_clock_v042d.csv"], data);
             ApplyShopGold(files["balance_shop_gold_locked.csv"], data, gaps);
             ApplyDemoDefaults(defaults, data, gaps);
 
@@ -273,21 +274,54 @@ namespace RogueShooter.Balance
             data.switchAnchorSource = string.IsNullOrEmpty(raw) ? "demo ids" : raw;
         }
 
-        static void ApplyShopGold(CsvTable table, BalanceLockData data, List<string> gaps)
+        static void ApplyPathClock(CsvTable table, BalanceLockData data)
         {
-            data.shopGoldStatus = table.Kv("file_status");
-            if (string.IsNullOrEmpty(data.shopGoldStatus))
-                data.shopGoldStatus = "LOADED";
-            if (data.shopGoldStatus == "MISSING_FROM_LOCK_PACK" || table.Kv("status") == "GAP")
-                gaps.Add("balance_shop_gold_locked.csv: pack file missing — stub only; gold prices not invented");
-
+            var rows = new List<LockKv>();
             foreach (string[] row in table.Rows)
             {
-                string status = table.Get(row, "status");
-                string key = table.Get(row, "key");
-                if (status == "GAP" && key != "file_status")
-                    gaps.Add("shop gold " + key + " empty (not invented)");
+                string leg = table.Get(row, "leg");
+                if (string.IsNullOrEmpty(leg) || leg.Equals("META", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                string mid = table.Get(row, "dur_mid_s");
+                string max = table.Get(row, "dur_max_s");
+                string min = table.Get(row, "dur_min_s");
+                string value = !string.IsNullOrEmpty(mid) ? mid : (!string.IsNullOrEmpty(max) ? max : min);
+                rows.Add(new LockKv
+                {
+                    key = leg,
+                    value = value,
+                    note = table.Get(row, "note")
+                });
             }
+
+            data.pathClock = rows.ToArray();
+            data.pathPreReadySeconds = CsvTable.ToFloat(data.PathClockValue("Pre_ready_target"));
+        }
+
+        static void ApplyShopGold(CsvTable table, BalanceLockData data, List<string> gaps)
+        {
+            var rows = new List<LockKv>();
+            foreach (string[] row in table.DataRows())
+            {
+                string key = table.Get(row, "key");
+                if (string.IsNullOrEmpty(key))
+                    continue;
+                var kv = new LockKv
+                {
+                    key = key,
+                    value = table.Get(row, "value"),
+                    note = table.Get(row, "note")
+                };
+                rows.Add(kv);
+                if (!string.IsNullOrEmpty(kv.note) && kv.note.IndexOf("假设", StringComparison.Ordinal) >= 0)
+                    gaps.Add("NOTE shop gold " + key + " labeled 假设 in LOCK table (value=" + kv.value + ")");
+            }
+
+            data.shopGold = rows.ToArray();
+            data.shopGoldStatus = "LOADED";
+            data.shopInheritRate = CsvTable.ToFloat(data.ShopGoldValue("inherit_rate"));
+            data.shopInheritCap = CsvTable.ToFloat(data.ShopGoldValue("inherit_cap"));
+            data.shopBuildFromShop = CsvTable.ToInt(data.ShopGoldValue("build_from_shop"));
         }
 
         static void ApplyDemoDefaults(CsvTable table, BalanceLockData data, List<string> gaps)

@@ -1,8 +1,18 @@
-key,value,status,note
-file_status,MISSING_FROM_LOCK_PACK,GAP,PM listed balance_shop_gold_locked.csv; not present in jianhai_lock042.tgz
-shop_in_build,0,FROM_SISTER_TABLE,balance_power_boss_v042b.csv shop_in_power=0; 商店不计 Build
-gold_price_C,,GAP,do not invent — wait for locked shop gold table
-gold_price_R,,GAP,do not invent
-gold_price_E,,GAP,do not invent
-reroll_cost,,GAP,do not invent
-starter_gold,,GAP,do not invent
+key,value,note
+drop_outer_min,2,假设·待试玩
+drop_outer_max,3,
+drop_mid_min,4,
+drop_mid_max,6,
+drop_inner_min,7,
+drop_inner_max,10,
+inherit_rate,0.30,GDD锁
+inherit_cap,40,GDD锁
+empty_soft_min,8,
+empty_soft_max,15,
+arrive_shop_p50,55,
+arrive_shop_p80,95,
+tier_low,25,
+tier_mid,45,
+tier_high,70,
+shelf_roll,2/2/1,低/中/高
+build_from_shop,0,硬规则
