@@ -1,0 +1,74 @@
+{
+  "lockVersion": "v0.4.2-LOCK",
+  "sourceOfTruth": "Assets/Resources/BalanceLock_v042.json",
+  "pSpawn": 0.9,
+  "chestRarity": [
+    { "rarity": "C", "weight": 0.82, "score": 1 },
+    { "rarity": "R", "weight": 0.15, "score": 2 },
+    { "rarity": "E", "weight": 0.03, "score": 4 }
+  ],
+  "altarRarity": [
+    { "rarity": "C", "weight": 0.70, "score": 1 },
+    { "rarity": "R", "weight": 0.22, "score": 2 },
+    { "rarity": "E", "weight": 0.08, "score": 4 }
+  ],
+  "clockBands": [
+    { "id": "Z1", "startMin": 0.0, "endMin": 3.0 },
+    { "id": "Z2", "startMin": 3.0, "endMin": 6.0 },
+    { "id": "Z3", "startMin": 6.0, "endMin": 8.0 }
+  ],
+  "waves": [
+    { "id": "Z1", "count": 1, "tWaveMidSeconds": 28.0 },
+    { "id": "Z2", "count": 2, "tWaveMidSeconds": 35.0 },
+    { "id": "Z3", "count": 2, "tWaveMidSeconds": 40.0 }
+  ],
+  "segments": [
+    {
+      "id": "Z1",
+      "eBuildMid": 3.0,
+      "hpMul": 1.165,
+      "dmgMul": 1.135,
+      "intervalMul": 0.95,
+      "baseIntervalSeconds": 5.0,
+      "timeRef": "T0",
+      "expectedEffInterval": 4.75
+    },
+    {
+      "id": "Z2",
+      "eBuildMid": 6.0,
+      "hpMul": 1.330,
+      "dmgMul": 1.270,
+      "intervalMul": 0.90,
+      "baseIntervalSeconds": 4.3,
+      "timeRef": "T1",
+      "expectedEffInterval": 3.56
+    },
+    {
+      "id": "Z3",
+      "eBuildMid": 8.5,
+      "hpMul": 1.468,
+      "dmgMul": 1.383,
+      "intervalMul": 0.85,
+      "baseIntervalSeconds": 4.0,
+      "timeRef": "T2",
+      "expectedEffInterval": 2.72
+    }
+  ],
+  "timeScale": [
+    { "id": "T0", "tStartMin": 0.0, "tEndMin": 3.0, "enemyAttrMul": 1.00, "spawnIntervalMul": 1.00 },
+    { "id": "T1", "tStartMin": 3.0, "tEndMin": 6.0, "enemyAttrMul": 1.15, "spawnIntervalMul": 0.92 },
+    { "id": "T2", "tStartMin": 6.0, "tEndMin": 9.0, "enemyAttrMul": 1.35, "spawnIntervalMul": 0.80 },
+    { "id": "T3", "tStartMin": 9.0, "tEndMin": 999.0, "enemyAttrMul": 1.55, "spawnIntervalMul": 0.65 }
+  ],
+  "switchAnchors": [
+    { "id": "Z1_End", "at": "HubA" },
+    { "id": "Z2_End", "at": "HubB" },
+    { "id": "Z2_End_beta", "at": "A5前" },
+    { "id": "Z2_End_gamma", "at": "A6前" },
+    { "id": "Z3_End", "at": "Pre entrance" }
+  ],
+  "noSpawnCoreKinds": [ "Hub", "Altar", "Chest", "Shop", "Pre" ],
+  "noSpawnRadius": 2.5,
+  "preReadyMidMin": 8.0,
+  "clearMedianMin": 10.0
+}
