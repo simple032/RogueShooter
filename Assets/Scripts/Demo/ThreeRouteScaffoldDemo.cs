@@ -173,6 +173,7 @@ namespace RogueShooter.Demo
             JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
             player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
+            player.AddComponent<PlayerCharge>();
             _player = player.transform;
 
             Camera cam = Camera.main;
@@ -470,7 +471,7 @@ namespace RogueShooter.Demo
 
             GUI.Label(new Rect(pad + 8, pad + 24, w - 16, 54),
                 $"WASD · E interact · F strike · N new run · F1 Chest_01 · F2 A_Shared · F3 Shop · F4 mob\n" +
-                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset\n" +
+                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力FX(无条)\n" +
                 $"band={band}  wall={mins:0.00}′  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
                 $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  eff={interval:0.00}s  HP×{hp} DMG×{dmg} time={timeId}",
                 style);

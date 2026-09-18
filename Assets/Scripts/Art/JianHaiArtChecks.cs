@@ -33,6 +33,15 @@ namespace RogueShooter.Art
                 return "A2 map";
             if (JianHaiArtCatalog.SpriteNameForHook("Shop_01", "") != "jh_prop_shop_01")
                 return "Shop_01 map";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.FxStringGlow) != "FX")
+                return "fx folder";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxStringGlow)
+                != "Assets/Art/JianHai/FX/jh_fx_charge_string_glow.png")
+                return "fx path";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ReticleChargeIdle) != "UI")
+                return "reticle folder";
+            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
+                return "fx layer";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

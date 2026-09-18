@@ -38,6 +38,16 @@ namespace RogueShooter.Art
         public const string EnemyE1Idle = "jh_enemy_e1_skel_idle";
         public const string BossIdle = "jh_boss_lord_idle";
 
+        public const string FxStringGlow = "jh_fx_charge_string_glow";
+        public const string FxStringPulse = "jh_fx_charge_string_glow_pulse";
+        public const string FxStringCold = "jh_fx_charge_string_glow_cold";
+        public const string FxBowEdge = "jh_fx_charge_bow_edge";
+        public const string FxTipWarm = "jh_fx_charge_arrow_tip";
+        public const string FxTipIdle = "jh_fx_charge_arrow_tip_idle";
+        public const string FxCritFlash = "jh_fx_crit_flash";
+        public const string ReticleChargeIdle = "jh_ui_reticle_charge_idle";
+        public const string ReticleChargeGreen = "jh_ui_reticle_charge_green";
+
         public static readonly Vector2Like PivotPlayer = new Vector2Like(0.5f, 0.15f);
         public static readonly Vector2Like PivotBoss = new Vector2Like(0.5f, 0.12f);
         public static readonly Vector2Like PivotProp = new Vector2Like(0.5f, 0.2f);
@@ -102,6 +112,8 @@ namespace RogueShooter.Art
                 return "Boss";
             if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
                 return "Props";
+            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return "FX";
             if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
                 return "UI";
             return "Tiles";
@@ -154,6 +166,8 @@ namespace RogueShooter.Art
                 return PivotProp;
             if (artId.StartsWith("jh_boss_", StringComparison.Ordinal))
                 return PivotBoss;
+            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return PivotTile;
             if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
                 || artId.StartsWith("jh_enemy_", StringComparison.Ordinal))
                 return PivotPlayer;
@@ -191,15 +205,41 @@ namespace RogueShooter.Art
                 width = 32;
                 height = 64;
             }
+            else if (artId.StartsWith("jh_fx_charge_bow_edge", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 8;
+            }
+            else if (artId.StartsWith("jh_fx_charge_string_glow_cold", StringComparison.Ordinal))
+            {
+                width = 12;
+                height = 12;
+            }
+            else if (artId.StartsWith("jh_fx_crit_flash", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 32;
+            }
+            else if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+            {
+                width = 16;
+                height = 16;
+            }
             else if (artId.StartsWith("jh_ui_bar_", StringComparison.Ordinal))
             {
                 width = 128;
                 height = 16;
             }
-            else if (artId.StartsWith("jh_ui_badge_", StringComparison.Ordinal))
+            else if (artId.StartsWith("jh_ui_reticle_charge", StringComparison.Ordinal)
+                     || artId.StartsWith("jh_ui_badge_", StringComparison.Ordinal))
             {
                 width = 48;
                 height = 48;
+            }
+            else if (artId.StartsWith("jh_ui_reticle_", StringComparison.Ordinal))
+            {
+                width = 12;
+                height = 12;
             }
             else if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
             {
