@@ -20,7 +20,7 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = 2.5f;
+        [SerializeField] float orthographicSize = 2.5f; // HOOKS lock; occupancy via JianHaiBind scale, not 2.7–3.5
         [SerializeField] float moveSpeed = 10f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
         [SerializeField] float demoClockScaleOverride = 0f;
@@ -247,7 +247,10 @@ namespace RogueShooter.Demo
             Debug.Log("[ThreeRouteScaffold] HOOKS Pre: PreBoss Shop_01 Chest_03 Anchor_S3_End BOSS");
             Debug.Log("[JianHaiArt] PPU=" + JianHaiArtCatalog.Ppu + " filter=" + JianHaiArtCatalog.Filter
                       + " Chest_*→" + JianHaiArtCatalog.ChestRoot + "_* A_*→" + JianHaiArtCatalog.AltarRoot
-                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot);
+                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot
+                      + " entityScale=" + JianHaiArtCatalog.EntityStubWorldScale
+                      + " propScale=" + JianHaiArtCatalog.PropStubWorldScale
+                      + " orthoLock=" + orthographicSize);
         }
 
         static GameObject SpawnSiteMarker(SiteDef site, Vector3 pos, Transform parent)
@@ -337,7 +340,9 @@ namespace RogueShooter.Demo
                 if (!_markers.ContainsKey(id)) missing.Add("marker:" + id);
             bool idsOk = missing.Count == 0;
             bool configOk = _lock != null;
-            bool viewOk = _view != null && Mathf.Abs(_view.OrthographicSize - orthographicSize) < 0.01f;
+            bool viewOk = _view != null
+                && Mathf.Abs(orthographicSize - 2.5f) < 0.01f
+                && Mathf.Abs(_view.OrthographicSize - 2.5f) < 0.01f;
 
             bool inViewSkip = _demoAnchors != null
                 && SpawnViewGate.ShouldSkipSpawn(_demoAnchors[0].WorldPosition)

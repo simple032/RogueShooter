@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Text;
 using UnityEngine;
+using RogueShooter.Art;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
@@ -13,7 +14,7 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
-        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer.")]
+        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 2.5; stub occupancy is JianHaiBind scale.")]
         [SerializeField] float orthographicSize = 2.5f;
         [SerializeField] float moveSpeed = 7f;
         [SerializeField] float spawnRetryInterval = 0.35f;
@@ -53,8 +54,7 @@ namespace RogueShooter.Demo
 
             GameObject player = new GameObject("Player");
             player.transform.position = Vector3.zero;
-            DemoPrimitives.AddSprite(player, new Color(0.95f, 0.84f, 0.28f), 8);
-            player.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
+            JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
             player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
 
             Camera cam = Camera.main;
@@ -93,8 +93,7 @@ namespace RogueShooter.Demo
             GameObject stubPrefab = new GameObject("StubEnemyPrefab");
             stubPrefab.transform.SetParent(root, false);
             stubPrefab.SetActive(false);
-            DemoPrimitives.AddSprite(stubPrefab, new Color(0.86f, 0.28f, 0.24f), 6);
-            stubPrefab.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
+            JianHaiBind.ApplyTo(stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             stubPrefab.AddComponent<StubEnemy>();
 
             _spawner = gameObject.AddComponent<AnchorSpawner>();
@@ -124,6 +123,11 @@ namespace RogueShooter.Demo
             bool pass = true;
             var sb = new StringBuilder();
             sb.Append($"view={rect.xMin:F2},{rect.yMin:F2}..{rect.xMax:F2},{rect.yMax:F2} size={orthographicSize}");
+            bool orthoOk = Mathf.Abs(orthographicSize - 2.5f) < 0.01f
+                           && Mathf.Abs(_view.OrthographicSize - 2.5f) < 0.01f;
+            pass &= orthoOk;
+            if (!orthoOk)
+                sb.Append(" orthoFAIL");
 
             for (int i = 0; i < _anchors.Length; i++)
             {

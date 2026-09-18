@@ -14,6 +14,16 @@ namespace RogueShooter.Art
         public const string RootFolder = "Assets/Art/JianHai/";
         public const string Naming = "jh_<cat>_<name>[_action][_dir][_frame]";
 
+        /// <summary>
+        /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
+        /// Shrinks player/E1/BOSS on-screen occupancy at locked ortho 2.5.
+        /// Do not raise CameraViewService ortho (2.7–3.5) to fake this.
+        /// </summary>
+        public const float EntityStubWorldScale = 0.5f;
+
+        /// <summary>Chest / altar / shop: slight shrink, secondary to entities.</summary>
+        public const float PropStubWorldScale = 0.75f;
+
         public const string LayerGround = "Ground";
         public const string LayerDecal = "Decal";
         public const string LayerProp = "Prop";
@@ -102,6 +112,19 @@ namespace RogueShooter.Art
             if (string.IsNullOrEmpty(artId))
                 return "";
             return RootFolder + FolderForArtId(artId) + "/" + artId + ".png";
+        }
+
+        public static float StubWorldScale(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return PropStubWorldScale;
+            if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_enemy_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_boss_", StringComparison.Ordinal))
+                return EntityStubWorldScale;
+            if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
+                return PropStubWorldScale;
+            return 1f;
         }
 
         public static string SortingLayer(string artId)

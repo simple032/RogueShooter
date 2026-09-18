@@ -9,6 +9,20 @@ namespace RogueShooter.Art
         {
             if (JianHaiArtCatalog.Ppu != 32)
                 return "PPU must be 32";
+            if (JianHaiArtCatalog.EntityStubWorldScale != 0.5f)
+                return "entity stub world scale must stay 0.5 (ortho stays 2.5)";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
+                != JianHaiArtCatalog.EntityStubWorldScale)
+                return "player stub scale";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.EnemyE1Idle)
+                != JianHaiArtCatalog.EntityStubWorldScale)
+                return "enemy stub scale";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.BossIdle)
+                != JianHaiArtCatalog.EntityStubWorldScale)
+                return "boss stub scale";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.SpriteNameForHook("Chest_01", "closed"))
+                != JianHaiArtCatalog.PropStubWorldScale)
+                return "chest stub scale";
             if (JianHaiArtCatalog.SpriteNameForHook("Chest_01", "closed") != "jh_prop_chest_closed")
                 return "Chest_* map";
             if (JianHaiArtCatalog.SpriteNameForHook("Chest_12", "open") != "jh_prop_chest_open")
