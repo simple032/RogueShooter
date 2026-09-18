@@ -3,14 +3,14 @@ using UnityEngine;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// A-primary / B-weak charge FX. No charge bar, no crit-window HUD.
+    /// A-primary (string glow / bow edge / warm tip) + B-weak reticle open/close.
+    /// No charge bar, no crit-window HUD. Pulse×2 fits Spec §7.5 green (72–84% of 0.90s).
     /// </summary>
     public class ChargeFxView : MonoBehaviour
     {
         const float ReticleAlpha = 0.6f;
         const float ColdAlpha = 0.55f;
-        const float PulseOn = 0.07f;
-        const float PulseOff = 0.07f;
+        const float ReticleClosed = 0.82f;
         const float CritSeconds = 2f / 30f;
 
         Transform _root;
@@ -53,7 +53,7 @@ namespace RogueShooter.Art
             if (_pulsesLeft > 0 && _pulse != null)
             {
                 _pulsePhase += Time.deltaTime;
-                float slice = _pulseShow ? PulseOn : PulseOff;
+                float slice = PulseSlice();
                 if (_pulsePhase >= slice)
                 {
                     _pulsePhase = 0f;
@@ -81,6 +81,7 @@ namespace RogueShooter.Art
             Show(_string, JianHaiArtCatalog.FxStringCold, 29, new Color(1f, 1f, 1f, ColdAlpha));
             Show(_tip, JianHaiArtCatalog.FxTipIdle, 30, Color.white);
             Show(_reticle, JianHaiArtCatalog.ReticleChargeIdle, 0, new Color(1f, 1f, 1f, ReticleAlpha));
+            SetReticleOpen(false);
             SetActive(_pulse, false);
             SetActive(_bow, false);
             SetActive(_crit, false);
@@ -94,6 +95,7 @@ namespace RogueShooter.Art
             Show(_bow, JianHaiArtCatalog.FxBowEdge, 30, Color.white);
             Show(_tip, JianHaiArtCatalog.FxTipWarm, 30, Color.white);
             Show(_reticle, JianHaiArtCatalog.ReticleChargeGreen, 0, new Color(1f, 1f, 1f, ReticleAlpha));
+            SetReticleOpen(true);
             _pulsesLeft = 2;
             _pulsePhase = 0f;
             _pulseShow = true;
@@ -109,6 +111,7 @@ namespace RogueShooter.Art
             SetActive(_tip, false);
             _pulsesLeft = 0;
             Show(_reticle, JianHaiArtCatalog.ReticleChargeIdle, 0, new Color(1f, 1f, 1f, ReticleAlpha));
+            SetReticleOpen(false);
         }
 
         void OnCritConfirm()
@@ -182,6 +185,19 @@ namespace RogueShooter.Art
                 return;
             sr.enabled = on;
             sr.gameObject.SetActive(on);
+        }
+
+        void SetReticleOpen(bool open)
+        {
+            if (_reticle == null)
+                return;
+            float s = open ? 1f : ReticleClosed;
+            _reticle.transform.localScale = new Vector3(s, s, 1f);
+        }
+
+        static float PulseSlice()
+        {
+            return Mathf.Max(0.016f, ChargeFxHooks.GreenWindowSeconds * 0.25f);
         }
     }
 }

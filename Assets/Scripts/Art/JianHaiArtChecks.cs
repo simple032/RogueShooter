@@ -42,6 +42,10 @@ namespace RogueShooter.Art
                 return "reticle folder";
             if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
                 return "fx layer";
+            if (ChargeFxHooks.ChargeSeconds != 0.90f)
+                return "Spec §7.5 charge 0.90s";
+            if (ChargeFxHooks.GreenEnter != 0.72f || ChargeFxHooks.GreenExit != 0.84f)
+                return "Spec §7.5 green 72–84%";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {
