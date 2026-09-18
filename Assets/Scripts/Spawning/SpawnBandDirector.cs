@@ -63,13 +63,13 @@ namespace RogueShooter.Spawning
             switch (bandId)
             {
                 case "Z2":
-                    return "switch Z1_End@HubA crossed (design); next Z2_End@HubB / β A5前 / γ A6前";
+                    return "switch Anchor_S1_End@HubA north crossed; next Anchor_S2_End_α/β/γ";
                 case "Z3":
-                    return "switch Z2_End@HubB (and β/γ mid) crossed (design); next Z3_End@Pre";
+                    return "switch Anchor_S2_End_* crossed; next Anchor_S3_End@Pre north";
                 case "Pre":
-                    return "switch Z3_End@Pre entrance (design) — no spawn band";
+                    return "switch Anchor_S3_End@Pre north — BOSS 不挂 SpawnBand";
                 default:
-                    return "switch anchors idle until Z1_End@HubA";
+                    return "switch idle until Anchor_S1_End@HubA north";
             }
         }
 

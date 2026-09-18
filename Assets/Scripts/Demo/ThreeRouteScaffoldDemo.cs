@@ -103,6 +103,14 @@ namespace RogueShooter.Demo
         void BuildWorld()
         {
             Transform root = transform;
+            Color room = new Color(0.16f, 0.155f, 0.15f);
+            for (int i = 0; i < LockSiteCatalog.Rooms.Length; i++)
+            {
+                RoomDef r = LockSiteCatalog.Rooms[i];
+                Vector3 c = new Vector3(r.Center.x, r.Center.y, 1.1f);
+                DemoPrimitives.Quad("Room_" + r.Id, c, r.Size, room, 0, root);
+            }
+
             Color floor = new Color(0.18f, 0.175f, 0.17f);
             for (int i = 0; i < LockSiteCatalog.Corridors.Length; i++)
             {
@@ -112,32 +120,31 @@ namespace RogueShooter.Demo
                 DemoPrimitives.Corridor(
                     "Corridor_" + c.FromId + "_" + c.ToId,
                     from.Position, to.Position,
-                    LockSiteCatalog.CorridorWidth, floor, 0, root);
+                    LockSiteCatalog.CorridorWidth, floor, 1, root);
             }
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {
                 SiteDef site = LockSiteCatalog.Sites[i];
                 Vector3 pos = new Vector3(site.Position.x, site.Position.y, 0f);
-                if (site.Kind == SiteKind.Switch)
-                    pos += VisualSwitchOffset(site.Id);
-                else if (site.Id == "C04")
-                    pos += new Vector3(0.55f, 0.55f, 0f);
-
                 float size = site.Kind == SiteKind.Switch ? 0.42f : 0.7f;
                 GameObject marker = DemoPrimitives.Quad(
                     site.Id, pos, new Vector2(size, size),
                     LockSiteCatalog.ColorFor(site.Kind), 4, root);
                 _markers[site.Id] = marker;
 
-                if (LockSiteCatalog.IsNoSpawnKind(site.Kind))
-                    marker.AddComponent<NoSpawnCore>().Configure(site.Id, site.Kind.ToString(), _lock.noSpawnRadius);
+                if (site.IsNoSpawnCore)
+                    marker.AddComponent<NoSpawnCore>().Configure(site.Id, site.Kind.ToString(), site.NoSpawnRadius);
 
-                AddWorldLabel(marker, site.Id);
+                AddWorldLabel(marker, site.Id, LabelOffset(site));
             }
 
+            Vector3 startPos = Vector3.zero;
+            if (LockSiteCatalog.TryGet("START", out SiteDef startSite))
+                startPos = new Vector3(startSite.Position.x, startSite.Position.y, 0f);
+
             GameObject player = new GameObject("Player");
-            player.transform.position = Vector3.zero;
+            player.transform.position = startPos;
             DemoPrimitives.AddSprite(player, new Color(0.95f, 0.84f, 0.28f), 8);
             player.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
             player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
@@ -200,34 +207,30 @@ namespace RogueShooter.Demo
 
             _demoAnchors = new[]
             {
-                MakeDemoAnchor("Demo_InView", new Vector3(0f, 1.2f, 0f), new Color(0.35f, 0.75f, 1f), root),
-                MakeDemoAnchor("Demo_NearCore_C01", new Vector3(12f, 0f, 0f), new Color(1f, 0.45f, 0.2f), root),
-                MakeDemoAnchor("Demo_Corridor_Z1", new Vector3(6.5f, 1.8f, 0f), new Color(1f, 0.82f, 0.25f), root),
+                MakeDemoAnchor("Demo_InView", startPos + new Vector3(0.2f, 0.5f, 0f), new Color(0.35f, 0.75f, 1f), root),
+                MakeDemoAnchor("Demo_NearCore_Chest_01", new Vector3(6f, 11f, 0f), new Color(1f, 0.45f, 0.2f), root),
+                MakeDemoAnchor("Demo_Corridor_Z1", new Vector3(5f, 7.5f, 0f), new Color(1f, 0.82f, 0.25f), root),
             };
 
-            Debug.Log("[ThreeRouteScaffold] IDs Shared: C01 C02 A_Shared C03@PreOnly");
-            Debug.Log("[ThreeRouteScaffold] IDs α: A2 A3 C04 C06 C05 DE02 DE04");
-            Debug.Log("[ThreeRouteScaffold] IDs β: A1 A5 C07 C08 C09 DE01 DE03");
-            Debug.Log("[ThreeRouteScaffold] IDs γ: A4 A6 C10 C11 C12");
-            Debug.Log("[ThreeRouteScaffold] IDs Pre: Shop_01  switches: Z1_End@HubA Z2_End@HubB Z2_End_beta@A5前 Z2_End_gamma@A6前 Z3_End@Pre");
+            Debug.Log("[ThreeRouteScaffold] HOOKS Shared: START Chest_01 Chest_02 A_Shared Chest_03 HubA Anchor_S1_End");
+            Debug.Log("[ThreeRouteScaffold] HOOKS α: A2 Chest_04 HubB Chest_06 DE02 A3 DE04 Chest_05 Anchor_S2_End_α");
+            Debug.Log("[ThreeRouteScaffold] HOOKS β: A1 DE01 Chest_07 Chest_08 A5 DE03 Chest_09 Anchor_S2_End_β");
+            Debug.Log("[ThreeRouteScaffold] HOOKS γ: A4 Chest_10 Room_γCombat Chest_11 A6 Chest_12 Anchor_S2_End_γ");
+            Debug.Log("[ThreeRouteScaffold] HOOKS Pre: PreBoss Shop_01 Chest_03 Anchor_S3_End BOSS");
         }
 
-        static Vector3 VisualSwitchOffset(string id)
+        static Vector3 LabelOffset(SiteDef site)
         {
-            switch (id)
-            {
-                case "Z1_End": return new Vector3(-0.55f, -0.55f, 0f);
-                case "Z2_End": return new Vector3(-0.55f, -0.55f, 0f);
-                case "Z3_End": return new Vector3(-0.55f, -0.55f, 0f);
-                default: return Vector3.zero;
-            }
+            if (site.Id == "Chest_02" || site.Id == "Chest_06" || site.Id == "Chest_03")
+                return new Vector3(0.7f, -0.85f, 0f);
+            return new Vector3(0f, 0.85f, 0f);
         }
 
-        static void AddWorldLabel(GameObject marker, string text)
+        static void AddWorldLabel(GameObject marker, string text, Vector3 localOffset)
         {
             var label = new GameObject("Label_" + text);
             label.transform.SetParent(marker.transform, false);
-            label.transform.localPosition = new Vector3(0f, 0.85f, 0f);
+            label.transform.localPosition = localOffset;
             var tm = label.AddComponent<TextMesh>();
             tm.text = text;
             tm.anchor = TextAnchor.LowerCenter;
@@ -283,7 +286,7 @@ namespace RogueShooter.Demo
                 && !_director.WasSpawned("Demo_InView");
             bool coreSkip = _demoAnchors != null
                 && SpawnCoreGate.IsInsideNoSpawnCore(_demoAnchors[1].WorldPosition)
-                && !_director.WasSpawned("Demo_NearCore_C01");
+                && !_director.WasSpawned("Demo_NearCore_Chest_01");
             bool corridorSpawn = _demoAnchors != null && _director.WasSpawned("Demo_Corridor_Z1");
 
             bool csvOk = _lock != null && _lock.loadedFiles != null;
@@ -394,24 +397,23 @@ namespace RogueShooter.Demo
             GUI.Box(new Rect(x, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             var title = new GUIStyle(style) { fontStyle = FontStyle.Bold };
-            GUI.Label(new Rect(x + 8, pad + 4, w - 16, 18), "Lock IDs (v0.4.1 topology)", title);
+            GUI.Label(new Rect(x + 8, pad + 4, w - 16, 18), "HOOKS v0.4.1 IDs", title);
             GUI.Label(new Rect(x + 8, pad + 24, w - 16, h - 32),
-                "Shared: C01 C02 A_Shared C03@PreOnly\n" +
-                "α: A2 A3 C04 C06 C05 DE02 DE04\n" +
-                "β: A1 A5 C07 C08 C09 DE01 DE03\n" +
-                "γ: A4 A6 C10 C11 C12\n" +
-                "Pre: Shop_01   BOSS stub\n" +
+                "Shared: START Chest_01/02 A_Shared HubA\n" +
+                "α: A2 C04 HubB C06 DE02 A3 DE04 C05\n" +
+                "β: A1 DE01 C07 C08 A5 DE03 C09\n" +
+                "γ: A4 C10 γCombat C11 A6 C12\n" +
+                "Pre: PreBoss C03 Shop_01 BOSS\n" +
                 "Switches:\n" +
-                "  Z1_End@HubA\n" +
-                "  Z2_End@HubB\n" +
-                "  Z2_End_beta@A5前\n" +
-                "  Z2_End_gamma@A6前\n" +
-                "  Z3_End@Pre entrance\n\n" +
-                "Cores: Hub / Altar / Chest / Shop / Pre\n" +
-                "+ SpawnViewGate skip-in-view\n\n" +
-                "SoT: StreamingAssets/BalanceLock_v042/\n" +
-                "shop gold: LOADED (drop bands 假设 in table)\n" +
-                "DEMO_STUB: no_spawn_radius / clock×",
+                "  Anchor_S1_End @ HubA north\n" +
+                "  Anchor_S2_End_α @ HubB north\n" +
+                "  Anchor_S2_End_β @ A5南口前\n" +
+                "  Anchor_S2_End_γ @ A6南口前\n" +
+                "  Anchor_S3_End @ Pre north\n\n" +
+                "Cores: HOOKS radii (START4 Hub3.5 A2.5 C2 Shop3 Pre4)\n" +
+                "+ SpawnViewGate skip-in-view\n" +
+                "SoT CSVs + HOOKS_v041_LOCKED.md\n" +
+                "DEMO_STUB: clock× only",
                 style);
         }
 

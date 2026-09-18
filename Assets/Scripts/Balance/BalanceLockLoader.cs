@@ -262,16 +262,15 @@ namespace RogueShooter.Balance
 
         static void ApplyAnchors(CsvTable segment, BalanceLockData data)
         {
-            string raw = segment.MetaValue("anchors");
             data.switchAnchors = new[]
             {
-                new SwitchAnchor { id = "Z1_End", at = "HubA" },
-                new SwitchAnchor { id = "Z2_End", at = "HubB" },
-                new SwitchAnchor { id = "Z2_End_beta", at = "A5前" },
-                new SwitchAnchor { id = "Z2_End_gamma", at = "A6前" },
-                new SwitchAnchor { id = "Z3_End", at = "Pre entrance" },
+                new SwitchAnchor { id = "Anchor_S1_End", at = "HubA north" },
+                new SwitchAnchor { id = "Anchor_S2_End_α", at = "HubB north" },
+                new SwitchAnchor { id = "Anchor_S2_End_β", at = "A5南口前" },
+                new SwitchAnchor { id = "Anchor_S2_End_γ", at = "A6南口前" },
+                new SwitchAnchor { id = "Anchor_S3_End", at = "Pre north" },
             };
-            data.switchAnchorSource = string.IsNullOrEmpty(raw) ? "demo ids" : raw;
+            data.switchAnchorSource = "HOOKS_v041_LOCKED.md";
         }
 
         static void ApplyPathClock(CsvTable table, BalanceLockData data)
