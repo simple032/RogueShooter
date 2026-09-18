@@ -19,6 +19,7 @@ namespace RogueShooter.Player
 
         void Awake()
         {
+            AimReticle.Ensure();
             _fx = GetComponent<ChargeFxView>();
             if (_fx == null)
                 _fx = gameObject.AddComponent<ChargeFxView>();
@@ -93,6 +94,8 @@ namespace RogueShooter.Player
             }
             else if (_fx != null)
                 _fx.HideAll();
+            if (AimReticle.Instance != null)
+                AimReticle.Instance.ResetChargeB();
             _mid = false;
             _green = false;
             _exited = false;
@@ -107,6 +110,8 @@ namespace RogueShooter.Player
             _exited = false;
             if (_fx != null)
                 _fx.HideAll();
+            if (AimReticle.Instance != null)
+                AimReticle.Instance.ResetChargeB();
         }
     }
 }

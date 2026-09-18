@@ -3,14 +3,13 @@ using UnityEngine;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// A-primary (string glow / bow edge / warm tip) + B-weak reticle open/close.
-    /// No charge bar, no crit-window HUD. Pulse×2 fits Spec §7.5 green (72–84% of 0.90s).
+    /// A-primary charge FX on the bow/player: string glow, bow edge, warm tip, crit flash.
+    /// B reticle lives on <see cref="AimReticle"/> (mouse), never on the player root.
+    /// No charge bar. Pulse×2 fits Spec §7.5 green (72–84% of 0.90s). Visual ≤ 0.8u.
     /// </summary>
     public class ChargeFxView : MonoBehaviour
     {
-        const float ReticleAlpha = 0.6f;
         const float ColdAlpha = 0.55f;
-        const float ReticleClosed = 0.82f;
         const float CritSeconds = 2f / 30f;
 
         Transform _root;
@@ -19,7 +18,6 @@ namespace RogueShooter.Art
         SpriteRenderer _bow;
         SpriteRenderer _tip;
         SpriteRenderer _crit;
-        SpriteRenderer _reticle;
 
         int _pulsesLeft;
         float _pulsePhase;
@@ -80,8 +78,6 @@ namespace RogueShooter.Art
             EnsureSlots();
             Show(_string, JianHaiArtCatalog.FxStringCold, 29, new Color(1f, 1f, 1f, ColdAlpha));
             Show(_tip, JianHaiArtCatalog.FxTipIdle, 30, Color.white);
-            Show(_reticle, JianHaiArtCatalog.ReticleChargeIdle, 0, new Color(1f, 1f, 1f, ReticleAlpha));
-            SetReticleOpen(false);
             SetActive(_pulse, false);
             SetActive(_bow, false);
             SetActive(_crit, false);
@@ -94,8 +90,6 @@ namespace RogueShooter.Art
             Show(_string, JianHaiArtCatalog.FxStringGlow, 30, Color.white);
             Show(_bow, JianHaiArtCatalog.FxBowEdge, 30, Color.white);
             Show(_tip, JianHaiArtCatalog.FxTipWarm, 30, Color.white);
-            Show(_reticle, JianHaiArtCatalog.ReticleChargeGreen, 0, new Color(1f, 1f, 1f, ReticleAlpha));
-            SetReticleOpen(true);
             _pulsesLeft = 2;
             _pulsePhase = 0f;
             _pulseShow = true;
@@ -110,8 +104,6 @@ namespace RogueShooter.Art
             SetActive(_bow, false);
             SetActive(_tip, false);
             _pulsesLeft = 0;
-            Show(_reticle, JianHaiArtCatalog.ReticleChargeIdle, 0, new Color(1f, 1f, 1f, ReticleAlpha));
-            SetReticleOpen(false);
         }
 
         void OnCritConfirm()
@@ -123,7 +115,6 @@ namespace RogueShooter.Art
             SetActive(_pulse, false);
             SetActive(_bow, false);
             SetActive(_tip, false);
-            SetActive(_reticle, false);
             _pulsesLeft = 0;
         }
 
@@ -134,7 +125,6 @@ namespace RogueShooter.Art
             SetActive(_bow, false);
             SetActive(_tip, false);
             SetActive(_crit, false);
-            SetActive(_reticle, false);
             _pulsesLeft = 0;
         }
 
@@ -143,7 +133,7 @@ namespace RogueShooter.Art
             if (_root != null)
                 return;
 
-            var go = new GameObject("ChargeFx");
+            var go = new GameObject("ChargeFxA");
             _root = go.transform;
             _root.SetParent(transform, false);
             _root.localPosition = Vector3.zero;
@@ -156,7 +146,6 @@ namespace RogueShooter.Art
             _bow = MakeSlot("BowEdge", new Vector3(0.04f, 0.50f, -0.02f));
             _tip = MakeSlot("Tip", new Vector3(0.10f, 0.42f, -0.02f));
             _crit = MakeSlot("CritFlash", new Vector3(0f, 0.52f, -0.04f));
-            _reticle = MakeSlot("Reticle", new Vector3(0f, 0.48f, -0.05f));
         }
 
         SpriteRenderer MakeSlot(string name, Vector3 localPos)
@@ -175,6 +164,8 @@ namespace RogueShooter.Art
             JianHaiSprites.Bind(sr, artId);
             sr.sortingOrder = order;
             sr.color = color;
+            float s = JianHaiArtCatalog.VisualScaleForCap(artId);
+            sr.transform.localScale = new Vector3(s, s, 1f);
             sr.enabled = true;
             sr.gameObject.SetActive(true);
         }
@@ -185,14 +176,6 @@ namespace RogueShooter.Art
                 return;
             sr.enabled = on;
             sr.gameObject.SetActive(on);
-        }
-
-        void SetReticleOpen(bool open)
-        {
-            if (_reticle == null)
-                return;
-            float s = open ? 1f : ReticleClosed;
-            _reticle.transform.localScale = new Vector3(s, s, 1f);
         }
 
         static float PulseSlice()

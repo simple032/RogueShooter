@@ -10,7 +10,7 @@ namespace RogueShooter.Art
             if (JianHaiArtCatalog.Ppu != 32)
                 return "PPU must be 32";
             if (JianHaiArtCatalog.EntityStubWorldScale != 0.5f)
-                return "entity stub world scale must stay 0.5 (ortho stays 2.5)";
+                return "entity stub world scale must stay 0.5";
             if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
                 != JianHaiArtCatalog.EntityStubWorldScale)
                 return "player stub scale";
@@ -46,6 +46,15 @@ namespace RogueShooter.Art
                 return "Spec §7.5 charge 0.90s";
             if (ChargeFxHooks.GreenEnter != 0.72f || ChargeFxHooks.GreenExit != 0.84f)
                 return "Spec §7.5 green 72–84%";
+            if (JianHaiArtCatalog.MaxFxWorldUnits != 0.8f)
+                return "QA-UX-002 fx/reticle cap 0.8u";
+            int rw, rh;
+            JianHaiArtCatalog.CanvasForArtId(JianHaiArtCatalog.ReticleChargeIdle, out rw, out rh);
+            int rm = rw > rh ? rw : rh;
+            float reticleWorld = rm / (float)JianHaiArtCatalog.Ppu
+                                 * JianHaiArtCatalog.VisualScaleForCap(JianHaiArtCatalog.ReticleChargeIdle);
+            if (reticleWorld > 0.801f)
+                return "reticle world > 0.8u";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

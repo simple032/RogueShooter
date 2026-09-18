@@ -16,13 +16,16 @@ namespace RogueShooter.Art
 
         /// <summary>
         /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
-        /// Shrinks player/E1/BOSS on-screen occupancy at locked ortho 2.5.
-        /// Do not raise CameraViewService ortho (2.7–3.5) to fake this.
+        /// Shrinks player/E1/BOSS on-screen occupancy; lens is CameraViewService 2.75.
+        /// Do not raise ortho to 3.5 to fake occupancy.
         /// </summary>
         public const float EntityStubWorldScale = 0.5f;
 
         /// <summary>Chest / altar / shop: slight shrink, secondary to entities.</summary>
         public const float PropStubWorldScale = 0.75f;
+
+        /// <summary>QA-UX-002: world reticle / charge FX visual cap (not Canvas).</summary>
+        public const float MaxFxWorldUnits = 0.8f;
 
         public const string LayerGround = "Ground";
         public const string LayerDecal = "Decal";
@@ -137,6 +140,19 @@ namespace RogueShooter.Art
             if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
                 return PropStubWorldScale;
             return 1f;
+        }
+
+        public static float VisualScaleForCap(string artId)
+        {
+            int w, h;
+            CanvasForArtId(artId, out w, out h);
+            int m = w > h ? w : h;
+            if (m < 1)
+                m = 1;
+            float units = m / (float)Ppu;
+            if (units <= MaxFxWorldUnits)
+                return 1f;
+            return MaxFxWorldUnits / units;
         }
 
         public static string SortingLayer(string artId)
