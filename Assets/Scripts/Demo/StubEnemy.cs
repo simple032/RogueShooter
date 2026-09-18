@@ -3,17 +3,23 @@ using UnityEngine;
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// Placeholder enemy. AI / combat is out of scope.
+    /// Placeholder enemy. Combat is a stub; four-state AI lives on MobFourStateAi.
     /// </summary>
     public class StubEnemy : MonoBehaviour
     {
         [SerializeField] float pulse = 2.4f;
 
         Vector3 _baseScale;
+        public event System.Action Damaged;
 
         void Awake()
         {
             _baseScale = transform.localScale;
+        }
+
+        public void TakeDamage(int amount)
+        {
+            Damaged?.Invoke();
         }
 
         void Update()

@@ -1,0 +1,5 @@
+key,value,status,note
+interact_range,1.70,DEMO_STUB,E key radius
+offer_count,3,LOCK_DEFAULT,unique weighted options
+shop_price_key,tier_low,DEMO_STUB,read balance_shop_gold_locked.csv
+start_gold_key,arrive_shop_p50,DEMO_STUB,read shop gold table
