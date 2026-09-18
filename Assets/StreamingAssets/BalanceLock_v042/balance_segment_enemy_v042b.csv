@@ -1,0 +1,7 @@
+zone,clock,E_build_range,E_build_mid,enemy_hp_mul,enemy_dmg_mul,spawn_interval_mul,time_mul_ref,final_note
+Z1,0-3′,2-4,3,1.165,1.135,0.91,T0×1.00,段压×时压可感叠加
+Z2,3-6′,5-7,6,1.330,1.270,0.82,T1×1.15,
+Z3,6-7.5′,8-9,8.5,1.468,1.383,0.745,T2×1.35,
+META,compose,finalAttr=segMul*timeMul, , , , ,策划要求两套都可感
+META,anchors,Z1_End@HubA / Z2_End@αHubB·βA5前·γA6前 / Z3_End@Pre入口, , , , ,
+META,no_boss_band,BOSS房不挂本表, , , , ,

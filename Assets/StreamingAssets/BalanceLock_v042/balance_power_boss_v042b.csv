@@ -1,0 +1,10 @@
+key,value,note
+Power,0.45*buildCount+0.55*rarityScore,单调；店购不进B也不进RS
+rarityScore,sum over picks C1/R2/E4,
+E_Power_typ,9.87,α/γ期望局
+scale_dir,UP_with_Power,战力高→BOSS加厚（追加口径；异于旧B高变薄）
+hpMul,Lerp(0.92,1.22,clamp((Power-8)/(14-8),0,1))*(1+0.06*T),
+dmgMul,Lerp(0.95,1.28,clamp((Power-8)/(14-8),0,1))*(1+0.10*T),
+baseHP,500,
+lock_hp_on_enter,1,跨段只改伤
+shop_in_power,0,

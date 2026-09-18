@@ -1,0 +1,4 @@
+key,value,status,note
+no_spawn_radius,2.5,DEMO_STUB,fallback only; HOOKS_v041_LOCKED per-core radii override (START 4 / Hub 3.5 / A 2.5 / Chest 2 / Shop 3 / Pre 4)
+no_spawn_kinds,Start|Hub|Altar|Chest|Shop|Pre|Boss,DEMO_STUB,kinds; actual cores + radii come from HOOKS site table
+demo_clock_scale,20,DEMO_STUB,Play Mode acceleration only; wall clock still minutes from tables

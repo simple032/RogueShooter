@@ -1,0 +1,8 @@
+seg,t_start_min,t_end_min,enemy_attr_mul,spawn_interval_mul,path_sync
+T0,0,3,1.00,1.00,Z1
+T1,3,6,1.15,0.92,Z2
+T2,6,9,1.35,0.80,Z3+Pre≈8′
+T3,9,999,1.55,0.65,惩罚非终点
+META,Pre_ready_mid,8.0,
+META,clear_median,10,
+META,clear_band,8-12,

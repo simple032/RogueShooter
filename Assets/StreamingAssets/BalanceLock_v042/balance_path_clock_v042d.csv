@@ -1,0 +1,8 @@
+leg,dur_min_s,dur_mid_s,dur_max_s,waves,note
+START_to_HubA,90,100,110,1,关卡草案
+HubA_to_mid,150,165,180,2,含死路折返
+mid_to_Pre,100,115,130,2,
+Pre_shop_dwell,40,50,60,0,
+Pre_ready_target,,,480,设计≈8′=480s
+BOSS,90,105,120,,
+clear_median,,,600,≈10′
