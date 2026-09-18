@@ -42,6 +42,7 @@ namespace RogueShooter.Art
                 _sr = GetComponent<SpriteRenderer>();
             if (_sr == null)
                 _sr = gameObject.AddComponent<SpriteRenderer>();
+            JianHaiBind.ApplyScale(transform, ArtId);
             JianHaiSprites.Bind(_sr, ArtId);
         }
 

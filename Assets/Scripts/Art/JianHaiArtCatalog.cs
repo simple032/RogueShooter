@@ -14,6 +14,19 @@ namespace RogueShooter.Art
         public const string RootFolder = "Assets/Art/JianHai/";
         public const string Naming = "jh_<cat>_<name>[_action][_dir][_frame]";
 
+        /// <summary>
+        /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
+        /// Shrinks player/E1/BOSS on-screen occupancy; lens is CameraViewService 2.75.
+        /// Do not raise ortho to 3.5 to fake occupancy.
+        /// </summary>
+        public const float EntityStubWorldScale = 0.5f;
+
+        /// <summary>Chest / altar / shop: slight shrink, secondary to entities.</summary>
+        public const float PropStubWorldScale = 0.75f;
+
+        /// <summary>QA-UX-002: world reticle / charge FX visual cap (not Canvas).</summary>
+        public const float MaxFxWorldUnits = 0.8f;
+
         public const string LayerGround = "Ground";
         public const string LayerDecal = "Decal";
         public const string LayerProp = "Prop";
@@ -27,6 +40,16 @@ namespace RogueShooter.Art
         public const string PlayerIdle = "jh_char_archer_idle";
         public const string EnemyE1Idle = "jh_enemy_e1_skel_idle";
         public const string BossIdle = "jh_boss_lord_idle";
+
+        public const string FxStringGlow = "jh_fx_charge_string_glow";
+        public const string FxStringPulse = "jh_fx_charge_string_glow_pulse";
+        public const string FxStringCold = "jh_fx_charge_string_glow_cold";
+        public const string FxBowEdge = "jh_fx_charge_bow_edge";
+        public const string FxTipWarm = "jh_fx_charge_arrow_tip";
+        public const string FxTipIdle = "jh_fx_charge_arrow_tip_idle";
+        public const string FxCritFlash = "jh_fx_crit_flash";
+        public const string ReticleChargeIdle = "jh_ui_reticle_charge_idle";
+        public const string ReticleChargeGreen = "jh_ui_reticle_charge_green";
 
         public static readonly Vector2Like PivotPlayer = new Vector2Like(0.5f, 0.15f);
         public static readonly Vector2Like PivotBoss = new Vector2Like(0.5f, 0.12f);
@@ -92,6 +115,8 @@ namespace RogueShooter.Art
                 return "Boss";
             if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
                 return "Props";
+            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return "FX";
             if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
                 return "UI";
             return "Tiles";
@@ -102,6 +127,32 @@ namespace RogueShooter.Art
             if (string.IsNullOrEmpty(artId))
                 return "";
             return RootFolder + FolderForArtId(artId) + "/" + artId + ".png";
+        }
+
+        public static float StubWorldScale(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return PropStubWorldScale;
+            if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_enemy_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_boss_", StringComparison.Ordinal))
+                return EntityStubWorldScale;
+            if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
+                return PropStubWorldScale;
+            return 1f;
+        }
+
+        public static float VisualScaleForCap(string artId)
+        {
+            int w, h;
+            CanvasForArtId(artId, out w, out h);
+            int m = w > h ? w : h;
+            if (m < 1)
+                m = 1;
+            float units = m / (float)Ppu;
+            if (units <= MaxFxWorldUnits)
+                return 1f;
+            return MaxFxWorldUnits / units;
         }
 
         public static string SortingLayer(string artId)
@@ -131,6 +182,8 @@ namespace RogueShooter.Art
                 return PivotProp;
             if (artId.StartsWith("jh_boss_", StringComparison.Ordinal))
                 return PivotBoss;
+            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return PivotTile;
             if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
                 || artId.StartsWith("jh_enemy_", StringComparison.Ordinal))
                 return PivotPlayer;
@@ -168,15 +221,41 @@ namespace RogueShooter.Art
                 width = 32;
                 height = 64;
             }
+            else if (artId.StartsWith("jh_fx_charge_bow_edge", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 8;
+            }
+            else if (artId.StartsWith("jh_fx_charge_string_glow_cold", StringComparison.Ordinal))
+            {
+                width = 12;
+                height = 12;
+            }
+            else if (artId.StartsWith("jh_fx_crit_flash", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 32;
+            }
+            else if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+            {
+                width = 16;
+                height = 16;
+            }
             else if (artId.StartsWith("jh_ui_bar_", StringComparison.Ordinal))
             {
                 width = 128;
                 height = 16;
             }
-            else if (artId.StartsWith("jh_ui_badge_", StringComparison.Ordinal))
+            else if (artId.StartsWith("jh_ui_reticle_charge", StringComparison.Ordinal)
+                     || artId.StartsWith("jh_ui_badge_", StringComparison.Ordinal))
             {
                 width = 48;
                 height = 48;
+            }
+            else if (artId.StartsWith("jh_ui_reticle_", StringComparison.Ordinal))
+            {
+                width = 12;
+                height = 12;
             }
             else if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
             {

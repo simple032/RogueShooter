@@ -9,6 +9,20 @@ namespace RogueShooter.Art
         {
             if (JianHaiArtCatalog.Ppu != 32)
                 return "PPU must be 32";
+            if (JianHaiArtCatalog.EntityStubWorldScale != 0.5f)
+                return "entity stub world scale must stay 0.5";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
+                != JianHaiArtCatalog.EntityStubWorldScale)
+                return "player stub scale";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.EnemyE1Idle)
+                != JianHaiArtCatalog.EntityStubWorldScale)
+                return "enemy stub scale";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.BossIdle)
+                != JianHaiArtCatalog.EntityStubWorldScale)
+                return "boss stub scale";
+            if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.SpriteNameForHook("Chest_01", "closed"))
+                != JianHaiArtCatalog.PropStubWorldScale)
+                return "chest stub scale";
             if (JianHaiArtCatalog.SpriteNameForHook("Chest_01", "closed") != "jh_prop_chest_closed")
                 return "Chest_* map";
             if (JianHaiArtCatalog.SpriteNameForHook("Chest_12", "open") != "jh_prop_chest_open")
@@ -19,6 +33,30 @@ namespace RogueShooter.Art
                 return "A2 map";
             if (JianHaiArtCatalog.SpriteNameForHook("Shop_01", "") != "jh_prop_shop_01")
                 return "Shop_01 map";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.FxStringGlow) != "FX")
+                return "fx folder";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxStringGlow)
+                != "Assets/Art/JianHai/FX/jh_fx_charge_string_glow.png")
+                return "fx path";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ReticleChargeIdle) != "UI")
+                return "reticle folder";
+            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
+                return "fx layer";
+            if (ChargeFxHooks.ChargeSeconds != 0.90f)
+                return "Spec §7.5 charge 0.90s";
+            if (ChargeFxHooks.GreenEnter != 0.72f || ChargeFxHooks.GreenExit != 0.84f)
+                return "Spec §7.5 green 72–84%";
+            if (JianHaiArtCatalog.MaxFxWorldUnits != 0.8f)
+                return "QA-UX-002 fx/reticle cap 0.8u";
+            int rw, rh;
+            JianHaiArtCatalog.CanvasForArtId(JianHaiArtCatalog.ReticleChargeIdle, out rw, out rh);
+            int rm = rw > rh ? rw : rh;
+            float reticleWorld = rm / (float)JianHaiArtCatalog.Ppu
+                                 * JianHaiArtCatalog.VisualScaleForCap(JianHaiArtCatalog.ReticleChargeIdle);
+            if (reticleWorld > 0.801f)
+                return "reticle world > 0.8u";
+            if (rw > 48 || rh > 48)
+                return "reticle canvas > 48px";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

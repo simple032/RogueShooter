@@ -20,7 +20,7 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = 2.5f;
+        [SerializeField] float orthographicSize = CameraViewService.LockedOrthographicSize;
         [SerializeField] float moveSpeed = 10f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
         [SerializeField] float demoClockScaleOverride = 0f;
@@ -173,6 +173,7 @@ namespace RogueShooter.Demo
             JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
             player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
+            player.AddComponent<PlayerCharge>();
             _player = player.transform;
 
             Camera cam = Camera.main;
@@ -199,6 +200,7 @@ namespace RogueShooter.Demo
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
             follow.SetTarget(player.transform);
+            AimReticle.Ensure();
 
             _clock = gameObject.AddComponent<SpawnBandClock>();
 
@@ -247,7 +249,10 @@ namespace RogueShooter.Demo
             Debug.Log("[ThreeRouteScaffold] HOOKS Pre: PreBoss Shop_01 Chest_03 Anchor_S3_End BOSS");
             Debug.Log("[JianHaiArt] PPU=" + JianHaiArtCatalog.Ppu + " filter=" + JianHaiArtCatalog.Filter
                       + " Chest_*→" + JianHaiArtCatalog.ChestRoot + "_* A_*→" + JianHaiArtCatalog.AltarRoot
-                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot);
+                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot
+                      + " entityScale=" + JianHaiArtCatalog.EntityStubWorldScale
+                      + " propScale=" + JianHaiArtCatalog.PropStubWorldScale
+                      + " orthoLock=" + orthographicSize);
         }
 
         static GameObject SpawnSiteMarker(SiteDef site, Vector3 pos, Transform parent)
@@ -337,7 +342,9 @@ namespace RogueShooter.Demo
                 if (!_markers.ContainsKey(id)) missing.Add("marker:" + id);
             bool idsOk = missing.Count == 0;
             bool configOk = _lock != null;
-            bool viewOk = _view != null && Mathf.Abs(_view.OrthographicSize - orthographicSize) < 0.01f;
+            bool viewOk = _view != null
+                && Mathf.Abs(orthographicSize - CameraViewService.LockedOrthographicSize) < 0.01f
+                && Mathf.Abs(_view.OrthographicSize - CameraViewService.LockedOrthographicSize) < 0.01f;
 
             bool inViewSkip = _demoAnchors != null
                 && SpawnViewGate.ShouldSkipSpawn(_demoAnchors[0].WorldPosition)
@@ -465,7 +472,7 @@ namespace RogueShooter.Demo
 
             GUI.Label(new Rect(pad + 8, pad + 24, w - 16, 54),
                 $"WASD · E interact · F strike · N new run · F1 Chest_01 · F2 A_Shared · F3 Shop · F4 mob\n" +
-                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset\n" +
+                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力(无条) · 准星跟鼠标\n" +
                 $"band={band}  wall={mins:0.00}′  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
                 $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  eff={interval:0.00}s  HP×{hp} DMG×{dmg} time={timeId}",
                 style);

@@ -3,8 +3,10 @@ using UnityEngine;
 namespace RogueShooter.Vision
 {
     /// <summary>
-    /// Main orthographic camera view (GDD M1d Must). Tune <see cref="orthographicSize"/>
-    /// to change the visible world rect. Full fog-of-war is not implemented here.
+    /// Main orthographic camera view (GDD M1d Must). Default
+    /// <see cref="LockedOrthographicSize"/> is 2.75 (band 2.7–2.8).
+    /// Do not jump to 3.5. Stub occupancy uses JianHai world scale.
+    /// Leak-vision is corners/walls, not hook-point squeeze. No fog-of-war here.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]
@@ -12,8 +14,10 @@ namespace RogueShooter.Vision
     {
         public static CameraViewService Instance { get; private set; }
 
+        public const float LockedOrthographicSize = 2.75f;
+
         [SerializeField] Camera targetCamera;
-        [SerializeField] [Min(0.1f)] float orthographicSize = 2.5f;
+        [SerializeField] [Min(0.1f)] float orthographicSize = LockedOrthographicSize;
 
         public float OrthographicSize => orthographicSize;
 
