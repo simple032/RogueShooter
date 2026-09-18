@@ -1,0 +1,4 @@
+repository "RogueShooter@tj_wechat_os_qy0958kg3mpuzdmtyezmm3euo@cloud.cn"
+  path "/"
+    br "/main"
+    co "/main"
