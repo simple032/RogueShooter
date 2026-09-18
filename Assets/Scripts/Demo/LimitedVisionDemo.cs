@@ -13,6 +13,7 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
+        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer.")]
         [SerializeField] float orthographicSize = 2.5f;
         [SerializeField] float moveSpeed = 7f;
         [SerializeField] float spawnRetryInterval = 0.35f;
