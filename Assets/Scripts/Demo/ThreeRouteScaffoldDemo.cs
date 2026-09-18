@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using RogueShooter.Ai;
+using RogueShooter.Art;
 using RogueShooter.Balance;
 using RogueShooter.Build;
 using RogueShooter.Layout;
@@ -121,34 +122,33 @@ namespace RogueShooter.Demo
         {
             Transform root = transform;
             var siteRuntimes = new List<SiteRuntime>();
-            Color room = new Color(0.16f, 0.155f, 0.15f);
+            Color room = new Color(0.102f, 0.114f, 0.141f);
             for (int i = 0; i < LockSiteCatalog.Rooms.Length; i++)
             {
                 RoomDef r = LockSiteCatalog.Rooms[i];
                 Vector3 c = new Vector3(r.Center.x, r.Center.y, 1.1f);
-                DemoPrimitives.Quad("Room_" + r.Id, c, r.Size, room, 0, root);
+                GameObject floorGo = DemoPrimitives.Quad("Room_" + r.Id, c, r.Size, room, 0, root);
+                JianHaiBind.SetLayer(floorGo, JianHaiArtCatalog.LayerGround, 0);
             }
 
-            Color floor = new Color(0.18f, 0.175f, 0.17f);
+            Color floor = new Color(0.165f, 0.188f, 0.220f);
             for (int i = 0; i < LockSiteCatalog.Corridors.Length; i++)
             {
                 CorridorDef c = LockSiteCatalog.Corridors[i];
                 if (!LockSiteCatalog.TryGet(c.FromId, out SiteDef from) || !LockSiteCatalog.TryGet(c.ToId, out SiteDef to))
                     continue;
-                DemoPrimitives.Corridor(
+                GameObject cor = DemoPrimitives.Corridor(
                     "Corridor_" + c.FromId + "_" + c.ToId,
                     from.Position, to.Position,
                     LockSiteCatalog.CorridorWidth, floor, 1, root);
+                JianHaiBind.SetLayer(cor, JianHaiArtCatalog.LayerGround, 1);
             }
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {
                 SiteDef site = LockSiteCatalog.Sites[i];
                 Vector3 pos = new Vector3(site.Position.x, site.Position.y, 0f);
-                float size = site.Kind == SiteKind.Switch ? 0.42f : 0.7f;
-                GameObject marker = DemoPrimitives.Quad(
-                    site.Id, pos, new Vector2(size, size),
-                    LockSiteCatalog.ColorFor(site.Kind), 4, root);
+                GameObject marker = SpawnSiteMarker(site, pos, root);
                 _markers[site.Id] = marker;
 
                 if (site.IsNoSpawnCore)
@@ -170,8 +170,7 @@ namespace RogueShooter.Demo
 
             GameObject player = new GameObject("Player");
             player.transform.position = startPos;
-            DemoPrimitives.AddSprite(player, new Color(0.95f, 0.84f, 0.28f), 8);
-            player.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
+            JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
             player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
             _player = player.transform;
@@ -206,8 +205,7 @@ namespace RogueShooter.Demo
             GameObject stubPrefab = new GameObject("StubEnemyPrefab");
             stubPrefab.transform.SetParent(root, false);
             stubPrefab.SetActive(false);
-            DemoPrimitives.AddSprite(stubPrefab, new Color(0.86f, 0.28f, 0.24f), 6);
-            stubPrefab.transform.localScale = new Vector3(0.85f, 0.85f, 1f);
+            JianHaiBind.ApplyTo(stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             stubPrefab.AddComponent<StubEnemy>();
 
             var slots = new List<SpawnBandDirector.Slot>();
@@ -247,12 +245,44 @@ namespace RogueShooter.Demo
             Debug.Log("[ThreeRouteScaffold] HOOKS β: A1 DE01 Chest_07 Chest_08 A5 DE03 Chest_09 Anchor_S2_End_β");
             Debug.Log("[ThreeRouteScaffold] HOOKS γ: A4 Chest_10 Room_γCombat Chest_11 A6 Chest_12 Anchor_S2_End_γ");
             Debug.Log("[ThreeRouteScaffold] HOOKS Pre: PreBoss Shop_01 Chest_03 Anchor_S3_End BOSS");
+            Debug.Log("[JianHaiArt] PPU=" + JianHaiArtCatalog.Ppu + " filter=" + JianHaiArtCatalog.Filter
+                      + " Chest_*→" + JianHaiArtCatalog.ChestRoot + "_* A_*→" + JianHaiArtCatalog.AltarRoot
+                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot);
+        }
+
+        static GameObject SpawnSiteMarker(SiteDef site, Vector3 pos, Transform parent)
+        {
+            string root = JianHaiArtCatalog.ArtRootForHook(site.Id);
+            if (site.Kind == SiteKind.Chest || site.Kind == SiteKind.Altar || site.Kind == SiteKind.Shop
+                || site.Kind == SiteKind.Boss)
+            {
+                string artId = JianHaiArtCatalog.SpriteName(root, JianHaiArtCatalog.DefaultState(site.Kind));
+                if (site.Kind == SiteKind.Boss)
+                    artId = JianHaiArtCatalog.BossIdle;
+                GameObject go = JianHaiBind.Spawn(site.Id, pos, artId, parent);
+                if (!string.IsNullOrEmpty(root) && site.Kind != SiteKind.Boss)
+                    JianHaiSpriteSlot.Add(go, site);
+                return go;
+            }
+
+            float size = site.Kind == SiteKind.Switch ? 0.42f : 0.7f;
+            GameObject marker = DemoPrimitives.Quad(
+                site.Id, pos, new Vector2(size, size),
+                LockSiteCatalog.ColorFor(site.Kind), 4, parent);
+            string layer = site.Kind == SiteKind.DeadEnd || site.Kind == SiteKind.Switch
+                ? JianHaiArtCatalog.LayerDecal
+                : JianHaiArtCatalog.LayerProp;
+            JianHaiBind.SetLayer(marker, layer, 4);
+            return marker;
         }
 
         static Vector3 LabelOffset(SiteDef site)
         {
             if (site.Id == "Chest_02" || site.Id == "Chest_06" || site.Id == "Chest_03")
-                return new Vector3(0.7f, -0.85f, 0f);
+                return new Vector3(0.9f, -1.15f, 0f);
+            if (site.Kind == SiteKind.Chest || site.Kind == SiteKind.Altar || site.Kind == SiteKind.Shop
+                || site.Kind == SiteKind.Boss)
+                return new Vector3(0f, 1.25f, 0f);
             return new Vector3(0f, 0.85f, 0f);
         }
 
@@ -350,18 +380,22 @@ namespace RogueShooter.Demo
                 && Mathf.Abs(_lock.powerBuildCoef - 0.45f) < 0.001f
                 && Mathf.Abs(_lock.powerRarityCoef - 0.55f) < 0.001f;
 
+            string artErr = JianHaiArtChecks.Run();
+            bool artOk = artErr == null;
             _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && corridorSpawn
-                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk;
+                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} coreSkip={coreSkip} corridorSpawn={corridorSpawn} z1Eff={z1Eff:0.00}");
-            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk}");
+            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
             if (!buildOk)
                 sb.Append(" buildErr=" + buildErr);
             if (!aiOk)
                 sb.Append(" aiErr=" + aiErr);
+            if (!artOk)
+                sb.Append(" artErr=" + artErr);
             _status = sb.ToString();
             if (_pass)
                 Debug.Log("[ThreeRouteScaffold] " + _status);
@@ -522,7 +556,8 @@ namespace RogueShooter.Demo
                 "+ SpawnViewGate skip-in-view\n" +
                 "Chests P_spawn=0.90 · Altars 100%\n" +
                 "Shop never increments B/RS\n" +
-                "AI: Patrol→Alert→Chase→Disengage",
+                "AI: Patrol→Alert→Chase→Disengage\n" +
+                "Art PPU32 Point: Chest_*→jh_prop_chest_*",
                 style);
         }
 

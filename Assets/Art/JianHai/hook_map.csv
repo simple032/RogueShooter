@@ -1,0 +1,7 @@
+hook_id,art_root,category,states,notes
+Chest_*,jh_prop_chest,prop,closed|open,HOOKS id unchanged; file jh_prop_chest_<state>.png
+A_*,jh_prop_altar,prop,idle|active,A1-A6
+A_Shared,jh_prop_altar,prop,idle|active,same altar root
+Shop_01,jh_prop_shop_01,prop,,keep shop_01 spelling
+BOSS,jh_boss_lord,boss,idle,optional marker
+START,jh_char_archer,char,idle,player spawn uses jh_char_archer_idle
