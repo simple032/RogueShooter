@@ -2,7 +2,7 @@ using RogueShooter.Layout;
 
 namespace RogueShooter.DeadEnd
 {
-    /// <summary>死路四类型 — 类型写死在 SiteDef.Note，不扩第五种。</summary>
+    /// <summary>死路四类型 — 点位预配置写死在 SiteDef.Note，不做局内 roll，不扩第五种。</summary>
     public enum DeadEndEventType
     {
         Unknown = 0,
@@ -14,7 +14,11 @@ namespace RogueShooter.DeadEnd
 
     public static class DeadEndEventTypes
     {
-        public const string AcceptanceLine = "ACCEPTANCE PASS DeadEnd four-types once each";
+        public const string AcceptanceLine = "[DeadEnd] ACCEPTANCE PASS DeadEnd four-types once each";
+
+        /// <summary>MobWave 只数区间（设计定稿）；不改数值表，只用现有怪。</summary>
+        public const int MobWaveCountMin = 1;
+        public const int MobWaveCountMax = 3;
 
         public static readonly string[] RequiredIds = { "DE01", "DE02", "DE03", "DE04" };
 

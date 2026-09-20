@@ -158,18 +158,28 @@ namespace RogueShooter.Spawning
         }
 
         /// <summary>
-        /// One-shot 死路 MobWave. Reuses ResolveClass / RollGroup / SpawnStub + existing kind HP.
-        /// Bypasses in-view skip so the enter event is visible. No new TTK / CSV.
+        /// One-shot 死路 MobWave. Existing kinds + SpawnStub four-state AI + existing HP scale.
+        /// Count clamped to 1–3 (design lock). Bypasses in-view skip. No new AI / TTK / CSV.
         /// </summary>
         public int SpawnEventWave(string id, Vector3 pos, string band)
         {
+            return SpawnEventWave(id, pos, band, 1, 3);
+        }
+
+        public int SpawnEventWave(string id, Vector3 pos, string band, int countMin, int countMax)
+        {
+            if (countMin < 1)
+                countMin = 1;
+            if (countMax < countMin)
+                countMax = countMin;
             if (string.IsNullOrEmpty(band))
                 band = _clock != null ? _clock.BandId : "Z2";
             if (string.IsNullOrEmpty(band) || band == "Pre")
                 band = "Z2";
 
             SpawnClassId cls = SpawnWaveCatalog.ResolveClass(band, _build);
-            SpawnGroupDef group = SpawnWaveCatalog.RollGroup(cls, _rng);
+            SpawnGroupDef[] pool = SpawnWaveCatalog.GroupsFor(cls);
+            SpawnGroupDef group = pool != null && pool.Length > 0 ? pool[0] : default(SpawnGroupDef);
             int want = SpawnWaveCatalog.TotalCount(group);
             if (want <= 0)
             {
@@ -182,7 +192,12 @@ namespace RogueShooter.Spawning
                 }
             }
 
-            if (want <= 0 || group.Members == null || _stubPrefab == null)
+            if (want > countMax)
+                want = countMax;
+            if (want < countMin)
+                want = countMin;
+
+            if (group.Members == null || group.Members.Length == 0 || _stubPrefab == null)
             {
                 Debug.Log("[DeadEnd] MobWave " + id + " skip — no group/prefab");
                 return 0;
@@ -195,8 +210,8 @@ namespace RogueShooter.Spawning
             LastClass = cls;
             LastGroupLine = SpawnWaveCatalog.FormatGroup(group);
             Debug.Log("[DeadEnd] MobWave " + id + " " + SpawnWaveCatalog.ClassLabel(cls)
-                      + " → " + LastGroupLine + " Tm=" + tm.ToString("0.00")
-                      + " Bm=" + bm.ToString("0.00") + " (existing scale)");
+                      + " → " + LastGroupLine + " n=" + want + " (1–3) Tm=" + tm.ToString("0.00")
+                      + " Bm=" + bm.ToString("0.00") + " ai=MobFourStateAi existing scale");
 
             int spawned = 0;
             for (int m = 0; m < group.Members.Length && spawned < want; m++)
@@ -208,6 +223,16 @@ namespace RogueShooter.Spawning
                     SpawnStub(id, stubPos, band, spawned, want, mem.KindId, tm, bm);
                     spawned++;
                 }
+            }
+
+            while (spawned < want)
+            {
+                string kind = group.Members[0].KindId;
+                if (string.IsNullOrEmpty(kind))
+                    kind = "E1";
+                Vector3 stubPos = SpawnCluster.Offset(pos, spawned, want);
+                SpawnStub(id, stubPos, band, spawned, want, kind, tm, bm);
+                spawned++;
             }
 
             return spawned;

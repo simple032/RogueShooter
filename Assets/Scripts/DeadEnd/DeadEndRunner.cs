@@ -134,7 +134,7 @@ namespace RogueShooter.DeadEnd
             if (!_once.TryMark(site.Id, type))
                 return;
 
-            Debug.Log("[DeadEnd] " + site.Id + " type=" + type + " once");
+            Debug.Log("[DeadEnd] " + site.Id + " type=" + type + " once"); // 预配置类型，整局一次
 
             switch (type)
             {
@@ -182,11 +182,16 @@ namespace RogueShooter.DeadEnd
             Vector3 pos = new Vector3(site.Position.x, site.Position.y, 0f);
             int n = 0;
             if (_director != null)
-                n = _director.SpawnEventWave("DeadEnd_" + site.Id, pos, null);
+            {
+                n = _director.SpawnEventWave(
+                    "DeadEnd_" + site.Id, pos, null,
+                    DeadEndEventTypes.MobWaveCountMin, DeadEndEventTypes.MobWaveCountMax);
+            }
             MarkMarker(site.Id, site.Id + " WAVE");
             if (_buildDir != null)
-                _buildDir.Notify(site.Id + " MobWave ×" + n);
-            Debug.Log("[DeadEnd] " + site.Id + " MobWave spawned=" + n + " (existing kinds/HP scale, no CSV)");
+                _buildDir.Notify(site.Id + " MobWave ×" + n + " (1–3, four-state AI)");
+            Debug.Log("[DeadEnd] " + site.Id + " MobWave spawned=" + n
+                      + " (1–3 existing kinds + MobFourStateAi, no new AI/CSV)");
         }
 
         void SpawnStaticRoom(SiteDef site)

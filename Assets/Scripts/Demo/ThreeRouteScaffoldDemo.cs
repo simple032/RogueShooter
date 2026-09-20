@@ -681,7 +681,7 @@ namespace RogueShooter.Demo
                 "+ SpawnViewGate spawn-in-view\n" +
                 "Chests P_spawn=0.90 · Altars 100%\n" +
                 "Shop never increments B/RS\n" +
-                "DeadEnd once: DE01 Reveal / DE02 Wave\n" +
+                "DeadEnd preconfig once: DE01 Reveal / DE02 Wave 1–3\n" +
                 "  DE03 EmptySoft 0–0 / DE04 Static\n" +
                 "AI: Patrol→Alert→Chase→Disengage\n" +
                 "Art PPU32 Point: Chest_*→jh_prop_chest_*",

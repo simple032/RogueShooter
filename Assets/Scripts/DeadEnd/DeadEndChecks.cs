@@ -11,6 +11,10 @@ namespace RogueShooter.DeadEnd
         {
             if (EconomyGold.EmptySoftMin != 0 || EconomyGold.EmptySoftMax != 0)
                 return "EmptySoft gold must stay 0–0";
+            if (DeadEndEventTypes.MobWaveCountMin != 1 || DeadEndEventTypes.MobWaveCountMax != 3)
+                return "MobWave count must stay 1–3";
+            if (DeadEndEventTypes.AcceptanceLine.IndexOf("[DeadEnd]", StringComparison.Ordinal) < 0)
+                return "acceptance line must keep [DeadEnd] prefix";
 
             var seen = new System.Collections.Generic.HashSet<DeadEndEventType>();
             for (int i = 0; i < DeadEndEventTypes.RequiredIds.Length; i++)
@@ -30,6 +34,12 @@ namespace RogueShooter.DeadEnd
 
             if (seen.Count != 4)
                 return "need four distinct DeadEnd types";
+            // 点位预配置：类型只来自 Note，禁止局内 roll 出第五型或换型。
+            if (DeadEndEventTypes.FromNote("ChestReveal") != DeadEndEventType.ChestReveal
+                || DeadEndEventTypes.FromNote("MobWave") != DeadEndEventType.MobWave
+                || DeadEndEventTypes.FromNote("StaticRoom") != DeadEndEventType.StaticRoom
+                || DeadEndEventTypes.FromNote("EmptySoft") != DeadEndEventType.EmptySoft)
+                return "note tokens must map 1:1 (no type roll)";
 
             // Coordinates stay HOOKS-locked (do not rewrite).
             if (!PosOk("DE01", 26f, 28f) || !PosOk("DE02", -14f, 48f)
