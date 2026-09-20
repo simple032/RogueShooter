@@ -4,6 +4,7 @@ using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Boss;
 using RogueShooter.Demo;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Player
 {
@@ -217,9 +218,7 @@ namespace RogueShooter.Player
             Camera cam = Camera.main;
             if (cam != null)
             {
-                Vector3 mouse = Input.mousePosition;
-                mouse.z = Mathf.Abs(cam.transform.position.z);
-                Vector3 world = cam.ScreenToWorldPoint(mouse);
+                Vector3 world = CameraViewMath.ScreenToWorldOnPlayPlane(cam, Input.mousePosition);
                 Vector3 dir = world - transform.position;
                 dir.z = 0f;
                 if (dir.sqrMagnitude > 0.01f)

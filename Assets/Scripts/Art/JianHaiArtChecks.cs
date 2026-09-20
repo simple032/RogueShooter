@@ -1,5 +1,6 @@
 using System;
 using RogueShooter.Layout;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Art
 {
@@ -10,7 +11,9 @@ namespace RogueShooter.Art
             if (JianHaiArtCatalog.Ppu != 32)
                 return "PPU must be 32";
             if (JianHaiArtCatalog.EntityStubWorldScale != 0.62f)
-                return "entity stub world scale must stay 0.62 (ortho stays 2.5)";
+                return "entity stub world scale must stay 0.62 (play ortho 2.75)";
+            if (Math.Abs(CameraViewService.PlayOrthoSize - 2.75f) > 0.001f)
+                return "play ortho must stay 2.75 (2.7–2.8 band)";
             if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
                 != JianHaiArtCatalog.EntityStubWorldScale)
                 return "player stub scale";

@@ -7,6 +7,7 @@ using UnityEngine.Tilemaps;
 using RogueShooter.Art;
 using RogueShooter.Demo;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Tools
 {
@@ -445,7 +446,7 @@ namespace RogueShooter.Tools
             camGo.transform.position = new Vector3(30.5f, 6.7f, -10f);
             var cam = camGo.AddComponent<Camera>();
             cam.orthographic = true;
-            cam.orthographicSize = 2.5f;   // HOOKS lock
+            cam.orthographicSize = CameraViewService.PlayOrthoSize;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.04f, 0.045f, 0.06f, 1f);
             cam.nearClipPlane = 0.3f;

@@ -15,8 +15,8 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
-        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 2.5; stub occupancy is JianHaiBind scale.")]
-        [SerializeField] float orthographicSize = 2.5f;
+        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 2.75 (2.7–2.8); stub occupancy is JianHaiBind scale.")]
+        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize;
         [Tooltip("0 = MoveSpeeds.Player (L=22)")]
         [SerializeField] float moveSpeed = 0f;
         [SerializeField] float spawnRetryInterval = 0.35f;
@@ -126,8 +126,8 @@ namespace RogueShooter.Demo
             bool pass = true;
             var sb = new StringBuilder();
             sb.Append($"view={rect.xMin:F2},{rect.yMin:F2}..{rect.xMax:F2},{rect.yMax:F2} size={orthographicSize}");
-            bool orthoOk = Mathf.Abs(orthographicSize - 2.5f) < 0.01f
-                           && Mathf.Abs(_view.OrthographicSize - 2.5f) < 0.01f;
+            bool orthoOk = Mathf.Abs(orthographicSize - CameraViewService.PlayOrthoSize) < 0.01f
+                           && Mathf.Abs(_view.OrthographicSize - CameraViewService.PlayOrthoSize) < 0.01f;
             pass &= orthoOk;
             if (!orthoOk)
                 sb.Append(" orthoFAIL");

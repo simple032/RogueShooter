@@ -1,10 +1,12 @@
 using UnityEngine;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Art
 {
     /// <summary>
     /// A-primary (string glow / bow edge / warm tip) + B-weak reticle open/close.
     /// No charge bar, no crit-window HUD. Pulse×2 fits Spec §7.5 green (72–84% of 0.90s).
+    /// Reticle follows mouse via ScreenToWorldPoint; ChargeFx is not a player-child offset.
     /// </summary>
     public class ChargeFxView : MonoBehaviour
     {
@@ -12,8 +14,11 @@ namespace RogueShooter.Art
         const float ColdAlpha = 0.55f;
         const float ReticleClosed = 0.82f;
         const float CritSeconds = 2f / 30f;
+        const float ReticleWorldOpen = 0.72f;
+        const float ReticleNativeWorld = 48f / 32f;
 
-        Transform _root;
+        Transform _body;
+        Transform _reticleRoot;
         SpriteRenderer _string;
         SpriteRenderer _pulse;
         SpriteRenderer _bow;
@@ -25,9 +30,11 @@ namespace RogueShooter.Art
         float _pulsePhase;
         bool _pulseShow;
         float _critUntil;
+        bool _reticleOpen;
 
         void OnEnable()
         {
+            Cursor.visible = false;
             ChargeFxHooks.OnChargeMid += OnChargeMid;
             ChargeFxHooks.OnChargeEnterGreen += OnChargeEnterGreen;
             ChargeFxHooks.OnChargeExitGreen += OnChargeExitGreen;
@@ -36,10 +43,19 @@ namespace RogueShooter.Art
 
         void OnDisable()
         {
+            Cursor.visible = true;
             ChargeFxHooks.OnChargeMid -= OnChargeMid;
             ChargeFxHooks.OnChargeEnterGreen -= OnChargeEnterGreen;
             ChargeFxHooks.OnChargeExitGreen -= OnChargeExitGreen;
             ChargeFxHooks.OnCritConfirm -= OnCritConfirm;
+        }
+
+        void OnDestroy()
+        {
+            if (_body != null)
+                Destroy(_body.gameObject);
+            if (_reticleRoot != null)
+                Destroy(_reticleRoot.gameObject);
         }
 
         void Awake()
@@ -50,6 +66,9 @@ namespace RogueShooter.Art
 
         void LateUpdate()
         {
+            FollowPlayerBody();
+            FollowMouseReticle();
+
             if (_pulsesLeft > 0 && _pulse != null)
             {
                 _pulsePhase += Time.deltaTime;
@@ -140,29 +159,37 @@ namespace RogueShooter.Art
 
         void EnsureSlots()
         {
-            if (_root != null)
+            if (_body != null && _reticle != null)
                 return;
 
-            var go = new GameObject("ChargeFx");
-            _root = go.transform;
-            _root.SetParent(transform, false);
-            _root.localPosition = Vector3.zero;
-            float entity = JianHaiArtCatalog.EntityStubWorldScale;
-            float inv = entity > 0.01f ? 1f / entity : 1f;
-            _root.localScale = new Vector3(inv, inv, 1f);
+            if (_body == null)
+            {
+                var go = new GameObject("ChargeFx");
+                _body = go.transform;
+                _body.localScale = Vector3.one;
+                _string = MakeSlot(_body, "String", new Vector3(0f, 0.55f, -0.02f));
+                _pulse = MakeSlot(_body, "Pulse", new Vector3(0f, 0.55f, -0.03f));
+                _bow = MakeSlot(_body, "BowEdge", new Vector3(0.04f, 0.50f, -0.02f));
+                _tip = MakeSlot(_body, "Tip", new Vector3(0.10f, 0.42f, -0.02f));
+                _crit = MakeSlot(_body, "CritFlash", new Vector3(0f, 0.52f, -0.04f));
+            }
 
-            _string = MakeSlot("String", new Vector3(0f, 0.55f, -0.02f));
-            _pulse = MakeSlot("Pulse", new Vector3(0f, 0.55f, -0.03f));
-            _bow = MakeSlot("BowEdge", new Vector3(0.04f, 0.50f, -0.02f));
-            _tip = MakeSlot("Tip", new Vector3(0.10f, 0.42f, -0.02f));
-            _crit = MakeSlot("CritFlash", new Vector3(0f, 0.52f, -0.04f));
-            _reticle = MakeSlot("Reticle", new Vector3(0f, 0.48f, -0.05f));
+            if (_reticle == null)
+            {
+                var reticleGo = new GameObject("ChargeReticle");
+                _reticleRoot = reticleGo.transform;
+                _reticleRoot.localScale = Vector3.one;
+                _reticle = MakeSlot(_reticleRoot, "Reticle", new Vector3(0f, 0f, -0.05f));
+            }
+
+            FollowPlayerBody();
+            FollowMouseReticle();
         }
 
-        SpriteRenderer MakeSlot(string name, Vector3 localPos)
+        static SpriteRenderer MakeSlot(Transform parent, string name, Vector3 localPos)
         {
             var child = new GameObject(name);
-            child.transform.SetParent(_root, false);
+            child.transform.SetParent(parent, false);
             child.transform.localPosition = localPos;
             child.transform.localScale = Vector3.one;
             return child.AddComponent<SpriteRenderer>();
@@ -189,10 +216,48 @@ namespace RogueShooter.Art
 
         void SetReticleOpen(bool open)
         {
+            _reticleOpen = open;
+            ApplyReticleScale();
+        }
+
+        void ApplyReticleScale()
+        {
             if (_reticle == null)
                 return;
-            float s = open ? 1f : ReticleClosed;
+            float world = _reticleOpen ? ReticleWorldOpen : ReticleWorldOpen * ReticleClosed;
+            float native = ReticleNativeWorld;
+            if (_reticle.sprite != null)
+            {
+                Vector3 size = _reticle.sprite.bounds.size;
+                native = Mathf.Max(size.x, size.y);
+            }
+
+            if (native < 0.01f)
+                native = ReticleNativeWorld;
+            float s = world / native;
             _reticle.transform.localScale = new Vector3(s, s, 1f);
+        }
+
+        void FollowPlayerBody()
+        {
+            if (_body == null)
+                return;
+            Vector3 p = transform.position;
+            p.z = 0f;
+            _body.position = p;
+        }
+
+        void FollowMouseReticle()
+        {
+            if (_reticleRoot == null)
+                return;
+            Camera cam = Camera.main;
+            if (cam == null)
+                return;
+            Vector3 world = CameraViewMath.ScreenToWorldOnPlayPlane(cam, Input.mousePosition);
+            world.z = -0.05f;
+            _reticleRoot.position = world;
+            ApplyReticleScale();
         }
 
         static float PulseSlice()

@@ -323,8 +323,7 @@ namespace RogueShooter.Build
             }
 
             int b = _build.BuildCount;
-            int equiv = ShopStock.BuildEquivFor(shelf.ContentRole);
-            bool ok = _build.TryShopBuy(shelf.Price, equiv, shelf.Id);
+            bool ok = _build.TryShopBuy(shelf.Price, ShopStock.BuildEquivFor(shelf.ContentRole), shelf.Id);
             if (ok)
             {
                 shelf.Sold = true;
@@ -332,12 +331,12 @@ namespace RogueShooter.Build
             }
 
             string line = ok
-                ? $"[Shop] buy ok {shelf.Id} tier={AltarRewardRoll.TierLabel(shelf.Tier)} price={shelf.Price} equiv=+{equiv} " +
-                  $"effect={shelf.Effect} gold={_build.Gold} B={b}→{_build.BuildCount}"
+                ? $"[Shop] buy ok {shelf.Id} tier={AltarRewardRoll.TierLabel(shelf.Tier)} price={shelf.Price} " +
+                  $"effect={shelf.Effect} gold={_build.Gold} B={b}→{_build.BuildCount} (shop≠Build)"
                 : $"[Shop] buy FAIL {shelf.Id} need={shelf.Price} gold={_build.Gold} B={_build.BuildCount}";
             Debug.Log(line);
             Flash(ok
-                ? "bought " + shelf.Id + " -" + shelf.Price + "g B+" + equiv
+                ? "bought " + shelf.Id + " -" + shelf.Price + "g B=" + _build.BuildCount
                 : "shop: not enough gold");
         }
 

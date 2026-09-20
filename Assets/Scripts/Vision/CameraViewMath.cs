@@ -35,5 +35,18 @@ namespace RogueShooter.Vision
             return worldPos.x >= viewRect.xMin && worldPos.x <= viewRect.xMax
                 && worldPos.y >= viewRect.yMin && worldPos.y <= viewRect.yMax;
         }
+
+        /// <summary>
+        /// Mouse / screen → world on the z=0 play plane (Camera.ScreenToWorldPoint).
+        /// </summary>
+        public static Vector3 ScreenToWorldOnPlayPlane(Camera cam, Vector3 screen)
+        {
+            if (cam == null)
+                return Vector3.zero;
+            screen.z = Mathf.Abs(cam.transform.position.z);
+            Vector3 world = cam.ScreenToWorldPoint(screen);
+            world.z = 0f;
+            return world;
+        }
     }
 }

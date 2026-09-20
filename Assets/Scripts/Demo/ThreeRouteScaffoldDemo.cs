@@ -21,7 +21,7 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = 2.5f; // HOOKS lock; occupancy via JianHaiBind scale, not 2.7–3.5
+        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize; // 2.75 play band; occupancy via JianHaiBind scale, not 3.5
         [Tooltip("0 = use MoveSpeeds.Player (L=22 lock)")]
         [SerializeField] float moveSpeed = 0f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
@@ -409,8 +409,8 @@ namespace RogueShooter.Demo
             bool idsOk = missing.Count == 0;
             bool configOk = _lock != null;
             bool viewOk = _view != null
-                && Mathf.Abs(orthographicSize - 2.5f) < 0.01f
-                && Mathf.Abs(_view.OrthographicSize - 2.5f) < 0.01f;
+                && Mathf.Abs(orthographicSize - CameraViewService.PlayOrthoSize) < 0.01f
+                && Mathf.Abs(_view.OrthographicSize - CameraViewService.PlayOrthoSize) < 0.01f;
 
             bool inViewSkip = _demoAnchors != null
                 && SpawnViewGate.ShouldSkipSpawn(_demoAnchors[0].WorldPosition)
