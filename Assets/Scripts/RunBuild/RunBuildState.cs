@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// Per-run Build counters. Shop purchase equiv counts toward Build
-    /// (crit2 / S1b; 制作人 2026-09-20 改口：店购计 Build).
+    /// Per-run Build counters. Shop buy always +1 Build per success
+    /// (制作人 2026-09-20 裁定，不用分层当量).
     /// Power = 0.45*B + 0.55*RS.
     /// </summary>
     public sealed class RunBuildState
@@ -108,25 +108,25 @@ namespace RogueShooter.Build
             return first;
         }
 
-        /// <summary>Shop buy: gold + Build equiv (普1/中2/高4/回血2).</summary>
+        /// <summary>Shop buy: gold + reward, Build always +1 per success.</summary>
         public bool TryShopBuy(int price, int buildEquiv, string rewardId)
         {
             if (price < 0 || Gold < price)
                 return false;
             Gold -= price;
             ShopBuys++;
-            if (buildEquiv < 0)
-                buildEquiv = 0;
-            BuildCount += buildEquiv;
+            int add = ShopStock.BuildEquivFor(ShopSlotRole.Low);
+            _ = buildEquiv;
+            BuildCount += add;
             ApplyReward(rewardId);
-            LastPick = "SHOP +" + buildEquiv + " " + rewardId + " gold-" + price;
+            LastPick = "SHOP +" + add + " " + rewardId + " gold-" + price;
             return true;
         }
 
-        /// <summary>Legacy overload: price only, no Build (prefer TryShopBuy with equiv).</summary>
+        /// <summary>Legacy overload: price only; success still +1 Build.</summary>
         public bool TryShopBuy(int price)
         {
-            return TryShopBuy(price, 0, "");
+            return TryShopBuy(price, ShopStock.BuildEquivFor(ShopSlotRole.Low), "");
         }
 
         public void Reset(int startGold)

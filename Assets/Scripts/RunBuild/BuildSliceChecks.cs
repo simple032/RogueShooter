@@ -18,18 +18,20 @@ namespace RogueShooter.Build
             if (data.shopBuildFromShop != 1)
                 return "shop Build-from-shop flag expected 1 (店购计 Build; 制作人 2026-09-20 改口)";
             if (ShopStock.BuildEquivFor(ShopSlotRole.Low) != 1
-                || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 2
-                || ShopStock.BuildEquivFor(ShopSlotRole.High) != 4
-                || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 2)
-                return "shop BuildEquiv expected 普1/中2/高4/回血2";
+                || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 1
+                || ShopStock.BuildEquivFor(ShopSlotRole.High) != 1
+                || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 1)
+                return "shop BuildEquiv expected +1 per buy (not tiered)";
 
             var st = new RunBuildState(data.powerBuildCoef, data.powerRarityCoef, 80);
             if (!st.TryShopBuy(20, ShopStock.BuildEquivFor(ShopSlotRole.Low), "R1L"))
                 return "shop buy should succeed with start gold";
             if (st.BuildCount != 1)
-                return "shop buy must add Build equiv";
+                return "shop buy must add Build +1";
             if (st.OwnedRewardIds.Count < 1)
                 return "shop buy must apply reward";
+            if (!st.TryShopBuy(40, ShopStock.BuildEquivFor(ShopSlotRole.High), "R1H") || st.BuildCount != 2)
+                return "second shop buy must add +1 (high is not +4)";
 
             if (ShopStock.ShelfCount != 6)
                 return "shop must have 6 shelves";
