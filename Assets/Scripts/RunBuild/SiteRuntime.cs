@@ -12,6 +12,8 @@ namespace RogueShooter.Build
         public bool Lit { get; private set; }
         public AltarSize AltarSize { get; private set; }
         public bool LargeChest { get; private set; }
+        /// <summary>DeadEnd ChestReveal: always present, skip P_spawn roll.</summary>
+        public bool ForcedPresent { get; private set; }
         public bool InRange;
 
         SpriteRenderer _sr;
@@ -53,6 +55,7 @@ namespace RogueShooter.Build
             Def = def;
             Present = present;
             Consumed = false;
+            ForcedPresent = false;
             _sr = GetComponent<SpriteRenderer>();
             _slot = GetComponent<JianHaiSpriteSlot>();
             if (_slot == null && !string.IsNullOrEmpty(JianHaiArtCatalog.ArtRootForHook(def.Id)))
@@ -74,6 +77,13 @@ namespace RogueShooter.Build
             Present = present;
             Consumed = false;
             RefreshVisual();
+        }
+
+        public void SetForcedPresent(bool forced)
+        {
+            ForcedPresent = forced;
+            if (forced)
+                Present = true;
         }
 
         public string Prompt()

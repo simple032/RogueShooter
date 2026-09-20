@@ -157,6 +157,62 @@ namespace RogueShooter.Spawning
             TryPlace(id, pos, _clock != null ? _clock.BandId : "Z1", phase);
         }
 
+        /// <summary>
+        /// One-shot 死路 MobWave. Reuses ResolveClass / RollGroup / SpawnStub + existing kind HP.
+        /// Bypasses in-view skip so the enter event is visible. No new TTK / CSV.
+        /// </summary>
+        public int SpawnEventWave(string id, Vector3 pos, string band)
+        {
+            if (string.IsNullOrEmpty(band))
+                band = _clock != null ? _clock.BandId : "Z2";
+            if (string.IsNullOrEmpty(band) || band == "Pre")
+                band = "Z2";
+
+            SpawnClassId cls = SpawnWaveCatalog.ResolveClass(band, _build);
+            SpawnGroupDef group = SpawnWaveCatalog.RollGroup(cls, _rng);
+            int want = SpawnWaveCatalog.TotalCount(group);
+            if (want <= 0)
+            {
+                SpawnGroupDef[] fallback = SpawnWaveCatalog.GroupsFor(SpawnClassId.S1Pre);
+                if (fallback != null && fallback.Length > 0)
+                {
+                    group = fallback[0];
+                    want = SpawnWaveCatalog.TotalCount(group);
+                    cls = SpawnClassId.S1Pre;
+                }
+            }
+
+            if (want <= 0 || group.Members == null || _stubPrefab == null)
+            {
+                Debug.Log("[DeadEnd] MobWave " + id + " skip — no group/prefab");
+                return 0;
+            }
+
+            float t = _clock != null ? _clock.WallMinutes : 0f;
+            int build = _build != null ? _build.BuildCount : 0;
+            float tm = SpawnWaveCatalog.TimeMul(t);
+            float bm = SpawnWaveCatalog.BuildMul(build);
+            LastClass = cls;
+            LastGroupLine = SpawnWaveCatalog.FormatGroup(group);
+            Debug.Log("[DeadEnd] MobWave " + id + " " + SpawnWaveCatalog.ClassLabel(cls)
+                      + " → " + LastGroupLine + " Tm=" + tm.ToString("0.00")
+                      + " Bm=" + bm.ToString("0.00") + " (existing scale)");
+
+            int spawned = 0;
+            for (int m = 0; m < group.Members.Length && spawned < want; m++)
+            {
+                SpawnMember mem = group.Members[m];
+                for (int k = 0; k < mem.Count && spawned < want; k++)
+                {
+                    Vector3 stubPos = SpawnCluster.Offset(pos, spawned, want);
+                    SpawnStub(id, stubPos, band, spawned, want, mem.KindId, tm, bm);
+                    spawned++;
+                }
+            }
+
+            return spawned;
+        }
+
         void TrySpawnOne()
         {
             string band = _clock.BandId;
