@@ -1,0 +1,8 @@
+﻿files:
+  - balance_rewards_箭骸.csv
+  - balance_shop_prices_箭骸.csv
+  - balance_offer_rules_箭骸.csv
+  - balance_elite_chest_pool_箭骸.csv
+relation: coexist_with_BalanceLock_v042
+elite_EL_C: E4+E3
+test: T-crit2b PASS

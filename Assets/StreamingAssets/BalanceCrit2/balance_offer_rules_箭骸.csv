@@ -1,0 +1,26 @@
+# crit2.docx 一字对齐：容器权重 / 去重 / 未选回归 / 店弹性
+# 奖励幅度见 balance_rewards_箭骸.csv；店价见 balance_shop_prices_箭骸.csv
+
+section,item,value,note
+container,altar_small,72/28/0,低/中/高
+container,altar_mid,53/32/15,
+container,altar_large,16/54/30,
+container,chest_small,67/28/5,规则目标
+container,chest_large,53/32/15,规则目标
+shop,shelf,1普+1中+1高+1回血+2弹性,
+shop,flex_w,56/32/12,普/中/高·不出回血
+shop,price_low,18-22,当量1
+shop,price_mid,36-44,当量2
+shop,price_high,72-88,当量4
+shop,price_heal,36-44,当量2=中
+dedupe,same_offer_unique,true,同一次三选一不重复同一条
+dedupe,heal_max,1,
+dedupe,reroll_same_tier,5,仍重复则从未出现池随机
+dedupe,shop_no_same_x3,true,商店不连续3次同一种
+regress,normal,100,同档池出现权重
+regress,heal_full_hp,0,血越低越高·最高100
+regress,just_picked_family,1,
+regress,skip2,33,
+regress,skip3,67,
+regress,skip4plus,100,
+source,docx,箭骸行者_角色机制与强化表_crit2.docx,

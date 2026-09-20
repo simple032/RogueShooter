@@ -1,0 +1,22 @@
+# 大箱精英池 — T-crit2 不通过：EL_C 过磨；六类已过勿动
+# 成员基血同六类：E1=200 E2=160 E3=180 E4=400
+# HP = round(BaseHp × Tm × Bm × elite_hp_mul)；elite_hp_mul=18 不动
+# EL_C：E4+E1x2(Σ基血800) → E4+E3(Σ580)；禁仅E4；≥2种
+# 点验口径：T-crit2 DemoLoadout DPS × 遇怪当前 Build（非表 E[DPS|B]）
+
+bag_id,weight,members,sum_p0,elite_hp_mul,elite_dmg_mul,ttk_band_s,note
+EL_A,34,E4x1+E2x1,23,18.0,1.0,30-60,重型+狗
+EL_B,33,E3x2+E1x1,26,18.0,1.0,30-60,远程+垫
+EL_C,33,E4x1+E3x1,25,18.0,1.0,30-60,重型+远程·原E4+E1x2过磨
+META,spawn_rule,每大箱触发抽1袋,,权重34/33/33,
+META,hp_formula,BaseHp*Tm*Bm*elite_hp_mul,,
+META,base_hp,E1=200|E2=160|E3=180|E4=400,总表B1,
+META,Bm,0.70+0.03*B,遇怪当前Build,
+META,Tm,attr(t),,
+META,dps_source,T-crit2 DemoLoadout,低于表E[DPS|B]
+META,elite_mul,18,勿动·六类12.5勿动
+META,pointcheck_tcrit2_rescale,60/60=100%∈[30,60],EL_C ttk×580/800
+META,el_c_ttk,min35.5 max59.8,,
+META,el_ab_ttk,min34.2 max57.8,未改组成
+META,six_untouched,339/360=94.2%∈[20,40],已过门
+META,boss_n38,勿动,,

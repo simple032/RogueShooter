@@ -9,9 +9,9 @@ namespace RogueShooter.Ai
         {
             float detect = data != null && data.mobDetectRadius > 0f ? data.mobDetectRadius : 5.5f;
             float mul = data != null && data.mobDisengageMul > 0f ? data.mobDisengageMul : 1.6f;
-            float alert = data != null ? data.mobAlertSeconds : 0.4f;
+            float alert = data != null && data.mobAlertSeconds > 0f ? data.mobAlertSeconds : 1.2f;
             var brain = new MobAiBrain();
-            brain.Configure(detect, mul, alert);
+            brain.Configure(detect, mul, alert, 0.7f);
             float disengage = detect * mul;
 
             if (brain.State != MobAiState.Patrol)
@@ -35,6 +35,10 @@ namespace RogueShooter.Ai
             if (brain.State != MobAiState.Chase)
                 return "Alert → Chase while in detect";
 
+            brain.Tick(0.3f, false, 0.05f, false);
+            if (brain.State != MobAiState.Attack)
+                return "in attack range → Attack";
+
             brain.Tick(disengage + 0.8f, false, 0.05f, false);
             if (brain.State != MobAiState.Disengage)
                 return "kite beyond disengage → Disengage";
@@ -42,6 +46,20 @@ namespace RogueShooter.Ai
             brain.Tick(disengage + 2f, false, 0.05f, true);
             if (brain.State != MobAiState.Patrol)
                 return "Disengage at home → Patrol";
+
+            brain.Reset();
+            brain.Tick(detect + 3f, true, 0.02f, false);
+            if (brain.State != MobAiState.Alert)
+                return "hit outside detect → Alert";
+            t = 0f;
+            while (t < alert + 0.05f)
+            {
+                brain.Tick(detect + 3f, false, 0.05f, false);
+                t += 0.05f;
+            }
+
+            if (brain.State != MobAiState.Patrol)
+                return "hit outside detect must not chase (视野外不追)";
 
             brain.Reset();
             brain.Tick(detect * 0.5f, true, 0.02f, false);
@@ -55,7 +73,7 @@ namespace RogueShooter.Ai
             }
 
             if (brain.State != MobAiState.Chase)
-                return "hit → Alert → Chase";
+                return "hit in detect → Alert → Chase";
 
             return null;
         }

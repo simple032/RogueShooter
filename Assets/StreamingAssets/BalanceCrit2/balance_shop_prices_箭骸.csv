@@ -1,0 +1,20 @@
+# 店价/弹性与 crit2.docx 表8+表10 一字对齐（1:2:4；heal=mid）
+# 废止唯一锁死 20/40/80；区间中位仍约 20/40/80
+
+
+slot,role,price_min,price_max,price_mid,reinforce,note
+fixed,tier_low,18,22,20,1,普通
+fixed,tier_mid,36,44,40,2,中等
+fixed,tier_high,72,88,80,4,高级
+fixed,heal,36,44,40,2,回血=中
+meta,price_ratio,1:2:4,,,
+meta,float_mode,range,N38后改为区间,
+meta,shelf_count,6,,,
+meta,random_count,2,,,
+meta,random_p_low,0.56,,,
+meta,random_p_mid,0.32,,,
+meta,random_p_high,0.12,,,
+meta,random_p_heal,0.00,,,
+meta,accept_reinforce_band,3-6,≥80%局,,
+meta,dedupe,GDD_6.6c,,,
+meta,weight_regress,GDD_6.6d,,,

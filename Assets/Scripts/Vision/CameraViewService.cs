@@ -3,8 +3,9 @@ using UnityEngine;
 namespace RogueShooter.Vision
 {
     /// <summary>
-    /// Main orthographic camera view (GDD M1d Must). Tune <see cref="orthographicSize"/>
-    /// to change the visible world rect. Full fog-of-war is not implemented here.
+    /// Main orthographic camera view (GDD M1d Must). <see cref="orthographicSize"/>
+    /// stays 2.5 (HOOKS 验收). Do not raise it to 2.7–3.5 to shrink sprites —
+    /// occupancy uses JianHai stub world scale. Full fog-of-war is not implemented here.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]

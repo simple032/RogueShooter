@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Text;
 using UnityEngine;
+using RogueShooter.Art;
+using RogueShooter.Balance;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
@@ -13,9 +15,10 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
-        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer.")]
+        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 2.5; stub occupancy is JianHaiBind scale.")]
         [SerializeField] float orthographicSize = 2.5f;
-        [SerializeField] float moveSpeed = 7f;
+        [Tooltip("0 = MoveSpeeds.Player (L=22)")]
+        [SerializeField] float moveSpeed = 0f;
         [SerializeField] float spawnRetryInterval = 0.35f;
 
         SpawnAnchor[] _anchors;
@@ -53,9 +56,9 @@ namespace RogueShooter.Demo
 
             GameObject player = new GameObject("Player");
             player.transform.position = Vector3.zero;
-            DemoPrimitives.AddSprite(player, new Color(0.95f, 0.84f, 0.28f), 8);
-            player.transform.localScale = new Vector3(0.9f, 0.9f, 1f);
-            player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
+            JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
+            float spd = MoveSpeeds.Player;
+            player.AddComponent<PlayerMotor2D>().Configure(spd);
 
             Camera cam = Camera.main;
             if (cam == null)
@@ -93,12 +96,11 @@ namespace RogueShooter.Demo
             GameObject stubPrefab = new GameObject("StubEnemyPrefab");
             stubPrefab.transform.SetParent(root, false);
             stubPrefab.SetActive(false);
-            DemoPrimitives.AddSprite(stubPrefab, new Color(0.86f, 0.28f, 0.24f), 6);
-            stubPrefab.transform.localScale = new Vector3(0.95f, 0.95f, 1f);
+            JianHaiBind.ApplyTo(stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             stubPrefab.AddComponent<StubEnemy>();
 
             _spawner = gameObject.AddComponent<AnchorSpawner>();
-            _spawner.Bind(_anchors, stubPrefab, spawnRetryInterval);
+            _spawner.Bind(_anchors, stubPrefab, spawnRetryInterval, player.transform);
         }
 
         static SpawnAnchor MakeAnchor(string id, Vector3 pos, Color color, Transform parent)
@@ -124,13 +126,25 @@ namespace RogueShooter.Demo
             bool pass = true;
             var sb = new StringBuilder();
             sb.Append($"view={rect.xMin:F2},{rect.yMin:F2}..{rect.xMax:F2},{rect.yMax:F2} size={orthographicSize}");
+            bool orthoOk = Mathf.Abs(orthographicSize - 2.5f) < 0.01f
+                           && Mathf.Abs(_view.OrthographicSize - 2.5f) < 0.01f;
+            pass &= orthoOk;
+            if (!orthoOk)
+                sb.Append(" orthoFAIL");
+
+            float share = JianHaiArtCatalog.EntityStubWorldScale / (orthographicSize * 2f);
+            sb.Append($" entityScale={JianHaiArtCatalog.EntityStubWorldScale:0.00} share≈{share:0.000}");
+            bool shareOk = share > 0.11f && share < 0.15f;
+            pass &= shareOk;
+            if (!shareOk)
+                sb.Append(" shareFAIL");
 
             for (int i = 0; i < _anchors.Length; i++)
             {
                 SpawnAnchor a = _anchors[i];
                 bool inView = _view.IsInCameraView(a.WorldPosition);
                 bool spawned = _spawner.WasSpawned(a);
-                bool ok = inView != spawned;
+                bool ok = spawned == !inView;
                 pass &= ok;
                 sb.Append($" | {a.AnchorId} inView={inView} spawned={spawned} {(ok ? "ok" : "FAIL")}");
             }
@@ -139,9 +153,9 @@ namespace RogueShooter.Demo
             _acceptancePass = pass;
             _acceptanceLine = (pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL") + " " + sb;
             if (pass)
-                Debug.Log("[LimitedVision] " + _acceptanceLine);
+                Debug.Log("[OffViewSpawn] " + _acceptanceLine);
             else
-                Debug.LogError("[LimitedVision] " + _acceptanceLine);
+                Debug.LogError("[OffViewSpawn] " + _acceptanceLine);
         }
 
         void OnGUI()
@@ -152,7 +166,7 @@ namespace RogueShooter.Demo
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 13 };
             var title = new GUIStyle(style) { fontSize = 16, fontStyle = FontStyle.Bold };
-            GUI.Label(new Rect(pad + 8, pad + 6, w - 16, 24), "有限视野 / Limited Vision  (no fog)", title);
+            GUI.Label(new Rect(pad + 8, pad + 6, w - 16, 24), "视野外刷怪 / Off-View Spawn", title);
 
             Rect rect = _view != null ? _view.GetViewRect() : new Rect();
             GUI.Label(new Rect(pad + 8, pad + 32, w - 16, 48),

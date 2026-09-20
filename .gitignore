@@ -1,10 +1,10 @@
 ﻿# Unity
-/[Ll]ibrary/
-/[Tt]emp/
-/[Oo]bj/
-/[Bb]uild/
-/[Bb]uilds/
-/[Ll]ogs/
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
 [Uu]ser[Ss]ettings/
 [Mm]emoryCaptures/
 [Rr]ecordings/
@@ -57,4 +57,13 @@ crashlytics-build.properties
 # Local tooling
 .codely-cli/
 .codely.packages/
+
+
+# Plastic workspace noise
+.plastic/
+
+# Local QA / tooling noise
+qa-compile-pr3.log
+.codelyignore
+screenshots/
 

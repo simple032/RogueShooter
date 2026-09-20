@@ -6,6 +6,7 @@ using UnityEngine;
 using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Balance;
+using RogueShooter.Boss;
 using RogueShooter.Build;
 using RogueShooter.Layout;
 using RogueShooter.Player;
@@ -20,8 +21,9 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = 2.5f;
-        [SerializeField] float moveSpeed = 10f;
+        [SerializeField] float orthographicSize = 2.5f; // HOOKS lock; occupancy via JianHaiBind scale, not 2.7–3.5
+        [Tooltip("0 = use MoveSpeeds.Player (L=22 lock)")]
+        [SerializeField] float moveSpeed = 0f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
         [SerializeField] float demoClockScaleOverride = 0f;
 
@@ -33,6 +35,7 @@ namespace RogueShooter.Demo
         CameraViewService _view;
         readonly Dictionary<string, GameObject> _markers = new Dictionary<string, GameObject>();
         SpawnAnchor[] _demoAnchors;
+        BossFightDriver _boss;
         bool _pass;
         string _status = "loading…";
 
@@ -54,6 +57,7 @@ namespace RogueShooter.Demo
 
         void Update()
         {
+            TryBossEnter();
             if (_clock == null)
                 return;
             if (_buildDir != null && _buildDir.Offering)
@@ -171,9 +175,15 @@ namespace RogueShooter.Demo
             GameObject player = new GameObject("Player");
             player.transform.position = startPos;
             JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
-            player.AddComponent<PlayerMotor2D>().Configure(moveSpeed);
+            float playerSpeed = moveSpeed > 0.0001f ? moveSpeed : MoveSpeeds.Player;
+            player.AddComponent<PlayerMotor2D>().Configure(playerSpeed);
+            player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
+            player.AddComponent<PlayerCharge>();
+            player.AddComponent<GuaranteedCritActive>();
             _player = player.transform;
+            Debug.Log($"[MoveSpeed] player={playerSpeed:0.00000} charge×{MoveSpeeds.ChargeMul:0.0} " +
+                      $"E1={MoveSpeeds.E1:0.00000} E2={MoveSpeeds.E2:0.00000} E3={MoveSpeeds.E3:0.00000} E4={MoveSpeeds.E4:0.00000}");
 
             Camera cam = Camera.main;
             if (cam == null)
@@ -226,18 +236,21 @@ namespace RogueShooter.Demo
             }
 
             _director = gameObject.AddComponent<SpawnBandDirector>();
-            _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab, _player);
             float clockScale = demoClockScaleOverride > 0.01f ? demoClockScaleOverride : _lock.demoClockScale;
             _clock.Bind(_lock, clockScale);
+            var pressureTracker = gameObject.AddComponent<TimePressureTracker>();
+            pressureTracker.Bind(_clock);
 
             _buildDir = gameObject.AddComponent<ChestAltarDirector>();
-            _buildDir.Bind(_lock, _player, siteRuntimes, Environment.TickCount);
+            _buildDir.Bind(_lock, _player, siteRuntimes, Environment.TickCount, _clock);
+            _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab, _player, OnStubKilled, _buildDir.Build);
 
             _demoAnchors = new[]
             {
-                MakeDemoAnchor("Demo_InView", startPos + new Vector3(0.2f, 0.5f, 0f), new Color(0.35f, 0.75f, 1f), root),
+                MakeDemoAnchor("Demo_InView", new Vector3(5.2f, 7.8f, 0f), new Color(0.35f, 0.75f, 1f), root),
                 MakeDemoAnchor("Demo_NearCore_Chest_01", new Vector3(6f, 11f, 0f), new Color(1f, 0.45f, 0.2f), root),
-                MakeDemoAnchor("Demo_Corridor_Z1", new Vector3(5f, 7.5f, 0f), new Color(1f, 0.82f, 0.25f), root),
+                MakeDemoAnchor("Demo_Corridor_Z1", new Vector3(24f, 0f, 0f), new Color(1f, 0.82f, 0.25f), root),
+                MakeDemoAnchor("Demo_EdgeBuffer", new Vector3(10.2f, 7.5f, 0f), new Color(0.9f, 0.4f, 0.9f), root),
             };
 
             Debug.Log("[ThreeRouteScaffold] HOOKS Shared: START Chest_01 Chest_02 A_Shared Chest_03 HubA Anchor_S1_End");
@@ -247,7 +260,57 @@ namespace RogueShooter.Demo
             Debug.Log("[ThreeRouteScaffold] HOOKS Pre: PreBoss Shop_01 Chest_03 Anchor_S3_End BOSS");
             Debug.Log("[JianHaiArt] PPU=" + JianHaiArtCatalog.Ppu + " filter=" + JianHaiArtCatalog.Filter
                       + " Chest_*→" + JianHaiArtCatalog.ChestRoot + "_* A_*→" + JianHaiArtCatalog.AltarRoot
-                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot);
+                      + "_* Shop_01→" + JianHaiArtCatalog.ShopRoot
+                      + " entityScale=" + JianHaiArtCatalog.EntityStubWorldScale
+                      + " propScale=" + JianHaiArtCatalog.PropStubWorldScale
+                      + " orthoLock=" + orthographicSize);
+            BindBossDoor();
+        }
+
+        void BindBossDoor()
+        {
+            if (!_markers.TryGetValue("BOSS", out GameObject bossGo))
+                return;
+            _boss = bossGo.GetComponent<BossFightDriver>();
+            if (_boss == null || !LockSiteCatalog.TryGet("BOSS", out SiteDef site))
+                return;
+            float r = site.NoSpawnRadius > 0.01f ? site.NoSpawnRadius : 4f;
+            var doorPos = new Vector3(site.Position.x, site.Position.y - r, 0f);
+            GameObject door = DemoPrimitives.Quad(
+                "BossDoor", doorPos, new Vector2(3.2f, 0.28f),
+                new Color(0.72f, 0.16f, 0.16f), 6, transform);
+            door.SetActive(false);
+            _boss.BindDoor(door.transform);
+        }
+
+        void TryBossEnter()
+        {
+            if (_boss == null || _player == null)
+                return;
+            if (_boss.FightStarted)
+            {
+                if (!_boss.FightSettled && _clock != null)
+                    _boss.SetWallMinutes(_clock.WallMinutes);
+                return;
+            }
+
+            if (!LockSiteCatalog.TryGet("BOSS", out SiteDef site))
+                return;
+            float r = site.NoSpawnRadius > 0.01f ? site.NoSpawnRadius : 4f;
+            var p = new Vector2(_player.position.x, _player.position.y);
+            if ((p - site.Position).sqrMagnitude > r * r)
+                return;
+            int build = _buildDir != null && _buildDir.Build != null ? _buildDir.Build.BuildCount : 0;
+            float mins = _clock != null ? _clock.WallMinutes : 0f;
+            _boss.BeginEnter(build, mins);
+        }
+
+        void OnStubKilled(StubEnemy enemy)
+        {
+            if (_buildDir != null)
+                _buildDir.OnEnemyKilled(enemy);
+            if (enemy != null)
+                Destroy(enemy.gameObject);
         }
 
         static GameObject SpawnSiteMarker(SiteDef site, Vector3 pos, Transform parent)
@@ -260,6 +323,8 @@ namespace RogueShooter.Demo
                 if (site.Kind == SiteKind.Boss)
                     artId = JianHaiArtCatalog.BossIdle;
                 GameObject go = JianHaiBind.Spawn(site.Id, pos, artId, parent);
+                if (site.Kind == SiteKind.Boss && go.GetComponent<BossFightDriver>() == null)
+                    go.AddComponent<BossFightDriver>();
                 if (!string.IsNullOrEmpty(root) && site.Kind != SiteKind.Boss)
                     JianHaiSpriteSlot.Add(go, site);
                 return go;
@@ -313,6 +378,12 @@ namespace RogueShooter.Demo
         {
             if (_director == null || _demoAnchors == null)
                 return;
+            Vector3 park = new Vector3(5f, 7.5f, 0f);
+            if (_player != null)
+                _player.position = park;
+            Camera cam = Camera.main;
+            if (cam != null)
+                cam.transform.position = new Vector3(park.x, park.y, cam.transform.position.z);
             for (int i = 0; i < _demoAnchors.Length; i++)
             {
                 SpawnAnchor a = _demoAnchors[i];
@@ -337,7 +408,9 @@ namespace RogueShooter.Demo
                 if (!_markers.ContainsKey(id)) missing.Add("marker:" + id);
             bool idsOk = missing.Count == 0;
             bool configOk = _lock != null;
-            bool viewOk = _view != null && Mathf.Abs(_view.OrthographicSize - orthographicSize) < 0.01f;
+            bool viewOk = _view != null
+                && Mathf.Abs(orthographicSize - 2.5f) < 0.01f
+                && Mathf.Abs(_view.OrthographicSize - 2.5f) < 0.01f;
 
             bool inViewSkip = _demoAnchors != null
                 && SpawnViewGate.ShouldSkipSpawn(_demoAnchors[0].WorldPosition)
@@ -345,7 +418,15 @@ namespace RogueShooter.Demo
             bool coreSkip = _demoAnchors != null
                 && SpawnCoreGate.IsInsideNoSpawnCore(_demoAnchors[1].WorldPosition)
                 && !_director.WasSpawned("Demo_NearCore_Chest_01");
-            bool corridorSpawn = _demoAnchors != null && _director.WasSpawned("Demo_Corridor_Z1");
+            bool offViewSpawn = _demoAnchors != null
+                && !SpawnViewGate.ShouldSkipSpawn(_demoAnchors[2].WorldPosition)
+                && _director.WasSpawned("Demo_Corridor_Z1");
+            bool edgeSkip = _demoAnchors != null
+                && _demoAnchors.Length >= 4
+                && !SpawnViewGate.IsInMainCameraView(_demoAnchors[3].WorldPosition)
+                && SpawnViewGate.ShouldSkipSpawn(_demoAnchors[3].WorldPosition)
+                && !_director.WasSpawned("Demo_EdgeBuffer");
+            bool capOk = SpawnScreenCap.MaxLive == 12;
 
             bool csvOk = _lock != null && _lock.loadedFiles != null;
             if (csvOk)
@@ -380,11 +461,12 @@ namespace RogueShooter.Demo
 
             string artErr = JianHaiArtChecks.Run();
             bool artOk = artErr == null;
-            _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && corridorSpawn
+            _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && offViewSpawn
+                    && edgeSkip && capOk
                     && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
-            sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} coreSkip={coreSkip} corridorSpawn={corridorSpawn} z1Eff={z1Eff:0.00}");
+            sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} edgeSkip={edgeSkip} coreSkip={coreSkip} offViewSpawn={offViewSpawn} capOk={capOk} pad={SpawnViewGate.EffectivePad:0.00} z1Eff={z1Eff:0.00}");
             sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
@@ -456,18 +538,32 @@ namespace RogueShooter.Demo
             float mins = _clock != null ? _clock.WallMinutes : 0f;
             float interval = _director != null ? _director.CurrentInterval() : 0f;
             SegmentMul seg = _lock != null ? _lock.GetSegment(band) : null;
-            TimeScaleMul time = _lock != null ? _lock.TimeScaleAtMinutes(mins) : null;
+            string pressurePhase = TimePressure.PhaseId(mins);
+            string pressureLabel = TimePressure.PhaseLabel(mins);
+            float attr = TimePressure.AttrMul(mins);
+            float intMul = TimePressure.IntervalMul(mins);
             WaveSpec wave = _lock != null ? _lock.GetWave(band) : null;
             string hp = seg != null ? seg.hpMul.ToString("0.000") : "-";
             string dmg = seg != null ? seg.dmgMul.ToString("0.000") : "-";
-            string timeId = time != null ? time.id : "-";
             int waveN = wave != null ? wave.count : 0;
 
-            GUI.Label(new Rect(pad + 8, pad + 24, w - 16, 54),
+            GUI.Label(new Rect(pad + 8, pad + 24, w - 16, 22),
+                $"时间段 HUD：{pressureLabel} ({pressurePhase})  wall={mins:0.00}′  M_attr={attr:0.00}  M_int={intMul:0.00}  spawnEff={interval:0.00}s",
+                title);
+            string classHud = _director != null
+                ? SpawnWaveCatalog.ClassLabel(_director.LastClass) + " " + (_director.LastGroupLine ?? "")
+                : "";
+            if (!string.IsNullOrEmpty(classHud))
+            {
+                GUI.Label(new Rect(pad + 8, pad + 46, w - 16, 18),
+                    "刷怪类 HUD：" + classHud, style);
+            }
+
+            GUI.Label(new Rect(pad + 8, pad + 48, w - 16, 54),
                 $"WASD · E interact · F strike · N new run · F1 Chest_01 · F2 A_Shared · F3 Shop · F4 mob\n" +
-                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset\n" +
-                $"band={band}  wall={mins:0.00}′  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
-                $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  eff={interval:0.00}s  HP×{hp} DMG×{dmg} time={timeId}",
+                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力射(≥0.15s)\n" +
+                $"band={band}  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
+                $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  HP×{hp} DMG×{dmg}",
                 style);
 
             if (_lock != null)
@@ -498,7 +594,18 @@ namespace RogueShooter.Demo
             if (!string.IsNullOrEmpty(flash))
                 GUI.Label(new Rect(pad + 8, pad + 208, w - 16, 18), flash, style);
 
-            DrawMobStates(pad + 8, pad + 228, w - 16, style);
+            if (_boss != null && _boss.Brain != null && _boss.FightStarted)
+            {
+                var brain = _boss.Brain;
+                GUI.Label(new Rect(pad + 8, pad + 226, w - 16, 18),
+                    "BOSS " + brain.Phase
+                    + " door=" + (brain.DoorClosed ? "CLOSED" : "OPEN")
+                    + " lockHP=" + (brain.HpLocked ? "YES" : "NO")
+                    + " " + brain.Hp.ToString("0") + "/" + brain.MaxHp.ToString("0"),
+                    style);
+            }
+
+            DrawMobStates(pad + 8, pad + 246, w - 16, style);
 
             DrawIdPanel();
             DrawViewBorder();
@@ -551,7 +658,7 @@ namespace RogueShooter.Demo
                 "  Anchor_S2_End_γ @ A6南口前\n" +
                 "  Anchor_S3_End @ Pre north\n\n" +
                 "Cores: HOOKS radii (START4 Hub3.5 A2.5 C2 Shop3 Pre4)\n" +
-                "+ SpawnViewGate skip-in-view\n" +
+                "+ SpawnViewGate spawn-in-view\n" +
                 "Chests P_spawn=0.90 · Altars 100%\n" +
                 "Shop never increments B/RS\n" +
                 "AI: Patrol→Alert→Chase→Disengage\n" +

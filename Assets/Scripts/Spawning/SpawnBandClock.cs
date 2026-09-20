@@ -58,6 +58,12 @@ namespace RogueShooter.Spawning
             ApplyBand(forceEvent: true);
         }
 
+        public void JumpToMinutes(float minutes)
+        {
+            _wallSeconds = Mathf.Max(0f, minutes) * 60f;
+            ApplyBand(forceEvent: true);
+        }
+
         public void ResetClock()
         {
             _wallSeconds = 0f;

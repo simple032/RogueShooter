@@ -36,12 +36,22 @@ namespace RogueShooter.Art
             Apply();
         }
 
+        public void SetArtRoot(string root)
+        {
+            root = root ?? "";
+            if (artRoot == root && _sr != null && _sr.sprite != null)
+                return;
+            artRoot = root;
+            Apply();
+        }
+
         public void Apply()
         {
             if (_sr == null)
                 _sr = GetComponent<SpriteRenderer>();
             if (_sr == null)
                 _sr = gameObject.AddComponent<SpriteRenderer>();
+            JianHaiBind.ApplyScale(transform, ArtId);
             JianHaiSprites.Bind(_sr, ArtId);
         }
 

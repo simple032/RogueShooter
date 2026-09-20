@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using RogueShooter.Ai;
+using RogueShooter.Boss;
 
 namespace RogueShooter.Player
 {
@@ -42,9 +43,28 @@ namespace RogueShooter.Player
                 }
             }
 
-            if (best == null)
+            BossFightDriver boss = BossFightDriver.Live;
+            float bossD = float.MaxValue;
+            bool bossInRange = boss != null && boss.FightStarted && !boss.FightSettled;
+            if (bossInRange)
+            {
+                bossD = Vector2.Distance(
+                    new Vector2(transform.position.x, transform.position.y),
+                    new Vector2(boss.transform.position.x, boss.transform.position.y));
+                bossInRange = bossD <= range;
+            }
+
+            if (best == null && !bossInRange)
             {
                 Debug.Log("[Strike] miss (no mob in " + range.ToString("0.00") + ")");
+                return;
+            }
+
+            if (bossInRange && (best == null || bossD <= bestD))
+            {
+                boss.DealDamage(1f);
+                Debug.Log("[Strike] hit BOSS dist=" + bossD.ToString("0.00")
+                    + " hp=" + boss.Brain.Hp.ToString("0") + "/" + boss.Brain.MaxHp.ToString("0"));
                 return;
             }
 
