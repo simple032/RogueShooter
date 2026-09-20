@@ -69,15 +69,15 @@ namespace RogueShooter.Build
 
             if (ShopStock.ShelfCount != 6)
                 return "shop shelves!=6";
-            if (ShopStock.BuildEquivFor(ShopSlotRole.Low) != 0
-                || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 0
-                || ShopStock.BuildEquivFor(ShopSlotRole.High) != 0
-                || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 0)
-                return "shop equiv must be 0 (shop ≠ Build)";
+            if (ShopStock.BuildEquivFor(ShopSlotRole.Low) != 1
+                || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 2
+                || ShopStock.BuildEquivFor(ShopSlotRole.High) != 4
+                || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 2)
+                return "shop equiv";
 
             var st = new RunBuildState(0.45f, 0.55f, 100);
-            if (!st.TryShopBuy(20, 1, "R1L") || st.BuildCount != 0 || st.OwnedRewardIds.Count != 1)
-                return "shop buy must not add Build";
+            if (!st.TryShopBuy(20, 1, "R1L") || st.BuildCount != 1 || st.OwnedRewardIds.Count != 1)
+                return "shop buy build equiv";
             float dpsShop = Crit2Dps.FromState(st, true).Dps;
             if (dpsShop <= dps0)
                 return "shop reward must affect DPS";

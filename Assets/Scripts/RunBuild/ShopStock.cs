@@ -48,11 +48,19 @@ namespace RogueShooter.Build
         public const int ElasticWHigh = 12;
         public const int ElasticWHeal = 0;
 
-        /// <summary>Locked: shop shelves never count toward Build.</summary>
+        /// <summary>Shop shelf → Build (普1/中2/高4/回血2). 制作人 2026-09-20：店购计 Build.</summary>
         public static int BuildEquivFor(ShopSlotRole role)
         {
-            _ = role;
-            return 0;
+            switch (role)
+            {
+                case ShopSlotRole.Mid:
+                case ShopSlotRole.Heal:
+                    return 2;
+                case ShopSlotRole.High:
+                    return 4;
+                default:
+                    return 1;
+            }
         }
 
         public static int PriceBaseFor(ShopSlotRole role)

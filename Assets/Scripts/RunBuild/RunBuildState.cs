@@ -3,7 +3,8 @@ using System.Collections.Generic;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// Per-run Build counters. Shop purchases do not count toward Build.
+    /// Per-run Build counters. Shop purchase equiv counts toward Build
+    /// (crit2 / S1b; 制作人 2026-09-20 改口：店购计 Build).
     /// Power = 0.45*B + 0.55*RS.
     /// </summary>
     public sealed class RunBuildState
@@ -107,20 +108,22 @@ namespace RogueShooter.Build
             return first;
         }
 
-        /// <summary>Shop buy: gold + reward only. Locked: shop never counts toward Build.</summary>
+        /// <summary>Shop buy: gold + Build equiv (普1/中2/高4/回血2).</summary>
         public bool TryShopBuy(int price, int buildEquiv, string rewardId)
         {
             if (price < 0 || Gold < price)
                 return false;
             Gold -= price;
             ShopBuys++;
-            _ = buildEquiv;
+            if (buildEquiv < 0)
+                buildEquiv = 0;
+            BuildCount += buildEquiv;
             ApplyReward(rewardId);
-            LastPick = "SHOP B+0 " + rewardId + " gold-" + price;
+            LastPick = "SHOP +" + buildEquiv + " " + rewardId + " gold-" + price;
             return true;
         }
 
-        /// <summary>Legacy overload: price only. Shop never adds Build.</summary>
+        /// <summary>Legacy overload: price only, no Build (prefer TryShopBuy with equiv).</summary>
         public bool TryShopBuy(int price)
         {
             return TryShopBuy(price, 0, "");

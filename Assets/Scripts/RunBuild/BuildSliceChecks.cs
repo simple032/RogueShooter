@@ -15,20 +15,19 @@ namespace RogueShooter.Build
                 return "P_spawn expected 0.90 from LOCK";
             if (Math.Abs(data.powerBuildCoef - 0.45f) > 0.001f || Math.Abs(data.powerRarityCoef - 0.55f) > 0.001f)
                 return "Power coefs expected 0.45 / 0.55";
-            if (data.shopBuildFromShop != 0)
-                return "shop Build-from-shop flag expected 0 (shop ≠ Build)";
-            if (ShopStock.BuildEquivFor(ShopSlotRole.Low) != 0
-                || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 0
-                || ShopStock.BuildEquivFor(ShopSlotRole.High) != 0
-                || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 0)
-                return "shop BuildEquiv must be 0 (shop ≠ Build)";
+            if (data.shopBuildFromShop != 1)
+                return "shop Build-from-shop flag expected 1 (店购计 Build; 制作人 2026-09-20 改口)";
+            if (ShopStock.BuildEquivFor(ShopSlotRole.Low) != 1
+                || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 2
+                || ShopStock.BuildEquivFor(ShopSlotRole.High) != 4
+                || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 2)
+                return "shop BuildEquiv expected 普1/中2/高4/回血2";
 
             var st = new RunBuildState(data.powerBuildCoef, data.powerRarityCoef, 80);
-            int buildBeforeBuy = st.BuildCount;
             if (!st.TryShopBuy(20, ShopStock.BuildEquivFor(ShopSlotRole.Low), "R1L"))
                 return "shop buy should succeed with start gold";
-            if (st.BuildCount != buildBeforeBuy)
-                return "shop buy must not change Build";
+            if (st.BuildCount != 1)
+                return "shop buy must add Build equiv";
             if (st.OwnedRewardIds.Count < 1)
                 return "shop buy must apply reward";
 
