@@ -3,24 +3,33 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using RogueShooter.Balance;
+using RogueShooter.Demo;
 using RogueShooter.Layout;
 using RogueShooter.Player;
+using RogueShooter.Spawning;
 
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// Run-start chest P_spawn rolls, always-on altars, E interact 3-pick, stub shop.
+    /// Run-start chest P_spawn rolls, always-on altars, E interact 3-pick, 5-shelf shop.
     /// </summary>
     public class ChestAltarDirector : MonoBehaviour
     {
         BalanceLockData _lock;
         Transform _player;
+        SpawnBandClock _clock;
         RunBuildState _build;
         readonly List<SiteRuntime> _sites = new List<SiteRuntime>();
         Dictionary<string, bool> _chestPresent = new Dictionary<string, bool>();
         System.Random _rng;
         int _seed;
+        int _pendingInherit;
+        bool _deathNoted;
         RewardOption[] _offers = Array.Empty<RewardOption>();
+        AltarPick[] _altarPicks = Array.Empty<AltarPick>();
+        ShopShelf[] _shopShelves = Array.Empty<ShopShelf>();
+        bool _altarOffer;
+        bool _shopOffer;
         SiteRuntime _offering;
         SiteRuntime _nearest;
         string _flash = "";
@@ -34,28 +43,60 @@ namespace RogueShooter.Build
         public int AltarCount { get; private set; }
         public SiteRuntime Nearest => _nearest;
         public bool Offering => _offering != null;
+        public IReadOnlyList<ShopShelf> ShopShelves => _shopShelves;
         public IReadOnlyList<string> EmptyChestIds => _emptyIds;
 
         public void Bind(BalanceLockData data, Transform player, List<SiteRuntime> sites, int seed)
         {
+            Bind(data, player, sites, seed, null);
+        }
+
+        public void Bind(BalanceLockData data, Transform player, List<SiteRuntime> sites, int seed, SpawnBandClock clock)
+        {
             _lock = data;
             _player = player;
+            _clock = clock;
             _sites.Clear();
             if (sites != null)
                 _sites.AddRange(sites);
             AltarCount = 0;
             for (int i = 0; i < _sites.Count; i++)
             {
-                if (_sites[i] != null && _sites[i].Kind == SiteKind.Altar)
+                if (_sites[i] == null)
+                    continue;
+                if (_sites[i].Kind == SiteKind.Altar)
+                {
                     AltarCount++;
+                    _sites[i].SetAltarSize(AltarRewardRoll.SizeForHookId(_sites[i].Id));
+                }
+                if (_sites[i].Kind == SiteKind.Chest)
+                    _sites[i].SetLargeChest(IsLargeChestId(_sites[i].Id));
             }
 
-            int gold = data != null ? data.shopStartGold : 0;
+            int gold = EconomyGold.StartGold;
             _build = new RunBuildState(
                 data != null ? data.powerBuildCoef : 0.45f,
                 data != null ? data.powerRarityCoef : 0.55f,
                 gold);
             BeginRun(seed);
+        }
+
+        static bool IsLargeChestId(string id)
+        {
+            // Stub tags until level hooks mark dead-end large chests.
+            return id == "Chest_05" || id == "Chest_09" || id == "Chest_03";
+        }
+
+        float WallMinutes => _clock != null ? _clock.WallMinutes : 0f;
+
+        public void OnEnemyKilled(StubEnemy enemy)
+        {
+            if (_build == null || enemy == null)
+                return;
+            float t = WallMinutes;
+            int gain = EconomyGold.KillGold(enemy.KindId, t);
+            _build.AddGold(gain);
+            Debug.Log($"[Gold] kill {enemy.KindId} +{gain} gold={_build.Gold} phase={TimePressure.PhaseId(t)} t={t:0.00}′");
         }
 
         public void BeginRun(int seed)
@@ -94,13 +135,28 @@ namespace RogueShooter.Build
                 }
             }
 
-            int gold = _lock != null ? _lock.shopStartGold : 0;
+            int gold = ConsumeOpeningGold();
             if (_build != null)
                 _build.Reset(gold);
+            _deathNoted = false;
+
+            _shopShelves = ShopStock.RollShelves(_rng);
+            Debug.Log($"[Shop] stock n={_shopShelves.Length} no-refresh shelves={ShopStock.FormatShelves(_shopShelves)} gold={gold}");
 
             string empty = _emptyIds.Count == 0 ? "(none)" : string.Join(",", _emptyIds.ToArray());
             Debug.Log($"[ChestRoll] seed={_seed} P_spawn={p:0.00} present={ChestPresentCount}/{ChestSlotCount} empty={empty}");
-            Debug.Log($"[Altar] always present count={AltarCount} (no roll)");
+            var altarSizes = new StringBuilder();
+            for (int i = 0; i < _sites.Count; i++)
+            {
+                if (_sites[i] == null || _sites[i].Kind != SiteKind.Altar)
+                    continue;
+                if (altarSizes.Length > 0)
+                    altarSizes.Append(',');
+                altarSizes.Append(_sites[i].Id).Append('=')
+                    .Append(AltarRewardRoll.SizeLabel(_sites[i].AltarSize));
+            }
+
+            Debug.Log($"[Altar] always present count={AltarCount} sizes={altarSizes}");
         }
 
         void OnDisable()
@@ -121,10 +177,38 @@ namespace RogueShooter.Build
 
             RefreshNearest();
 
+            NoteDeathIfDown();
+
             if (Input.GetKeyDown(KeyCode.E))
                 TryInteract();
             if (Input.GetKeyDown(KeyCode.N))
                 BeginRun(Environment.TickCount);
+        }
+
+        /// <summary>N27: snapshot held gold on death so the next BeginRun grants inherit.</summary>
+        public void NoteDeathHeldGold(int held)
+        {
+            _pendingInherit = EconomyGold.DeathInherit(held);
+            _deathNoted = true;
+            Debug.Log($"[Gold] death inherit pending={_pendingInherit} from held={held} rate={EconomyGold.DeathInheritRate:0.00} cap={EconomyGold.DeathInheritCap}");
+        }
+
+        int ConsumeOpeningGold()
+        {
+            int gold = EconomyGold.StartGold + _pendingInherit;
+            Debug.Log($"[Gold] open start={EconomyGold.StartGold} inherit={_pendingInherit} gold={gold}");
+            _pendingInherit = 0;
+            return gold;
+        }
+
+        void NoteDeathIfDown()
+        {
+            if (_deathNoted || _player == null || _build == null)
+                return;
+            var vitals = _player.GetComponent<PlayerVitals>();
+            if (vitals == null || vitals.Hp > 0f)
+                return;
+            NoteDeathHeldGold(_build.Gold);
         }
 
         void RefreshNearest()
@@ -164,7 +248,13 @@ namespace RogueShooter.Build
 
             if (_nearest.IsShop)
             {
-                BuyShop();
+                OpenShop();
+                return;
+            }
+
+            if (_nearest.Kind == SiteKind.Altar)
+            {
+                TryLightAltar();
                 return;
             }
 
@@ -185,7 +275,9 @@ namespace RogueShooter.Build
             if (!_nearest.CanOfferBuild)
                 return;
 
-            string source = _nearest.Kind == SiteKind.Altar ? "altar" : "chest";
+            string source = "chest";
+            _altarOffer = false;
+            _altarPicks = Array.Empty<AltarPick>();
             _offers = RewardOffer.RollUnique(_lock, source, _rng);
             if (_offers == null || _offers.Length == 0)
             {
@@ -199,31 +291,170 @@ namespace RogueShooter.Build
             Debug.Log($"[Offer] {_offering.Id} source={source} n={_offers.Length} paused");
         }
 
-        void BuyShop()
+        void OpenShop()
         {
-            if (_build == null)
+            if (_nearest == null || _shopShelves == null || _shopShelves.Length != ShopStock.ShelfCount)
+            {
+                Debug.Log("[Shop] open FAIL shelves missing");
                 return;
+            }
+
+            _shopOffer = true;
+            _altarOffer = false;
+            _altarPicks = Array.Empty<AltarPick>();
+            _offers = Array.Empty<RewardOption>();
+            _offering = _nearest;
+            RunPause.InteractOpen = true;
+            Time.timeScale = 0f;
+            Debug.Log($"[Shop] open {_offering.Id} n={_shopShelves.Length} no-refresh shelves={ShopStock.FormatShelves(_shopShelves)} " +
+                      $"gold={_build.Gold} B={_build.BuildCount}");
+        }
+
+        void BuyShopShelf(int index)
+        {
+            if (_build == null || _shopShelves == null || index < 0 || index >= _shopShelves.Length)
+                return;
+            ShopShelf shelf = _shopShelves[index];
+            if (shelf.Sold)
+            {
+                Debug.Log($"[Shop] buy FAIL {shelf.Id} already sold B={_build.BuildCount}");
+                Flash(shelf.Id + " sold");
+                return;
+            }
+
             int b = _build.BuildCount;
-            int rs = _build.RarityScore;
-            int price = _lock != null ? _lock.shopStubPrice : 25;
-            bool ok = _build.TryShopBuy(price);
+            int equiv = ShopStock.BuildEquivFor(shelf.ContentRole);
+            bool ok = _build.TryShopBuy(shelf.Price, equiv, shelf.Id);
+            if (ok)
+            {
+                shelf.Sold = true;
+                _shopShelves[index] = shelf;
+            }
+
             string line = ok
-                ? $"[Shop] buy ok price={price} gold={_build.Gold} B={_build.BuildCount} RS={_build.RarityScore} (unchanged Build)"
-                : $"[Shop] buy FAIL need={price} gold={_build.Gold} B={_build.BuildCount} RS={_build.RarityScore}";
+                ? $"[Shop] buy ok {shelf.Id} tier={AltarRewardRoll.TierLabel(shelf.Tier)} price={shelf.Price} equiv=+{equiv} " +
+                  $"effect={shelf.Effect} gold={_build.Gold} B={b}→{_build.BuildCount}"
+                : $"[Shop] buy FAIL {shelf.Id} need={shelf.Price} gold={_build.Gold} B={_build.BuildCount}";
             Debug.Log(line);
-            if (ok && (_build.BuildCount != b || _build.RarityScore != rs))
-                Debug.LogError("[Shop] BUG shop mutated Build");
             Flash(ok
-                ? "shop buy gold-" + price + "  B/RS unchanged"
+                ? "bought " + shelf.Id + " -" + shelf.Price + "g B+" + equiv
                 : "shop: not enough gold");
+        }
+
+        void TryLightAltar()
+        {
+            SiteRuntime altar = _nearest;
+            if (altar == null || altar.Lit)
+                return;
+            if (altar.AltarSize == AltarSize.None)
+            {
+                Debug.Log("[Altar] no-size " + altar.Id + " not lit B=" + _build.BuildCount);
+                return;
+            }
+
+            if (_build.AltarSizeClaimed(altar.AltarSize))
+            {
+                altar.MarkLit();
+                Debug.Log("[Altar] lit-no-reward " + altar.Id + " size=" + AltarRewardRoll.SizeLabel(altar.AltarSize)
+                    + " lit=true B=" + _build.BuildCount);
+                return;
+            }
+
+            _altarPicks = AltarRewardRoll.RollThree(altar.AltarSize, _rng);
+            if (_altarPicks == null || _altarPicks.Length == 0)
+            {
+                Debug.Log("[Altar] offer empty " + altar.Id);
+                return;
+            }
+
+            _altarOffer = true;
+            _offers = Array.Empty<RewardOption>();
+            _offering = altar;
+            RunPause.InteractOpen = true;
+            Time.timeScale = 0f;
+            var order = new StringBuilder();
+            for (int i = 0; i < _altarPicks.Length; i++)
+            {
+                if (i > 0)
+                    order.Append(',');
+                order.Append(AltarRewardRoll.TierLabel(_altarPicks[i].Tier));
+            }
+
+            Debug.Log("[Altar] offer " + altar.Id + " size=" + AltarRewardRoll.SizeLabel(altar.AltarSize)
+                + " n=" + _altarPicks.Length + " tiers=" + order + " lit=false B=" + _build.BuildCount);
+        }
+
+        void CancelCurrentOffer()
+        {
+            if (_altarOffer && _offering != null)
+            {
+                Debug.Log("[Altar] cancel " + _offering.Id + " size=" + AltarRewardRoll.SizeLabel(_offering.AltarSize)
+                    + " lit=" + _offering.Lit + " B=" + _build.BuildCount);
+            }
+            else if (_shopOffer && _offering != null)
+            {
+                Debug.Log("[Shop] close " + _offering.Id + " shelves=" + ShopStock.FormatShelves(_shopShelves)
+                    + " B=" + _build.BuildCount + " (no refresh)");
+            }
+
+            Flash("offer cancelled");
+            CloseOffer(restoreTime: true);
+        }
+
+        void ConfirmCurrentOffer(int pick)
+        {
+            if (_shopOffer)
+            {
+                BuyShopShelf(pick);
+                return;
+            }
+
+            if (_altarOffer)
+            {
+                if (_offering == null || pick < 0 || pick >= _altarPicks.Length)
+                    return;
+                AltarSize size = _offering.AltarSize;
+                bool added = _build.ConfirmAltarSize(size);
+                _offering.MarkLit();
+                Debug.Log("[Altar] confirm " + _offering.Id + " size=" + AltarRewardRoll.SizeLabel(size)
+                    + " added=" + added + " delta=" + AltarRewardRoll.BuildDelta(size)
+                    + " lit=" + _offering.Lit + " B=" + _build.BuildCount);
+                Flash("lit " + _offering.Id);
+                CloseOffer(restoreTime: true);
+                return;
+            }
+
+            if (pick < 0 || pick >= _offers.Length || _offering == null)
+                return;
+
+            RewardOption opt = _offers[pick];
+            float t = WallMinutes;
+            bool large = _offering.LargeChest;
+            int buildDelta = RunBuildState.ChestBuildDelta(large);
+            _build.GrantBuildPick(opt.Id, opt.Rarity, opt.Score, buildDelta);
+            int chestGold = EconomyGold.ChestGold(large, t);
+            _build.AddGold(chestGold);
+            _offering.MarkConsumed();
+            Debug.Log($"[Build] {_offering.Id} {(large ? "large" : "small")} pick {opt.Id} {opt.Rarity} tag={opt.Tag} " +
+                      $"+{opt.Score} B+{buildDelta} B={_build.BuildCount} RS={_build.RarityScore} Power={_build.Power:0.00} " +
+                      $"({_build.PowerFormulaLine()})");
+            Debug.Log($"[Gold] chest {_offering.Id} {(large ? "large" : "small")} +{chestGold} gold={_build.Gold} " +
+                      $"phase={TimePressure.PhaseId(t)} t={t:0.00}′");
+            Flash("took " + opt.Id + " B+" + buildDelta + " +" + chestGold + "g");
+            CloseOffer(restoreTime: true);
         }
 
         void HandleOfferInput()
         {
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
+            if (Input.GetKeyDown(KeyCode.Escape) || (!_shopOffer && Input.GetKeyDown(KeyCode.E)))
             {
-                Flash("offer cancelled");
-                CloseOffer(restoreTime: true);
+                CancelCurrentOffer();
+                return;
+            }
+
+            if (_shopOffer && Input.GetKeyDown(KeyCode.E))
+            {
+                CancelCurrentOffer();
                 return;
             }
 
@@ -231,23 +462,30 @@ namespace RogueShooter.Build
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) pick = 0;
             if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) pick = 1;
             if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) pick = 2;
-            if (pick < 0 || pick >= _offers.Length)
+            if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) pick = 3;
+            if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) pick = 4;
+            if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6)) pick = 5;
+            if (pick < 0)
                 return;
+            if (_shopOffer)
+            {
+                if (pick < _shopShelves.Length)
+                    ConfirmCurrentOffer(pick);
+                return;
+            }
 
-            RewardOption opt = _offers[pick];
-            _build.GrantBuildPick(opt.Id, opt.Rarity, opt.Score);
-            _offering.MarkConsumed();
-            Debug.Log($"[Build] {_offering.Id} pick {opt.Id} {opt.Rarity} tag={opt.Tag} +{opt.Score} " +
-                      $"B={_build.BuildCount} RS={_build.RarityScore} Power={_build.Power:0.00} " +
-                      $"({_build.PowerFormulaLine()})");
-            Flash("took " + opt.Id);
-            CloseOffer(restoreTime: true);
+            if (pick > 2)
+                return;
+            ConfirmCurrentOffer(pick);
         }
 
         void CloseOffer(bool restoreTime)
         {
             _offering = null;
             _offers = Array.Empty<RewardOption>();
+            _altarPicks = Array.Empty<AltarPick>();
+            _altarOffer = false;
+            _shopOffer = false;
             RunPause.InteractOpen = false;
             if (restoreTime)
                 Time.timeScale = 1f;
@@ -281,17 +519,49 @@ namespace RogueShooter.Build
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = old;
 
-            int w = 520;
-            int h = 200;
+            int w = 560;
+            int h = _shopOffer ? 280 : 200;
             float x = (Screen.width - w) * 0.5f;
             float y = (Screen.height - h) * 0.5f;
             GUI.Box(new Rect(x, y, w, h), "");
             var title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
             var style = new GUIStyle(GUI.skin.label) { fontSize = 13 };
-            string src = _offering.Kind == SiteKind.Altar ? "altar (damage bias)" : "chest (survival bias)";
+            if (_shopOffer)
+            {
+                GUI.Label(new Rect(x + 16, y + 10, w - 32, 24),
+                    _offering.Id + "  —  5 shelves (no refresh)", title);
+                GUI.Label(new Rect(x + 16, y + 36, w - 32, 20),
+                    "1–5 buy · Esc/E close · prices 20/28/35 · never Build", style);
+                for (int i = 0; i < _shopShelves.Length; i++)
+                {
+                    ShopShelf s = _shopShelves[i];
+                    string line = s.Sold
+                        ? (i + 1) + ")  " + s.Id + "  SOLD"
+                        : (i + 1) + ")  " + s.Id + "  " + AltarRewardRoll.TierLabel(s.Tier)
+                          + "  " + s.Price + "g  " + s.Effect;
+                    GUI.Label(new Rect(x + 16, y + 64 + i * 28, w - 32, 26), line, style);
+                }
+
+                return;
+            }
+
+            int n = _altarOffer ? _altarPicks.Length : _offers.Length;
+            string src = _altarOffer ? "altar light" : "chest";
             GUI.Label(new Rect(x + 16, y + 10, w - 32, 24),
-                _offering.Id + "  —  pick 1 of " + _offers.Length + "   [" + src + "]", title);
+                _offering.Id + "  —  pick 1 of " + n + "   [" + src + "]", title);
             GUI.Label(new Rect(x + 16, y + 36, w - 32, 20), "1 / 2 / 3 select · Esc/E cancel (no Build)", style);
+            if (_altarOffer)
+            {
+                for (int i = 0; i < _altarPicks.Length; i++)
+                {
+                    AltarPick o = _altarPicks[i];
+                    GUI.Label(new Rect(x + 16, y + 64 + i * 28, w - 32, 26),
+                        (i + 1) + ")  " + AltarRewardRoll.TierLabel(o.Tier) + "  " + o.Effect, style);
+                }
+
+                return;
+            }
+
             for (int i = 0; i < _offers.Length; i++)
             {
                 RewardOption o = _offers[i];

@@ -9,7 +9,7 @@ namespace RogueShooter.Art
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.position = position;
-            go.transform.localScale = Vector3.one;
+            ApplyScale(go.transform, artId);
             var sr = go.AddComponent<SpriteRenderer>();
             JianHaiSprites.Bind(sr, artId);
             return go;
@@ -19,11 +19,19 @@ namespace RogueShooter.Art
         {
             if (go == null)
                 return;
-            go.transform.localScale = Vector3.one;
+            ApplyScale(go.transform, artId);
             var sr = go.GetComponent<SpriteRenderer>();
             if (sr == null)
                 sr = go.AddComponent<SpriteRenderer>();
             JianHaiSprites.Bind(sr, artId);
+        }
+
+        public static void ApplyScale(Transform t, string artId)
+        {
+            if (t == null)
+                return;
+            float s = JianHaiArtCatalog.StubWorldScale(artId);
+            t.localScale = new Vector3(s, s, 1f);
         }
 
         public static void SetLayer(GameObject go, string layer, int order)

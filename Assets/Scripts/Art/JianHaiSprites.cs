@@ -114,6 +114,18 @@ namespace RogueShooter.Art
                 return Hex(0x3a424c);
             if (artId.Contains("tile") || artId.Contains("floor"))
                 return Hex(0x1a1d24);
+            if (artId.Contains("reticle") && artId.Contains("green"))
+                return Hex(0x5a8f7b);
+            if (artId.Contains("reticle"))
+                return Hex(0xc8c0b0);
+            if (artId.Contains("crit_flash"))
+                return Hex(0xe0b56a);
+            if (artId.Contains("glow_cold"))
+                return Hex(0xb8c4d4);
+            if (artId.Contains("string_glow") || artId.Contains("bow_edge") || artId.Contains("arrow_tip"))
+                return Hex(0xd4a05a);
+            if (artId.Contains("fx"))
+                return Hex(0xd4a05a);
             if (artId.Contains("ui"))
                 return Hex(0xc8c0b0);
             return Hex(0x6a6e74);

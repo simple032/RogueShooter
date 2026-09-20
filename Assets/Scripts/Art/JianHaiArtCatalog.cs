@@ -14,6 +14,17 @@ namespace RogueShooter.Art
         public const string RootFolder = "Assets/Art/JianHai/";
         public const string Naming = "jh_<cat>_<name>[_action][_dir][_frame]";
 
+        /// <summary>
+        /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
+        /// Shrinks player/E1/BOSS on-screen occupancy at locked ortho 2.5.
+        /// 0.62 is slightly larger than the Enter the Gungeon reference share, still lots of room visible.
+        /// Do not raise CameraViewService ortho (2.7–3.5) to fake this.
+        /// </summary>
+        public const float EntityStubWorldScale = 0.62f;
+
+        /// <summary>Chest / altar / shop: slight shrink, secondary to entities.</summary>
+        public const float PropStubWorldScale = 0.75f;
+
         public const string LayerGround = "Ground";
         public const string LayerDecal = "Decal";
         public const string LayerProp = "Prop";
@@ -22,11 +33,22 @@ namespace RogueShooter.Art
         public const string LayerUi = "UI";
 
         public const string ChestRoot = "jh_prop_chest";
+        public const string ChestLargeRoot = "jh_prop_chest_large";
         public const string AltarRoot = "jh_prop_altar";
         public const string ShopRoot = "jh_prop_shop_01";
         public const string PlayerIdle = "jh_char_archer_idle";
         public const string EnemyE1Idle = "jh_enemy_e1_skel_idle";
         public const string BossIdle = "jh_boss_lord_idle";
+
+        public const string FxStringGlow = "jh_fx_charge_string_glow";
+        public const string FxStringPulse = "jh_fx_charge_string_glow_pulse";
+        public const string FxStringCold = "jh_fx_charge_string_glow_cold";
+        public const string FxBowEdge = "jh_fx_charge_bow_edge";
+        public const string FxTipWarm = "jh_fx_charge_arrow_tip";
+        public const string FxTipIdle = "jh_fx_charge_arrow_tip_idle";
+        public const string FxCritFlash = "jh_fx_crit_flash";
+        public const string ReticleChargeIdle = "jh_ui_reticle_charge_idle";
+        public const string ReticleChargeGreen = "jh_ui_reticle_charge_green";
 
         public static readonly Vector2Like PivotPlayer = new Vector2Like(0.5f, 0.15f);
         public static readonly Vector2Like PivotBoss = new Vector2Like(0.5f, 0.12f);
@@ -45,6 +67,11 @@ namespace RogueShooter.Art
         {
             artRoot = ArtRootForHook(hookId);
             return !string.IsNullOrEmpty(artRoot);
+        }
+
+        public static string ChestArtRoot(bool large)
+        {
+            return large ? ChestLargeRoot : ChestRoot;
         }
 
         public static string ArtRootForHook(string hookId)
@@ -92,6 +119,8 @@ namespace RogueShooter.Art
                 return "Boss";
             if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
                 return "Props";
+            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return "FX";
             if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
                 return "UI";
             return "Tiles";
@@ -102,6 +131,19 @@ namespace RogueShooter.Art
             if (string.IsNullOrEmpty(artId))
                 return "";
             return RootFolder + FolderForArtId(artId) + "/" + artId + ".png";
+        }
+
+        public static float StubWorldScale(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return PropStubWorldScale;
+            if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_enemy_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_boss_", StringComparison.Ordinal))
+                return EntityStubWorldScale;
+            if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
+                return PropStubWorldScale;
+            return 1f;
         }
 
         public static string SortingLayer(string artId)
@@ -131,6 +173,8 @@ namespace RogueShooter.Art
                 return PivotProp;
             if (artId.StartsWith("jh_boss_", StringComparison.Ordinal))
                 return PivotBoss;
+            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return PivotTile;
             if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
                 || artId.StartsWith("jh_enemy_", StringComparison.Ordinal))
                 return PivotPlayer;
@@ -153,10 +197,17 @@ namespace RogueShooter.Art
                 width = 128;
                 height = 128;
             }
-            else if (artId == ShopRoot || artId.StartsWith(ShopRoot + "_", StringComparison.Ordinal))
+            else if (artId.StartsWith(AltarRoot, StringComparison.Ordinal)
+                     || artId.StartsWith(ChestLargeRoot, StringComparison.Ordinal)
+                     || artId == ShopRoot || artId.StartsWith(ShopRoot + "_", StringComparison.Ordinal))
             {
                 width = 96;
                 height = 96;
+            }
+            else if (artId.StartsWith(ChestRoot, StringComparison.Ordinal))
+            {
+                width = 64;
+                height = 64;
             }
             else if (artId.StartsWith("jh_tile_", StringComparison.Ordinal))
             {
@@ -168,15 +219,41 @@ namespace RogueShooter.Art
                 width = 32;
                 height = 64;
             }
+            else if (artId.StartsWith("jh_fx_charge_bow_edge", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 8;
+            }
+            else if (artId.StartsWith("jh_fx_charge_string_glow_cold", StringComparison.Ordinal))
+            {
+                width = 12;
+                height = 12;
+            }
+            else if (artId.StartsWith("jh_fx_crit_flash", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 32;
+            }
+            else if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+            {
+                width = 16;
+                height = 16;
+            }
             else if (artId.StartsWith("jh_ui_bar_", StringComparison.Ordinal))
             {
                 width = 128;
                 height = 16;
             }
-            else if (artId.StartsWith("jh_ui_badge_", StringComparison.Ordinal))
+            else if (artId.StartsWith("jh_ui_reticle_charge", StringComparison.Ordinal)
+                     || artId.StartsWith("jh_ui_badge_", StringComparison.Ordinal))
             {
                 width = 48;
                 height = 48;
+            }
+            else if (artId.StartsWith("jh_ui_reticle_", StringComparison.Ordinal))
+            {
+                width = 12;
+                height = 12;
             }
             else if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
             {

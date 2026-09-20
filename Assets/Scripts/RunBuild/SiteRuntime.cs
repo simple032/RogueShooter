@@ -9,6 +9,9 @@ namespace RogueShooter.Build
         public SiteDef Def { get; private set; }
         public bool Present { get; private set; }
         public bool Consumed { get; private set; }
+        public bool Lit { get; private set; }
+        public AltarSize AltarSize { get; private set; }
+        public bool LargeChest { get; private set; }
         public bool InRange;
 
         SpriteRenderer _sr;
@@ -21,7 +24,26 @@ namespace RogueShooter.Build
         public Vector3 WorldPosition => transform.position;
 
         public bool CanOfferBuild =>
-            Present && !Consumed && (Kind == SiteKind.Chest || Kind == SiteKind.Altar);
+            Present && !Consumed && !Lit && (Kind == SiteKind.Chest || Kind == SiteKind.Altar);
+
+        public void SetAltarSize(AltarSize size)
+        {
+            AltarSize = size;
+        }
+
+        public void SetLargeChest(bool large)
+        {
+            LargeChest = large;
+            if (Kind == SiteKind.Chest && _slot != null)
+                _slot.SetArtRoot(JianHaiArtCatalog.ChestArtRoot(large));
+        }
+
+        public void MarkLit()
+        {
+            Lit = true;
+            Consumed = true;
+            RefreshVisual();
+        }
 
         public bool IsShop => Kind == SiteKind.Shop;
         public bool IsEmptyChest => Kind == SiteKind.Chest && !Present;
@@ -65,7 +87,11 @@ namespace RogueShooter.Build
             if (Kind == SiteKind.Chest)
                 return Id + "  E open chest";
             if (Kind == SiteKind.Altar)
-                return Id + "  E invoke altar";
+            {
+                if (Lit)
+                    return Id + "  lit";
+                return Id + "  E light altar";
+            }
             return Id;
         }
 
@@ -86,7 +112,7 @@ namespace RogueShooter.Build
                 if (Kind == SiteKind.Chest)
                     state = Consumed ? "open" : "closed";
                 else if (Kind == SiteKind.Altar)
-                    state = InRange && CanOfferBuild ? "active" : "idle";
+                    state = Lit ? "idle" : (InRange && CanOfferBuild ? "active" : "idle");
                 _slot.SetState(state);
                 _sr = _slot.GetComponent<SpriteRenderer>();
             }
@@ -105,6 +131,8 @@ namespace RogueShooter.Build
             {
                 if (Kind == SiteKind.Chest && !Present)
                     _label.text = Def.Id + " EMPTY";
+                else if (Kind == SiteKind.Altar && Lit)
+                    _label.text = Def.Id + " LIT";
                 else if (Consumed)
                     _label.text = Def.Id + " TAKEN";
                 else

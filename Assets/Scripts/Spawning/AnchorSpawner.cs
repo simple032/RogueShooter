@@ -1,10 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
+using RogueShooter.Ai;
+using RogueShooter.Demo;
 
 namespace RogueShooter.Spawning
 {
     /// <summary>
-    /// Tries each bound anchor; skips any whose position is inside the live camera rect.
+    /// Tries each bound anchor; spawns only when off-view (see SpawnViewGate).
+    /// Cluster stubs start in Patrol — no ForceChase.
     /// </summary>
     public class AnchorSpawner : MonoBehaviour
     {
@@ -12,6 +15,7 @@ namespace RogueShooter.Spawning
 
         SpawnAnchor[] _anchors = System.Array.Empty<SpawnAnchor>();
         GameObject _stubPrefab;
+        Transform _player;
         readonly HashSet<string> _spawned = new HashSet<string>();
         readonly Dictionary<string, string> _reason = new Dictionary<string, string>();
         readonly HashSet<string> _loggedSkip = new HashSet<string>();
@@ -22,8 +26,14 @@ namespace RogueShooter.Spawning
 
         public void Bind(SpawnAnchor[] anchors, GameObject stubPrefab, float interval)
         {
+            Bind(anchors, stubPrefab, interval, null);
+        }
+
+        public void Bind(SpawnAnchor[] anchors, GameObject stubPrefab, float interval, Transform player)
+        {
             _anchors = anchors ?? System.Array.Empty<SpawnAnchor>();
             _stubPrefab = stubPrefab;
+            _player = player;
             retryInterval = Mathf.Max(0.05f, interval);
             _configured = false;
         }
@@ -74,19 +84,43 @@ namespace RogueShooter.Spawning
             {
                 _reason[anchor.AnchorId] = "SKIP in-view";
                 if (_loggedSkip.Add(anchor.AnchorId))
-                    Debug.Log($"[SpawnViewGate] {anchor.AnchorId} at {anchor.WorldPosition} SKIP ({phase}) — inside camera rect");
+                    Debug.Log($"[SpawnViewGate] {anchor.AnchorId} at {anchor.WorldPosition} SKIP ({phase}) — in view or edge buffer pad={SpawnViewGate.EffectivePad:0.00}");
+                return;
+            }
+
+            int room = SpawnScreenCap.Remaining;
+            if (room <= 0)
+            {
+                _reason[anchor.AnchorId] = "SKIP screen-cap";
+                Debug.Log($"[SpawnScreenCap] {anchor.AnchorId} SKIP ({phase}) live={SpawnScreenCap.LiveCount()}/{SpawnScreenCap.MaxLive}");
                 return;
             }
 
             _spawned.Add(anchor.AnchorId);
-            _reason[anchor.AnchorId] = "SPAWN out-of-view";
-            Debug.Log($"[SpawnViewGate] {anchor.AnchorId} at {anchor.WorldPosition} SPAWN ({phase}) — outside camera rect");
+            int n = Mathf.Min(SpawnCluster.RollCount(), room);
+            _reason[anchor.AnchorId] = "SPAWN off-view cluster=" + n;
+            Debug.Log($"[SpawnViewGate] {anchor.AnchorId} at {anchor.WorldPosition} SPAWN ({phase}) — outside view+edge pad={SpawnViewGate.EffectivePad:0.00}");
+            Debug.Log($"[SpawnCluster] {anchor.AnchorId} count={n} radius={SpawnCluster.Radius:0.00} ({phase})");
 
-            if (_stubPrefab != null)
+            if (_stubPrefab == null)
+                return;
+
+            for (int i = 0; i < n; i++)
             {
-                GameObject stub = Instantiate(_stubPrefab, anchor.WorldPosition, Quaternion.identity);
-                stub.name = "Stub_" + anchor.AnchorId;
+                Vector3 pos = SpawnCluster.Offset(anchor.WorldPosition, i, n);
+                GameObject stub = Instantiate(_stubPrefab, pos, Quaternion.identity);
+                stub.name = n > 1 ? $"Stub_{anchor.AnchorId}_{i}" : "Stub_" + anchor.AnchorId;
                 stub.SetActive(true);
+                var enemy = stub.GetComponent<StubEnemy>();
+                if (enemy == null)
+                    enemy = stub.AddComponent<StubEnemy>();
+                enemy.ConfigureKind("E1", 1);
+                var ai = stub.GetComponent<MobFourStateAi>();
+                if (ai == null)
+                    ai = stub.AddComponent<MobFourStateAi>();
+                ai.Configure(null, _player);
+                ai.ApplyKindSpeed(enemy.KindId);
+                Debug.Log($"[MobAI] {stub.name} spawn→Patrol");
             }
         }
     }

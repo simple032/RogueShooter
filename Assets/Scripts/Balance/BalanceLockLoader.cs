@@ -459,8 +459,8 @@ namespace RogueShooter.Balance
 
             if (data.shopStubPrice <= 0)
                 data.shopStubPrice = 25;
-            if (data.shopStartGold <= 0)
-                data.shopStartGold = 55;
+            // N27: opening gold is fixed 0. Do not refill the abolished stub 55.
+            data.shopStartGold = 0;
 
             data.mobDetectRadius = 5.5f;
             data.mobDisengageMul = 1.6f;

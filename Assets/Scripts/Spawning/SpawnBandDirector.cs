@@ -1,12 +1,15 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using RogueShooter.Ai;
 using RogueShooter.Balance;
+using RogueShooter.Build;
+using RogueShooter.Demo;
 
 namespace RogueShooter.Spawning
 {
     /// <summary>
-    /// Periodic stub spawns using LOCK composed intervals, skip-in-view, and no-spawn cores.
+    /// Periodic stub spawns: off-view only, six-class group roll (N12), map-phase cooldown.
     /// </summary>
     public class SpawnBandDirector : MonoBehaviour
     {
@@ -21,27 +24,66 @@ namespace RogueShooter.Spawning
         SpawnBandClock _clock;
         GameObject _stubPrefab;
         Transform _player;
+        RunBuildState _build;
+        System.Action<StubEnemy> _onEnemyKilled;
         Slot[] _slots = System.Array.Empty<Slot>();
         readonly HashSet<string> _spawned = new HashSet<string>();
+        readonly Dictionary<string, int> _lastPhase = new Dictionary<string, int>();
         readonly List<string> _log = new List<string>();
+        System.Random _rng = new System.Random();
         float _timer;
 
         public IReadOnlyCollection<string> SpawnedIds => _spawned;
         public IReadOnlyList<string> RecentLog => _log;
+        public SpawnClassId LastClass { get; private set; }
+        public string LastGroupLine { get; private set; }
 
         public void Bind(BalanceLockData data, SpawnBandClock clock, Slot[] slots, GameObject stubPrefab, Transform player)
+        {
+            Bind(data, clock, slots, stubPrefab, player, null, null);
+        }
+
+        public void Bind(
+            BalanceLockData data,
+            SpawnBandClock clock,
+            Slot[] slots,
+            GameObject stubPrefab,
+            Transform player,
+            System.Action<StubEnemy> onEnemyKilled)
+        {
+            Bind(data, clock, slots, stubPrefab, player, onEnemyKilled, null);
+        }
+
+        public void Bind(
+            BalanceLockData data,
+            SpawnBandClock clock,
+            Slot[] slots,
+            GameObject stubPrefab,
+            Transform player,
+            System.Action<StubEnemy> onEnemyKilled,
+            RunBuildState build)
         {
             _lock = data;
             _clock = clock;
             _slots = slots ?? System.Array.Empty<Slot>();
             _stubPrefab = stubPrefab;
             _player = player;
+            _onEnemyKilled = onEnemyKilled;
+            _build = build;
             _timer = 0f;
+            _rng = new System.Random(Environment.TickCount);
+            _lastPhase.Clear();
+            LastGroupLine = "";
             if (_clock != null)
             {
                 _clock.BandChanged -= OnBandChanged;
                 _clock.BandChanged += OnBandChanged;
             }
+        }
+
+        public void BindBuild(RunBuildState build)
+        {
+            _build = build;
         }
 
         void OnDestroy()
@@ -97,13 +139,18 @@ namespace RogueShooter.Spawning
             if (_lock == null || _clock == null)
                 return 0f;
             SegmentMul seg = _lock.GetSegment(_clock.BandId);
-            TimeScaleMul time = _lock.TimeScaleAtMinutes(_clock.WallMinutes);
-            if (seg == null || time == null)
+            if (seg == null)
                 return 0f;
-            return BalanceMath.ComposeSpawnInterval(seg, time);
+            float timeInt = TimePressure.IntervalMul(_clock.WallMinutes);
+            return seg.baseIntervalSeconds * seg.intervalMul * timeInt;
         }
 
         public bool WasSpawned(string id) => _spawned.Contains(id);
+
+        public bool TryGetLastPhase(string id, out int phaseIndex)
+        {
+            return _lastPhase.TryGetValue(id, out phaseIndex);
+        }
 
         public void EvaluateNamed(string id, Vector3 pos, string phase)
         {
@@ -119,10 +166,6 @@ namespace RogueShooter.Spawning
             for (int i = 0; i < _slots.Length; i++)
             {
                 Slot slot = _slots[i];
-                if (slot.BandId != band)
-                    continue;
-                if (_spawned.Contains(slot.Id))
-                    continue;
                 if (TryPlace(slot.Id, slot.Position, band, "tick"))
                     return;
             }
@@ -130,8 +173,17 @@ namespace RogueShooter.Spawning
 
         bool TryPlace(string id, Vector3 pos, string band, string phase)
         {
-            if (_spawned.Contains(id))
+            int cur = SpawnPhaseCooldown.PhaseIndex(band);
+            if (_lastPhase.TryGetValue(id, out int last) && SpawnPhaseCooldown.IsBlocked(last, band))
+            {
+                string cool = $"[SpawnCooldown] {id} SKIP phase={band}({cur}) last={last} ({phase}) — this+next blocked";
+                if (!_log.Contains(cool))
+                {
+                    Remember(cool);
+                    Debug.Log(cool);
+                }
                 return false;
+            }
 
             if (SpawnPlacementGate.ShouldSkipSpawn(pos, out string reason))
             {
@@ -144,34 +196,103 @@ namespace RogueShooter.Spawning
                 return false;
             }
 
+            if (cur < 0)
+                return false;
+
+            int room = SpawnScreenCap.Remaining;
+            if (room <= 0)
+            {
+                string cap = $"[SpawnScreenCap] {id} SKIP ({phase}) live={SpawnScreenCap.LiveCount()}/{SpawnScreenCap.MaxLive}";
+                if (!_log.Contains(cap))
+                {
+                    Remember(cap);
+                    Debug.Log(cap);
+                }
+                return false;
+            }
+
+            SpawnClassId cls = SpawnWaveCatalog.ResolveClass(band, _build);
+            SpawnGroupDef group = SpawnWaveCatalog.RollGroup(cls, _rng);
+            int want = SpawnWaveCatalog.TotalCount(group);
+            if (want <= 0)
+                return false;
+            int n = Mathf.Min(want, room);
+            float t = _clock != null ? _clock.WallMinutes : 0f;
+            int build = _build != null ? _build.BuildCount : 0;
+            float tm = SpawnWaveCatalog.TimeMul(t);
+            float bm = SpawnWaveCatalog.BuildMul(build);
+            LastClass = cls;
+            LastGroupLine = SpawnWaveCatalog.FormatGroup(group);
+
             _spawned.Add(id);
-            string line = $"[SpawnPlacementGate] {id} at {pos} SPAWN ({phase}) band={band} interval={CurrentInterval():0.00}s";
+            _lastPhase[id] = cur;
+            string line = $"[SpawnCooldown] {id} SPAWN phase={band}({cur}) last={cur} ({phase}) interval={CurrentInterval():0.00}s";
             Remember(line);
             Debug.Log(line);
+            Debug.Log($"[SpawnClass] {SpawnWaveCatalog.ClassLabel(cls)} → group {LastGroupLine} Tm={tm:0.00} Bm={bm:0.00} B={build} t={t:0.00}′");
 
-            if (_stubPrefab != null)
+            int spawned = 0;
+            if (group.Members != null)
             {
-                GameObject stub = Instantiate(_stubPrefab, pos, Quaternion.identity);
-                stub.name = "Stub_" + id;
-                SegmentMul seg = _lock != null ? _lock.GetSegment(band) : null;
-                TimeScaleMul time = _lock != null && _clock != null
-                    ? _lock.TimeScaleAtMinutes(_clock.WallMinutes)
-                    : null;
-                float hp = BalanceMath.FinalHpMul(seg, time);
-                SegmentMul z1 = _lock != null ? _lock.GetSegment("Z1") : null;
-                float baselineHp = z1 != null ? z1.hpMul : 1f;
-                stub.transform.localScale *= Mathf.Clamp(hp / Mathf.Max(0.01f, baselineHp), 0.85f, 1.6f);
-                var sr = stub.GetComponent<SpriteRenderer>();
-                if (sr != null)
-                    sr.color = BandColor(band);
-                stub.SetActive(true);
-                var ai = stub.GetComponent<MobFourStateAi>();
-                if (ai == null)
-                    ai = stub.AddComponent<MobFourStateAi>();
-                ai.Configure(_lock, _player);
+                for (int m = 0; m < group.Members.Length && spawned < n; m++)
+                {
+                    SpawnMember mem = group.Members[m];
+                    for (int k = 0; k < mem.Count && spawned < n; k++)
+                    {
+                        Vector3 stubPos = SpawnCluster.Offset(pos, spawned, n);
+                        SpawnStub(id, stubPos, band, spawned, n, mem.KindId, tm, bm);
+                        spawned++;
+                    }
+                }
             }
 
             return true;
+        }
+
+        void SpawnStub(string id, Vector3 pos, string band, int index, int total, string kindId, float tm, float bm)
+        {
+            if (_stubPrefab == null)
+                return;
+
+            GameObject stub = Instantiate(_stubPrefab, pos, Quaternion.identity);
+            stub.name = total > 1 ? $"Stub_{id}_{index}_{kindId}" : "Stub_" + id + "_" + kindId;
+            SegmentMul seg = _lock != null ? _lock.GetSegment(band) : null;
+            SegmentMul z1 = _lock != null ? _lock.GetSegment("Z1") : null;
+            float segHp = seg != null ? seg.hpMul : 1f;
+            float baselineHp = z1 != null ? z1.hpMul : 1f;
+            var pressure = stub.GetComponent<EnemyPressureState>();
+            if (pressure == null)
+                pressure = stub.AddComponent<EnemyPressureState>();
+            pressure.Bind(_clock, segHp, baselineHp);
+            var enemy = stub.GetComponent<StubEnemy>();
+            if (enemy == null)
+                enemy = stub.AddComponent<StubEnemy>();
+            int hp = SpawnWaveCatalog.ScaledHp(kindId, tm, bm, SpawnWaveCatalog.SixBagHpMul);
+            enemy.ConfigureKind(kindId, hp);
+            if (_onEnemyKilled != null)
+            {
+                enemy.Died -= _onEnemyKilled;
+                enemy.Died += _onEnemyKilled;
+            }
+            var sr = stub.GetComponent<SpriteRenderer>();
+            if (sr != null)
+                sr.color = BandColor(band);
+            stub.SetActive(true);
+            var ai = stub.GetComponent<MobFourStateAi>();
+            if (ai == null)
+                ai = stub.AddComponent<MobFourStateAi>();
+            ai.Configure(_lock, _player);
+            ai.ApplyKindSpeed(enemy.KindId);
+            Debug.Log($"[MobAI] {stub.name} spawn→Patrol hp={hp} kind={kindId} Tm×Bm={tm:0.00}×{bm:0.00}");
+        }
+
+        // Keep overload for any legacy callers.
+        void SpawnStub(string id, Vector3 pos, string band, int index, int total)
+        {
+            float t = _clock != null ? _clock.WallMinutes : 0f;
+            float tm = SpawnWaveCatalog.TimeMul(t);
+            float bm = SpawnWaveCatalog.BuildMul(_build != null ? _build.BuildCount : 0);
+            SpawnStub(id, pos, band, index, total, "E1", tm, bm);
         }
 
         static Color BandColor(string band)
@@ -187,7 +308,7 @@ namespace RogueShooter.Spawning
         void Remember(string line)
         {
             _log.Add(line);
-            while (_log.Count > 12)
+            while (_log.Count > 16)
                 _log.RemoveAt(0);
         }
 

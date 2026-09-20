@@ -3,7 +3,7 @@ using UnityEngine;
 namespace RogueShooter.Spawning
 {
     /// <summary>
-    /// Combines limited-vision skip-in-view with LOCK no-spawn cores.
+    /// Combines in-view spawn gate with LOCK no-spawn cores.
     /// </summary>
     public static class SpawnPlacementGate
     {
@@ -11,7 +11,13 @@ namespace RogueShooter.Spawning
         {
             if (SpawnViewGate.ShouldSkipSpawn(worldPos))
             {
-                reason = "SKIP in-view";
+                reason = "SKIP in-view-or-edge";
+                return true;
+            }
+
+            if (SpawnScreenCap.AtCap)
+            {
+                reason = "SKIP screen-cap " + SpawnScreenCap.LiveCount() + "/" + SpawnScreenCap.MaxLive;
                 return true;
             }
 
@@ -21,7 +27,7 @@ namespace RogueShooter.Spawning
                 return true;
             }
 
-            reason = "SPAWN out-of-view";
+            reason = "SPAWN off-view";
             return false;
         }
     }
