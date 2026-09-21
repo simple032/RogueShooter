@@ -20,12 +20,21 @@ namespace RogueShooter.Player
         bool _mid;
         bool _green;
         bool _exited;
+        bool _fullPose;
         float _recoverUntil;
+        float _atkUntil;
+        bool _pendingFire;
+        float _fireAt;
+        float _queuedDmg;
+        ChargeShotKind _queuedKind;
+        float _queuedHeld;
+        Vector3 _queuedDir;
         ChargeFxView _fx;
         GuaranteedCritActive _guaranteed;
         IList<string> _ownedRewards;
 
         public bool IsCharging => _charging;
+        public bool IsFiring => Time.time < _atkUntil;
         public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
         public ChargeShotKind LastShot { get; private set; }
@@ -46,10 +55,20 @@ namespace RogueShooter.Player
 
         void Update()
         {
+            TickQueuedFire();
             if (RunPause.IsPaused)
             {
                 if (_charging)
                     CancelCharge();
+                return;
+            }
+
+            var vitals = GetComponent<PlayerVitals>();
+            if (vitals != null && vitals.IsDead)
+            {
+                if (_charging)
+                    CancelCharge();
+                _pendingFire = false;
                 return;
             }
 
@@ -100,6 +119,13 @@ namespace RogueShooter.Player
                 ChargeFxHooks.ChargeExitGreen();
                 Debug.Log("[ChargeFx] OnChargeExitGreen");
             }
+
+            if (!_fullPose && _held >= ActionSpecP1.ChargeFullPoseSeconds)
+            {
+                _fullPose = true;
+                ChargeFxHooks.ChargeFull();
+                Debug.Log("[ChargeFx] OnChargeFull pose t=" + ActionSpecP1.ChargeFullPoseSeconds.ToString("0.00"));
+            }
         }
 
         void BeginCharge()
@@ -109,10 +135,13 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             LastShot = ChargeShotKind.None;
             LastDamage = 0f;
             if (_fx != null)
                 _fx.SetChargeProgress(0f, false);
+            ChargeFxHooks.ChargeStart();
+            Debug.Log("[ChargeFx] OnChargeStart");
         }
 
         void ReleaseCharge()
@@ -123,6 +152,7 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             Fire(held);
         }
 
@@ -134,6 +164,7 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             return Fire(heldSeconds);
         }
 
@@ -167,14 +198,36 @@ namespace RogueShooter.Player
                 _fx.HideAll();
 
             _recoverUntil = Time.time + ChargeShotRules.RecoverSeconds;
+            _atkUntil = Time.time + ActionSpecP1.PlayerFire.Duration;
+            float onFire = ActionSpecP1.PlayerOnFireSeconds;
+            if (onFire < 0.001f)
+                onFire = 1f / ActionSpecP1.Fps;
+            _queuedDmg = dmg;
+            _queuedKind = kind;
+            _queuedHeld = heldSeconds;
+            _queuedDir = AimDirection();
+            _pendingFire = true;
+            _fireAt = Time.time + onFire;
             Debug.Log($"[ChargeShot] {kind} dmg={dmg:0.0} held={heldSeconds:0.000}s p={p:0.00} " +
-                      $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
+                      $"recover={ChargeShotRules.RecoverSeconds:0.00}s OnFire@{onFire:0.000}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
-
-            Vector3 origin = transform.position;
-            Vector3 aim = AimDirection();
-            ArrowProjectile.Spawn(origin + aim * 0.45f, aim, dmg, kind, heldSeconds, _ownedRewards, transform, hitRange);
             return kind;
+        }
+
+        void TickQueuedFire()
+        {
+            if (!_pendingFire || Time.time < _fireAt)
+                return;
+            _pendingFire = false;
+            Debug.Log("[ActionSpec] OnFire frame=_01 art=" + ActionSpecP1.PlayerFire.Root);
+            Vector3 origin = transform.position;
+            Vector3 aim = _queuedDir.sqrMagnitude > 0.0001f ? _queuedDir : AimDirection();
+            ArrowProjectile.Spawn(origin + aim * 0.45f, aim, _queuedDmg, _queuedKind, _queuedHeld, _ownedRewards, transform, hitRange);
+        }
+
+        public Vector3 AimDirectionPublic()
+        {
+            return AimDirection();
         }
 
         Vector3 AimDirection()
@@ -204,6 +257,7 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             if (_fx != null)
                 _fx.HideAll();
         }

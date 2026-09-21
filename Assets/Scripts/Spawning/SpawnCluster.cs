@@ -3,8 +3,8 @@ using UnityEngine;
 namespace RogueShooter.Spawning
 {
     /// <summary>
-    /// Tunable multi-mob spawn near one in-view point. Count/radius filled when numeric/level locks numbers.
-    /// Default: 2–3 stubs within Radius.
+    /// Off-view corridor cluster around an anchor. Default 2–3 stubs on a small ring.
+    /// Combat-room 落点 must NOT use Offset — use CombatRoomSpawn (room-area random).
     /// </summary>
     public static class SpawnCluster
     {

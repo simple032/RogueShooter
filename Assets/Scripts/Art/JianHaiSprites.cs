@@ -54,6 +54,48 @@ namespace RogueShooter.Art
             return !HasSourceFile(artId);
         }
 
+        /// <summary>
+        /// True if a clip root, `_00`, or `_s_00` PNG exists. Missing walk/atk stay false
+        /// so callers fall back to idle — do not invent frames.
+        /// </summary>
+        public static bool HasClip(string root)
+        {
+            if (string.IsNullOrEmpty(root))
+                return false;
+            return !string.IsNullOrEmpty(ResolveClipArt(root, "s", 0, null));
+        }
+
+        /// <summary>
+        /// ACTION_SPEC naming: `root[_dir]_ff` then `root_ff` then `root`.
+        /// Missing dir uses `s` then no-dir. `fallback` (idle) when nothing is on disk.
+        /// </summary>
+        public static string ResolveClipArt(string root, string dir, int frame, string fallback)
+        {
+            if (string.IsNullOrEmpty(root))
+                return fallback;
+            int f = frame < 0 ? 0 : frame;
+            string ff = f < 10 ? "0" + f : f.ToString();
+            if (!string.IsNullOrEmpty(dir))
+            {
+                string withDir = root + "_" + dir + "_" + ff;
+                if (HasSourceFile(withDir))
+                    return withDir;
+            }
+
+            string numbered = root + "_" + ff;
+            if (HasSourceFile(numbered))
+                return numbered;
+            if (HasSourceFile(root))
+                return root;
+            if (HasSourceFile(root + "_s_" + ff))
+                return root + "_s_" + ff;
+            if (HasSourceFile(root + "_s_00"))
+                return root + "_s_00";
+            if (HasSourceFile(root + "_00"))
+                return root + "_00";
+            return fallback;
+        }
+
         public static bool HasSourceFile(string artId)
         {
             if (string.IsNullOrEmpty(artId))

@@ -31,6 +31,9 @@ namespace RogueShooter.Player
         {
             if (RunPause.IsPaused)
                 return;
+            var vitals = GetComponent<PlayerVitals>();
+            if (vitals != null && vitals.IsDead)
+                return;
             if (!IsRolling && WantDodge() && CanStart())
                 Begin();
             if (!IsRolling)
@@ -47,6 +50,9 @@ namespace RogueShooter.Player
 
         bool CanStart()
         {
+            var vitals = GetComponent<PlayerVitals>();
+            if (vitals != null && vitals.IsDead)
+                return false;
             if (OnCooldown && _rollStart > -100f)
                 return false;
             return true;
@@ -81,10 +87,12 @@ namespace RogueShooter.Player
                 _charge.CancelChargePublic();
             Debug.Log("[Dodge] start dir=" + _dir
                       + " dur=" + DodgeRules.DurationSeconds.ToString("0.00")
-                      + "s iframe=" + DodgeRules.IFrameSeconds.ToString("0.00")
-                      + "s cd=" + DodgeRules.CooldownSeconds.ToString("0.00")
+                      + "s iframe=" + DodgeRules.IFrameStartSeconds.ToString("0.00")
+                      + "-" + DodgeRules.IFrameEndSeconds.ToString("0.00")
+                      + "s (len=" + DodgeRules.IFrameSeconds.ToString("0.00")
+                      + " suggested-unlocked) cd=" + DodgeRules.CooldownSeconds.ToString("0.00")
                       + "s dist=" + DodgeRules.Distance.ToString("0.00")
-                      + " STUB_TABLE");
+                      + " ACTION_SPEC_P1/DodgeRules");
         }
     }
 }

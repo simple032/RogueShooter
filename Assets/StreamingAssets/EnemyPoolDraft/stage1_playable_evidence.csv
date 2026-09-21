@@ -1,16 +1,23 @@
-# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG)
+# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG / spawn land)
 # Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar PortalFx 1.0s
 # Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)
+# Spawn: CombatRoomSpawn room-AABB random; bypass SpawnCluster.Offset r=0.85 even-ring
+# replica=python Knuth System.Random matching CombatRoomSpawn.SampleSeed42
 check,result,detail
-playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_fx_charge_arrow_tip speed=12 orb=jh_fx_mage_orb dodge dur=0.35s iframe=0.20s cd=0.90s dist=2.10 interact=chest+altar
-dodge_duration,PASS,dur=0.35s
-dodge_iframes,PASS,iframe=0.20s t=0.10 block t=0.21 apply
+playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_fx_charge_arrow_tip speed=12 orb=jh_fx_mage_orb dodge dur=0.40s iframe=0.08-0.28s cd=0.90s dist=2.40 interact=chest+altar spawn=room-random melee-near/ranged-far meleeMean=14.54 rangedMean=32.50 gap=17.96 p50M=15.22 p50R=31.38 spread=17.22 minPlayer=2.00 avoidHits=0 evenRing=0
+dodge_duration,PASS,dur=0.40s ACTION_SPEC
+dodge_iframes,PASS,iframe=0.08-0.28s len=0.20s suggested-unlocked
 dodge_cooldown,PASS,cd=0.90s
-dodge_distance_derived,PASS,dist=2.10=move6×dur (not a new table row)
+dodge_distance_derived,PASS,dist=2.40=move6×dur (not a new table row)
+action_spec_p1,PASS,fps=12 roll+charge/atk idle/move/hurt/death; S1 N/D/M clips; OnFire@_01
 arrow_art,PASS,jh_fx_charge_arrow_tip
 orb_art,PASS,jh_fx_mage_orb Assets/Art/JianHai/FX/jh_fx_mage_orb.png
 jianhai_png_runtime,PASS,disk LoadImage + Editor import; tiled floors/walls localScale=1 explicit hx/hy
 arrow_speed_reuses_orb,PASS,speed=12
 maze_v2e_geometry,PASS,52x40 pitch 82/70 Chestx2 noLargeChest PortalFx=1.0s
-art_gaps,NOTE,missing clips: player walk/dodge/charge/atk + dirs (idle PNG present); enemy walk/atk (only jh_enemy_e1_skel_idle); no Animator; orb PNG present (jh_fx_mage_orb Provide-style 16px); arrow flight reuses jh_fx_charge_arrow_tip (no dedicated projectile sprite)
+spawn_land_room_random,PASS,spread=17.22 evenRingHits=0 bypass=SpawnCluster.Offset r=0.85
+spawn_land_melee_near_ranged_far,PASS,meleeMean=14.54 rangedMean=32.50 gap=17.96 p10/p50/p90 melee=5.44/15.22/22.42 ranged=25.86/31.38/39.33
+spawn_land_min_player,PASS,min=2.00 meleeMin=2.68 rangedMin=24.43 hits=0
+spawn_land_avoid_chest_altar,PASS,placedAvoidHits=0 probe=PASS chest r=2 altar r=2.5 AABB+body samples=stage1_spawn_land.csv
+art_gaps,NOTE,ACTION_SPEC_P1 wired; missing PNGs fall back to idle. player: need walk_{snew}_## roll_## charge_## atk_## hurt_## die_##; have jh_char_archer_idle. S1: e1_skel/dog/mage idle/walk/alert/chase|cast/atk/hurt/die; have jh_enemy_e1_skel_idle only. no Animator; orb PNG present; arrow reuses charge tip
 # PLAYABLE PASS

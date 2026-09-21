@@ -58,11 +58,15 @@ namespace RogueShooter.Ai
         float _knockSpeed;
         float _rootUntil;
 
+        float _hurtUntil;
+
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
         public bool IsStaggered => Time.time < _staggerUntil;
+        public bool InWindup => _inWindup;
+        public bool IsHurting => Time.time < _hurtUntil;
         public StageId Stage => _stage;
         public bool ShieldRaised => _shieldRaised;
         public bool Elite => _elite;
@@ -143,6 +147,7 @@ namespace RogueShooter.Ai
             _lungeCd = 0f;
             _knockLeft = 0f;
             _rootUntil = 0f;
+            _hurtUntil = 0f;
             _orbs.Clear();
             EnsureLabel();
             _bang = GetComponent<MobBangMarker>();
@@ -189,6 +194,7 @@ namespace RogueShooter.Ai
         public void NotifyDamaged()
         {
             _pendingDamage = true;
+            _hurtUntil = Time.time + ActionSpecP1.EnemyHurt(CurrentKindId()).Duration;
             if (_player != null)
                 _lastKnown = _player.position;
         }
@@ -310,6 +316,10 @@ namespace RogueShooter.Ai
         void Update()
         {
             if (RunPause.IsPaused || _player == null)
+                return;
+
+            var stub = GetComponent<StubEnemy>();
+            if (stub != null && stub.IsDead)
                 return;
 
             if (_lungeCd > 0f)
@@ -513,6 +523,8 @@ namespace RogueShooter.Ai
                 _playerVitals.ApplyHit(dmg, CurrentKindId());
             else
                 Debug.Log($"[MobAI] {name} hit dmg={dmg:0.#} (no PlayerVitals)");
+            Debug.Log("[ActionSpec] OnHitOpen kind=" + CurrentKindId()
+                      + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
         }
 
         void FireOrbs(EnemyKindProfile profile)
@@ -555,6 +567,8 @@ namespace RogueShooter.Ai
 
             _lastDealt = dmg;
             Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
+            Debug.Log("[ActionSpec] OnOrbSpawn kind=" + CurrentKindId()
+                      + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
         }
 
         void OnOrbDespawn(MageOrbProjectile orb, string reason)

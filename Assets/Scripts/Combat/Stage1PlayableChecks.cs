@@ -5,6 +5,7 @@ using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Maze;
 using RogueShooter.Player;
+using RogueShooter.Spawning;
 
 namespace RogueShooter.Combat
 {
@@ -23,6 +24,10 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckArtHooks();
             if (err != null) return err;
+            err = CheckActionSpec();
+            if (err != null) return err;
+            err = CheckSpawnLand();
+            if (err != null) return err;
             return null;
         }
 
@@ -36,10 +41,22 @@ namespace RogueShooter.Combat
             sb.Append("arrow=jh_fx_charge_arrow_tip speed=").Append(ProjectileRules.ArrowSpeed.ToString("0"));
             sb.Append(" orb=jh_fx_mage_orb ");
             sb.Append("dodge dur=").Append(DodgeRules.DurationSeconds.ToString("0.00"));
-            sb.Append("s iframe=").Append(DodgeRules.IFrameSeconds.ToString("0.00"));
+            sb.Append("s iframe=").Append(DodgeRules.IFrameStartSeconds.ToString("0.00"));
+            sb.Append("-").Append(DodgeRules.IFrameEndSeconds.ToString("0.00"));
             sb.Append("s cd=").Append(DodgeRules.CooldownSeconds.ToString("0.00"));
             sb.Append("s dist=").Append(DodgeRules.Distance.ToString("0.00"));
             sb.Append(" interact=chest+altar");
+            CombatRoomSpawnStats land = CombatRoomSpawn.SampleSeed42();
+            sb.Append(" spawn=room-random melee-near/ranged-far");
+            sb.Append(" meleeMean=").Append(land.MeleeMean.ToString("0.00"));
+            sb.Append(" rangedMean=").Append(land.RangedMean.ToString("0.00"));
+            sb.Append(" gap=").Append(land.MeanGap.ToString("0.00"));
+            sb.Append(" p50M=").Append(land.MeleeP50.ToString("0.00"));
+            sb.Append(" p50R=").Append(land.RangedP50.ToString("0.00"));
+            sb.Append(" spread=").Append(land.CenterSpread.ToString("0.00"));
+            sb.Append(" minPlayer=").Append(CombatRoomSpawn.MinPlayerDist.ToString("0.00"));
+            sb.Append(" avoidHits=").Append(land.AvoidHits);
+            sb.Append(" evenRing=").Append(land.EvenRingHits);
             return sb.ToString();
         }
 
@@ -47,22 +64,29 @@ namespace RogueShooter.Combat
         {
             if (DodgeRules.DurationSeconds < 0.30f || DodgeRules.DurationSeconds > 0.40f)
                 return "dodge duration stub must stay 0.3–0.4s";
-            if (Math.Abs(DodgeRules.IFrameSeconds - 0.20f) > 0.0001f)
-                return "dodge i-frames stub 0.20s";
+            if (Math.Abs(DodgeRules.DurationSeconds - 0.40f) > 0.0001f)
+                return "ACTION_SPEC roll duration 0.40s";
+            if (Math.Abs(DodgeRules.IFrameStartSeconds - 0.08f) > 0.0001f)
+                return "iframe start suggested 0.08s (unlocked table)";
+            float len = DodgeRules.IFrameSeconds;
+            if (len < 0.18f || len > 0.26f)
+                return "iframe length must stay ≈0.2s (suggested unlocked)";
             if (DodgeRules.CooldownSeconds < 0.80f || DodgeRules.CooldownSeconds > 1.00f)
                 return "dodge cooldown stub must stay 0.8–1.0s";
             if (Math.Abs(DodgeRules.MoveSpeedRef - MazeRules.PlayMoveSpeed) > 0.0001f)
                 return "dodge distance must derive from play move 6";
             if (Math.Abs(DodgeRules.Distance - DodgeRules.MoveSpeedRef * DodgeRules.DurationSeconds) > 0.0001f)
                 return "dodge distance = speed × duration";
+            if (DodgeRules.IFrameActive(0.07f, 0f))
+                return "startup 0–0.08s is hittable";
             if (DodgeRules.IFrameActive(0.10f, 0f) == false)
                 return "i-frame on at t=0.10";
-            if (DodgeRules.IFrameActive(0.20f, 0f))
-                return "i-frame off at t=0.20";
-            if (DodgeRules.IFrameActive(0.21f, 0f))
-                return "i-frame off after 0.20s";
-            if (!DodgeRules.RollActive(0.34f, 0f) || DodgeRules.RollActive(0.36f, 0f))
-                return "roll duration window";
+            if (DodgeRules.IFrameActive(DodgeRules.IFrameEndSeconds, 0f))
+                return "i-frame off at end";
+            if (DodgeRules.IFrameActive(0.29f, 0f))
+                return "i-frame off after window";
+            if (!DodgeRules.RollActive(0.39f, 0f) || DodgeRules.RollActive(0.41f, 0f))
+                return "roll duration window 0.40s";
             if (!DodgeRules.OnCooldown(0.89f, 0f) || DodgeRules.OnCooldown(0.91f, 0f))
                 return "dodge cooldown window";
             if (PlayerVitals.HitBlockedByIFrame(true))
@@ -243,12 +267,93 @@ namespace RogueShooter.Combat
             if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle)
                 return "missing walk must fall back to idle";
             if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Dodge) != JianHaiArtCatalog.PlayerIdle)
-                return "missing dodge clip must fall back to idle";
+                return "missing roll clip must fall back to idle";
             if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk) != JianHaiArtCatalog.EnemyE1Idle)
                 return "missing enemy walk must fall back to idle";
             string gaps = EntityAnimCatalog.GapNote();
             if (string.IsNullOrEmpty(gaps) || gaps.IndexOf("walk", StringComparison.Ordinal) < 0)
                 return "art gap note must list missing walk";
+            return null;
+        }
+
+        static string CheckActionSpec()
+        {
+            if (Math.Abs(ActionSpecP1.Fps - 12f) > 0.001f)
+                return "ACTION_SPEC fps 12";
+            if (ActionSpecP1.PlayerRoll.Root != "jh_char_archer_roll")
+                return "player roll root";
+            if (ActionSpecP1.PlayerFire.EventName != "OnFire" || ActionSpecP1.PlayerFire.EventFrame != 1)
+                return "OnFire @ atk _01";
+            if (ActionSpecP1.PlayerOnFireSeconds < 0.05f || ActionSpecP1.PlayerOnFireSeconds > 0.12f)
+                return "OnFire time ~1/12s";
+            if (Math.Abs(ActionSpecP1.PlayerRoll.Duration - DodgeRules.DurationSeconds) > 0.0001f)
+                return "roll clip duration must follow DodgeRules";
+            if (ActionSpecP1.ChargePoseFrame(0.05f) > 1)
+                return "charge pose start _00/_01";
+            if (ActionSpecP1.ChargePoseFrame(0.70f) != 4)
+                return "charge pose green _04";
+            if (ActionSpecP1.ChargePoseFrame(0.80f) != 5)
+                return "charge pose full _05";
+            if (ActionSpecP1.EnemyRoot(EnemyKindIds.Normal) != "jh_enemy_e1_skel")
+                return "E1 skel root";
+            if (ActionSpecP1.EnemyRoot(EnemyKindIds.Dog) != "jh_enemy_dog")
+                return "dog root";
+            if (ActionSpecP1.EnemyRoot(EnemyKindIds.CultMage) != "jh_enemy_mage")
+                return "mage root";
+            if (ActionSpecP1.EnemyAttack(EnemyKindIds.CultMage).EventName != "OnOrbSpawn")
+                return "mage OnOrbSpawn";
+            if (ActionSpecP1.EnemyAttack(EnemyKindIds.Normal).EventName != "OnHitOpen")
+                return "skel OnHitOpen";
+            if (ActionSpecP1.Cardinal(0f, -1f) != "s" || ActionSpecP1.Cardinal(1f, 0f) != "e")
+                return "cardinal n/e/s/w";
+            if (EntityAnimCatalog.PlayerSprite(EntityAnimState.Dodge) != EntityAnimCatalog.PlayerRoll)
+                return "dodge maps to roll clip";
+            if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk, EnemyKindIds.Dog)
+                != EntityAnimCatalog.ResolveEnemyIdle(EnemyKindIds.Dog)
+                && !EntityAnimCatalog.Present("jh_enemy_dog_walk"))
+                return "missing dog walk falls back to dog/E1 idle";
+            return null;
+        }
+
+        static string CheckSpawnLand()
+        {
+            if (Math.Abs(CombatRoomSpawn.ChestClearance - 2f) > 0.001f)
+                return "chest clearance must reuse HOOKS r≈2";
+            if (Math.Abs(CombatRoomSpawn.AltarClearance - 2.5f) > 0.001f)
+                return "altar clearance must reuse LOCK 2.5";
+            if (Math.Abs(CombatRoomSpawn.MinPlayerDist - CombatRoomSpawn.ChestClearance) > 0.001f)
+                return "min player dist reuses chest r=2";
+            if (Math.Abs(CombatRoomSpawn.RoomInset - (CollisionRules.WallThickness + CollisionRules.MobHalfX)) > 0.001f)
+                return "room inset = wall+body";
+            if (CombatRoomSpawn.IsRanged(EnemyKindIds.CultMage) == false)
+                return "cult mage is ranged";
+            if (CombatRoomSpawn.IsRanged(EnemyKindIds.Normal) || CombatRoomSpawn.IsRanged(EnemyKindIds.Dog))
+                return "E1/dog are melee";
+
+            string probe = CombatRoomSpawn.ProbeAvoidVolumes();
+            if (probe != null)
+                return "avoid probe " + probe;
+
+            CombatRoomSpawnStats s = CombatRoomSpawn.SampleSeed42();
+            if (s.MeleeN < 8 || s.RangedN < 8)
+                return "spawn sample too small";
+            if (s.MinPlayerHits != 0)
+                return "min-player hits " + s.MinPlayerHits;
+            if (s.AvoidHits != 0)
+                return "chest/altar avoid hits " + s.AvoidHits;
+            if (s.EvenRingHits > s.MeleeN / 5)
+                return "still even-ring r=0.85 hits=" + s.EvenRingHits;
+            if (s.CenterSpread < 3f)
+                return "center spread " + s.CenterSpread.ToString("0.00") + " still looks like tiny ring";
+            if (s.MeleeMean + 1.5f > s.RangedMean)
+                return "ranged must land farther than melee meanM="
+                    + s.MeleeMean.ToString("0.00") + " meanR=" + s.RangedMean.ToString("0.00");
+            if (s.MeleeP50 + 1.0f > s.RangedP50)
+                return "ranged p50 must exceed melee p50+1 p50M="
+                    + s.MeleeP50.ToString("0.00") + " p50R=" + s.RangedP50.ToString("0.00");
+            if (s.MeleeMin + 0.001f < CombatRoomSpawn.MinPlayerDist
+                || s.RangedMin + 0.001f < CombatRoomSpawn.MinPlayerDist)
+                return "sample inside min player dist";
             return null;
         }
 

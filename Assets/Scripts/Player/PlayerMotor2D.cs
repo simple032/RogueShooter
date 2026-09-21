@@ -50,6 +50,9 @@ namespace RogueShooter.Player
                 _dodge = GetComponent<PlayerDodge>();
             if (_dodge != null && _dodge.IsRolling)
                 return;
+            var vitals = GetComponent<PlayerVitals>();
+            if (vitals != null && vitals.IsDead)
+                return;
             Vector2 input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             if (input.sqrMagnitude > 1f)
                 input.Normalize();

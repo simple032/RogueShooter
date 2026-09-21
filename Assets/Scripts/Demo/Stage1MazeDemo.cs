@@ -335,6 +335,16 @@ namespace RogueShooter.Demo
                     runtime = go.AddComponent<SiteRuntime>();
                 runtime.Configure(def, n.Kind != MazeNodeKind.Chest);
                 _sites.Add(runtime);
+                float clear = CombatRoomSpawn.ClearanceForKind(siteKind);
+                go.AddComponent<NoSpawnCore>().Configure(hook, siteKind.ToString(), clear);
+                var box = go.GetComponent<BoxCollider2D>();
+                if (box == null)
+                    box = go.AddComponent<BoxCollider2D>();
+                box.isTrigger = true;
+                float sx = Mathf.Abs(go.transform.localScale.x);
+                if (sx < 0.001f)
+                    sx = 1f;
+                box.size = new Vector2(clear * 2f / sx, clear * 2f / sx);
             }
         }
 
@@ -511,14 +521,14 @@ namespace RogueShooter.Demo
             _skipPortalWait = false;
             DrawnComposition drawn = StageEnemyPool.DrawComposition(
                 StageId.S1, node.PoolRoom, Stage1MazeGen.DrawRng(seed, node.Id, wave));
-            Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
             int n = drawn.Units != null ? drawn.Units.Length : 0;
             if (n < 1)
                 n = 1;
+            Vector3[] spots = PlaceWaveSpots(node, drawn, wave);
             ClearPortals();
             for (int i = 0; i < n; i++)
             {
-                Vector3 pos = SpawnCluster.Offset(center, i, n);
+                Vector3 pos = spots != null && i < spots.Length ? spots[i] : new Vector3(node.Center.X, node.Center.Y, 0f);
                 GameObject fx = PortalFxStub.SpawnAt(
                     "PortalFx_" + node.Id + "_w" + wave + "_" + i, pos, transform);
                 _portals.Add(fx);
@@ -542,10 +552,10 @@ namespace RogueShooter.Demo
             ClearPortals();
             _portalWaiting = false;
             _cadence = null;
-            SpawnDrawn(session, wave, drawn, center);
+            SpawnDrawn(session, wave, drawn, spots);
         }
 
-        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3 center)
+        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3[] spots)
         {
             Debug.Log(drawn.LogLine());
             Debug.Log("[StagePool] extra=+" + drawn.ExtraAdded
@@ -560,10 +570,12 @@ namespace RogueShooter.Demo
             for (int i = 0; i < n; i++)
             {
                 DrawnUnit u = drawn.Units[i];
-                Vector3 pos = SpawnCluster.Offset(center, i, n);
+                Vector3 pos = spots != null && i < spots.Length
+                    ? spots[i]
+                    : new Vector3(node != null ? node.Center.X : 0f, node != null ? node.Center.Y : 0f, 0f);
                 GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
                 go.name = "S1_" + roomId + "_w" + wave + "_" + i + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
-                JianHaiBind.ApplyTo(go, JianHaiArtCatalog.EnemyE1Idle);
+                JianHaiBind.ApplyTo(go, EntityAnimCatalog.ResolveEnemyIdle(u.KindId));
                 var enemy = go.GetComponent<StubEnemy>();
                 if (enemy == null)
                     enemy = go.AddComponent<StubEnemy>();
@@ -572,6 +584,7 @@ namespace RogueShooter.Demo
                 if (ai == null)
                     ai = go.AddComponent<MobFourStateAi>();
                 ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
+                EntityAnimView.Add(go, false, u.KindId);
                 string capturedId = roomId;
                 enemy.Died += _ => OnEnemyDied(capturedId);
                 go.SetActive(true);
@@ -582,6 +595,77 @@ namespace RogueShooter.Demo
             Flash("wave " + wave + " " + drawn.CompId + " n=" + n);
             if (n <= 0)
                 ApplySteps(session, session.NotifyKilled());
+        }
+
+        Vector3[] PlaceWaveSpots(MazeNode node, DrawnComposition drawn, int wave)
+        {
+            int n = drawn.Units != null ? drawn.Units.Length : 0;
+            if (n < 1)
+                n = 1;
+            var kinds = new string[n];
+            for (int i = 0; i < n; i++)
+                kinds[i] = drawn.Units != null && i < drawn.Units.Length
+                    ? drawn.Units[i].KindId
+                    : EnemyKindIds.Normal;
+            float px = node.Center.X;
+            float py = node.Center.Y;
+            if (_player != null)
+            {
+                px = _player.position.x;
+                py = _player.position.y;
+            }
+
+            SpawnAvoid[] avoids = CollectAvoids(node);
+            SpawnSpot[] spots = CombatRoomSpawn.PlaceWave(
+                node, px, py, kinds, avoids, Stage1MazeGen.DrawRng(seed, node.Id, wave));
+            var vs = new Vector3[spots.Length];
+            float meleeSum = 0f;
+            int meleeN = 0;
+            float rangeSum = 0f;
+            int rangeN = 0;
+            for (int i = 0; i < spots.Length; i++)
+            {
+                vs[i] = new Vector3(spots[i].X, spots[i].Y, 0f);
+                if (spots[i].Ranged)
+                {
+                    rangeSum += spots[i].DistPlayer;
+                    rangeN++;
+                }
+                else
+                {
+                    meleeSum += spots[i].DistPlayer;
+                    meleeN++;
+                }
+            }
+
+            Debug.Log("[SpawnLand] room=" + node.Id + " n=" + spots.Length
+                      + " avoids=" + (avoids != null ? avoids.Length : 0)
+                      + " minPlayer=" + CombatRoomSpawn.MinPlayerDist.ToString("0.00")
+                      + " meleeMean=" + (meleeN > 0 ? (meleeSum / meleeN).ToString("0.00") : "-")
+                      + " rangedMean=" + (rangeN > 0 ? (rangeSum / rangeN).ToString("0.00") : "-")
+                      + " bypass=SpawnCluster.Offset");
+            return vs;
+        }
+
+        SpawnAvoid[] CollectAvoids(MazeNode node)
+        {
+            if (node == null || _sites == null)
+                return new SpawnAvoid[0];
+            var list = new List<SpawnAvoid>();
+            for (int i = 0; i < _sites.Count; i++)
+            {
+                SiteRuntime s = _sites[i];
+                if (s == null)
+                    continue;
+                Vector3 p = s.WorldPosition;
+                if (!node.Contains(p.x, p.y, 0f))
+                    continue;
+                if (CombatRoomSpawn.ClearanceForKind(s.Kind) < 0.01f)
+                    continue;
+                list.Add(CombatRoomSpawn.FromSite(s.Kind, p.x, p.y));
+            }
+
+            return list.ToArray();
         }
 
         void OnEnemyDied(string roomId)
@@ -791,10 +875,13 @@ namespace RogueShooter.Demo
                 Path.Combine(Stage1MazeSampler.DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
             string playPath = Stage1PlayableSampler.WriteTo(Stage1PlayableSampler.DefaultPath());
             Stage1PlayableSampler.WriteTo(Stage1PlayableSampler.StreamingPath());
+            string landPath = Stage1PlayableSampler.WriteSpawnLandTo(Stage1PlayableSampler.SpawnLandDefaultPath());
+            Stage1PlayableSampler.WriteSpawnLandTo(Stage1PlayableSampler.SpawnLandStreamingPath());
             Debug.Log("[S1Maze] evidence " + path);
             Debug.Log("[S1Maze] pacing " + pacePath + "\n" + Stage1MazeSampler.PacingText());
             Debug.Log("[S1Maze] layout " + layoutPath);
             Debug.Log("[S1Maze] playable " + playPath);
+            Debug.Log("[S1Maze] spawn_land " + landPath);
             Flash("wrote " + path);
         }
 
@@ -949,7 +1036,7 @@ namespace RogueShooter.Demo
                 "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
                 "enter combat → lock doors (solid) → [PortalFx] 1.0s → spawn → clear → open  |  Chest/Altar 2 waves\n" +
                 "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
-                "dodge STUB dur=0.35s iframe=0.20s cd=0.90s (DodgeRules) · JianHai PNG runtime · layers Player/Mob/Wall/Door/Projectile",
+                "dodge STUB/ACTION_SPEC dur=0.40s iframe=0.08–0.28s (len=0.20 建议不锁) cd=0.90s · JianHai PNG · layers Player/Mob/Wall/Door/Projectile",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 108, w - 16, 36), graph, style);
