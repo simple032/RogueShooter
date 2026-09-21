@@ -15,13 +15,13 @@ R7H,瞬击预感,crit_rate,0.39,percent_add,暴击率+39%,high,54-66,加算
 R8H,破甲猛击,crit_damage,0.65,percent,暴击伤害+65%,high,54-66,叠乘·相对默认×2.0
 R9H,隙矢追猎,weak_damage,0.65,percent,弱点攻击伤害+65%,high,54-66,叠乘·相对默认×2.0
 R10,止血,heal,0.40,percent_max_hp,回复40%最大生命,mid,36-44,特殊·回血池
-R11L,满血额外伤害,dmg_vs_fullhp,0.15,percent,满血目标伤害+15%,low,18-22,叠乘·无高档
-R11M,满血额外伤害,dmg_vs_fullhp,0.30,percent,满血目标伤害+30%,mid,36-44,叠乘·无高档
-R12M,进房间5s内加攻,atk_enter_room_5s,0.20,percent,进房5s内攻击+20%,mid,36-44,叠乘·无低档
-R12H,进房间5s内加攻,atk_enter_room_5s,0.40,percent,进房5s内攻击+40%,high,54-66,叠乘
+R11L,满血额外伤害,dmg_vs_fullhp,0.20,percent,满血目标伤害+20%,low,18-22,叠乘·无高档
+R11M,满血额外伤害,dmg_vs_fullhp,0.40,percent,满血目标伤害+40%,mid,36-44,叠乘·无高档
+R12M,进房间5s内加攻,atk_enter_room_5s,0.30,percent,进房5s内攻击+30%,mid,36-44,叠乘·无低档
+R12H,进房间5s内加攻,atk_enter_room_5s,0.45,percent,进房5s内攻击+45%,high,54-66,叠乘
 R13H,攻击吸血,lifesteal,0.15,percent,攻击吸血15%,high,54-66,叠乘·仅高
-R14H,穿透后排,pierce_back,0.30,percent_add,穿透后排伤害+30%,high,54-66,加算·每次+30%·Σ≥100%后不进池
-# 权威：制作人裁定 2026-09-22 补 R11–R14；震矢不在本表（单独 R15）
+R14H,穿透后排,pierce_back,0.40,percent_add,穿透后排伤害+40%,high,54-66,加算·每次+40%·Σ≥100%后不进池
+# 权威：制作人改数 2026-09-22 R11 20/40 · R12 30/45 · R14 +40；震矢不在本表
 # 已删 R1H/R2H/R4H/R5H/R6H。高档池：R3/R7H/R8H/R9H/R12H/R13H/R14H
 # 叠乘默认；例外：R7/R14 加算。价当量 1:2:3（高54-66）
 # 去重/回归见 balance_offer_rules_箭骸.csv

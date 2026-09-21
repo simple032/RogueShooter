@@ -18,22 +18,22 @@ namespace RogueShooter.Build
                     return "deleted H still in catalog " + deleted[i];
             }
 
-            if (!RewardCatalog.TryGet("R11L", out var r11l) || Math.Abs(r11l.Value - 0.15f) > 0.001f
+            if (!RewardCatalog.TryGet("R11L", out var r11l) || Math.Abs(r11l.Value - 0.20f) > 0.001f
                 || r11l.Stat != "dmg_vs_fullhp" || r11l.Tier != RewardTier.Low)
                 return "R11L dmg_vs_fullhp";
-            if (!RewardCatalog.TryGet("R11M", out var r11m) || Math.Abs(r11m.Value - 0.30f) > 0.001f
+            if (!RewardCatalog.TryGet("R11M", out var r11m) || Math.Abs(r11m.Value - 0.40f) > 0.001f
                 || r11m.Tier != RewardTier.Mid)
                 return "R11M dmg_vs_fullhp";
-            if (!RewardCatalog.TryGet("R12M", out var r12m) || Math.Abs(r12m.Value - 0.20f) > 0.001f
+            if (!RewardCatalog.TryGet("R12M", out var r12m) || Math.Abs(r12m.Value - 0.30f) > 0.001f
                 || r12m.Stat != "atk_enter_room_5s" || r12m.Tier != RewardTier.Mid)
                 return "R12M atk_enter_room_5s";
-            if (!RewardCatalog.TryGet("R12H", out var r12h) || Math.Abs(r12h.Value - 0.40f) > 0.001f
+            if (!RewardCatalog.TryGet("R12H", out var r12h) || Math.Abs(r12h.Value - 0.45f) > 0.001f
                 || r12h.Tier != RewardTier.High)
                 return "R12H atk_enter_room_5s";
             if (!RewardCatalog.TryGet("R13H", out var r13h) || Math.Abs(r13h.Value - 0.15f) > 0.001f
                 || r13h.Stat != "lifesteal" || r13h.Tier != RewardTier.High)
                 return "R13H lifesteal";
-            if (!RewardCatalog.TryGet("R14H", out var r14h) || Math.Abs(r14h.Value - 0.30f) > 0.001f
+            if (!RewardCatalog.TryGet("R14H", out var r14h) || Math.Abs(r14h.Value - 0.40f) > 0.001f
                 || r14h.Stat != "pierce_back" || r14h.ValueType != "percent_add"
                 || r14h.Tier != RewardTier.High)
                 return "R14H pierce_back";
@@ -98,11 +98,11 @@ namespace RogueShooter.Build
                 return "high sample missing R12H/R13H/R14H";
 
             var ids = new System.Collections.Generic.List<string> { "R11L" };
-            if (Math.Abs(RewardStatHooks.DmgVsFullHpMul(ids, true) - 1.15f) > 0.001f
+            if (Math.Abs(RewardStatHooks.DmgVsFullHpMul(ids, true) - 1.20f) > 0.001f
                 || Math.Abs(RewardStatHooks.DmgVsFullHpMul(ids, false) - 1f) > 0.001f)
                 return "R11L full-hp mul";
             ids[0] = "R11M";
-            if (Math.Abs(RewardStatHooks.DmgVsFullHpMul(ids, true) - 1.30f) > 0.001f)
+            if (Math.Abs(RewardStatHooks.DmgVsFullHpMul(ids, true) - 1.40f) > 0.001f)
                 return "R11M full-hp mul";
 
             RewardStatHooks.ResetRoomEnter();
@@ -110,13 +110,13 @@ namespace RogueShooter.Build
             if (Math.Abs(RewardStatHooks.EnterRoomAtkMul(ids, 0f) - 1f) > 0.001f)
                 return "R12H atk idle";
             RewardStatHooks.NotifyRoomEntered(0f);
-            if (Math.Abs(RewardStatHooks.EnterRoomAtkMul(ids, 1f) - 1.40f) > 0.001f)
+            if (Math.Abs(RewardStatHooks.EnterRoomAtkMul(ids, 1f) - 1.45f) > 0.001f)
                 return "R12H atk in 5s window";
             if (Math.Abs(RewardStatHooks.EnterRoomAtkMul(ids, 5.01f) - 1f) > 0.001f)
                 return "R12H atk after 5s";
             ids[0] = "R12M";
             RewardStatHooks.NotifyRoomEntered(10f);
-            if (Math.Abs(RewardStatHooks.EnterRoomAtkMul(ids, 12f) - 1.20f) > 0.001f)
+            if (Math.Abs(RewardStatHooks.EnterRoomAtkMul(ids, 12f) - 1.30f) > 0.001f)
                 return "R12M atk in 5s window";
 
             ids[0] = "R13H";
@@ -127,26 +127,25 @@ namespace RogueShooter.Build
             ids.Clear();
             ids.Add("R14H");
             ids.Add("R14H");
-            ids.Add("R14H");
-            if (Math.Abs(RewardStatHooks.PierceBackAdd(ids) - 0.90f) > 0.001f
+            if (Math.Abs(RewardStatHooks.PierceBackAdd(ids) - 0.80f) > 0.001f
                 || RewardStatHooks.PierceBackSaturated(ids))
-                return "R14H three stacks still in pool";
+                return "R14H two stacks still in pool";
             RewardCatalog.BindPoolOwned(ids);
             bool stillSawR14 = false;
             for (int t = 0; t < 120; t++)
             {
                 if (!RewardCatalog.TryPickEqual(RewardTier.High, null, new Random(t + 3), out var hi))
-                    return "high pick at 0.90 pierce failed";
+                    return "high pick at 0.80 pierce failed";
                 if (hi.Id == "R14H")
                     stillSawR14 = true;
             }
 
             if (!stillSawR14)
-                return "R14H should remain in pool at Σ=0.90";
+                return "R14H should remain in pool at Σ=0.80";
             ids.Add("R14H");
             if (!RewardStatHooks.PierceBackSaturated(ids)
                 || Math.Abs(RewardStatHooks.PierceBackAdd(ids) - 1.20f) > 0.001f)
-                return "R14H four stacks cap";
+                return "R14H three stacks cap";
             RewardCatalog.BindPoolOwned(ids);
             for (int t = 0; t < 200; t++)
             {
