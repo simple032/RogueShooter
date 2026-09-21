@@ -36,10 +36,14 @@ namespace RogueShooter.Demo
         readonly Dictionary<string, GameObject> _roomFloors = new Dictionary<string, GameObject>();
         readonly List<GameObject> _doors = new List<GameObject>();
         readonly List<GameObject> _live = new List<GameObject>();
+        readonly List<GameObject> _portals = new List<GameObject>();
         readonly List<GameObject> _world = new List<GameObject>();
         CombatRoomSession _active;
         Vector3 _lastGood;
         bool _pass;
+        bool _portalWaiting;
+        bool _skipPortalWait;
+        Coroutine _cadence;
         string _status = "loading…";
         string _flash = "";
         float _flashUntil;
@@ -327,6 +331,8 @@ namespace RogueShooter.Demo
                 return;
             if (_active != null && _active.DoorsLocked)
                 return;
+            if (_portalWaiting)
+                return;
             MazeNode inside = RoomAt(_player.position.x, _player.position.y, 1.15f);
             if (inside == null || !inside.SpawnsEnemies)
                 return;
@@ -343,19 +349,24 @@ namespace RogueShooter.Demo
             if (steps == null || steps.Length == 0)
                 return;
             _active = session;
+            int cadenceWave = 0;
             for (int i = 0; i < steps.Length; i++)
             {
                 CombatStep step = steps[i];
                 if (step.Portal)
                 {
-                    string line = PortalFxHook.Play(session.RoomId, step.Wave);
-                    Debug.Log(line);
+                    cadenceWave = step.Wave;
+                    continue;
                 }
-                else
-                    Debug.Log(step.Line);
 
                 if (step.ShouldSpawn)
-                    SpawnWave(session, step.Wave);
+                {
+                    int wave = step.Wave > 0 ? step.Wave : cadenceWave;
+                    _cadence = StartCoroutine(PortalThenSpawn(session, wave));
+                    continue;
+                }
+
+                Debug.Log(step.Line);
                 if (step.ShouldOpen)
                 {
                     SetDoors(session.RoomId, false);
@@ -369,13 +380,52 @@ namespace RogueShooter.Demo
                 SetDoors(session.RoomId, true);
         }
 
-        void SpawnWave(CombatRoomSession session, int wave)
+        IEnumerator PortalThenSpawn(CombatRoomSession session, int wave)
         {
-            MazeNode node = _maze.Find(session.RoomId);
+            MazeNode node = _maze != null ? _maze.Find(session.RoomId) : null;
             if (node == null || _stubPrefab == null)
-                return;
+                yield break;
+
+            _portalWaiting = true;
+            _skipPortalWait = false;
             DrawnComposition drawn = StageEnemyPool.DrawComposition(
                 StageId.S1, node.PoolRoom, Stage1MazeGen.DrawRng(seed, node.Id, wave));
+            Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
+            int n = drawn.Units != null ? drawn.Units.Length : 0;
+            if (n < 1)
+                n = 1;
+            ClearPortals();
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 pos = SpawnCluster.Offset(center, i, n);
+                GameObject fx = PortalFxStub.SpawnAt(
+                    "PortalFx_" + node.Id + "_w" + wave + "_" + i, pos, transform);
+                _portals.Add(fx);
+                _world.Add(fx);
+            }
+
+            string show = PortalFxHook.PlayShow(session.RoomId, wave);
+            Debug.Log(show);
+            Flash("PORTAL " + session.RoomId + " w" + wave + " " + MazeRules.PortalHoldSeconds.ToString("0.0") + "s");
+
+            float hold = MazeRules.PortalHoldSeconds;
+            float t = 0f;
+            while (t < hold && !_skipPortalWait)
+            {
+                t += Time.deltaTime;
+                yield return null;
+            }
+
+            _skipPortalWait = false;
+            Debug.Log(PortalFxHook.PlaySpawn(session.RoomId, wave));
+            ClearPortals();
+            _portalWaiting = false;
+            _cadence = null;
+            SpawnDrawn(session, wave, drawn, center);
+        }
+
+        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3 center)
+        {
             Debug.Log(drawn.LogLine());
             Debug.Log("[StagePool] extra=+" + drawn.ExtraAdded
                       + " elite=" + drawn.EliteCount
@@ -383,14 +433,15 @@ namespace RogueShooter.Demo
                       + " tier=" + drawn.Tier
                       + " DRAFT_NOT_LOCKED");
             ClearLive();
-            Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
             int n = drawn.Units != null ? drawn.Units.Length : 0;
+            MazeNode node = _maze.Find(session.RoomId);
+            string roomId = node != null ? node.Id : session.RoomId;
             for (int i = 0; i < n; i++)
             {
                 DrawnUnit u = drawn.Units[i];
                 Vector3 pos = SpawnCluster.Offset(center, i, n);
                 GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
-                go.name = "S1_" + node.Id + "_w" + wave + "_" + i + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
+                go.name = "S1_" + roomId + "_w" + wave + "_" + i + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
                 JianHaiBind.ApplyTo(go, JianHaiArtCatalog.EnemyE1Idle);
                 var enemy = go.GetComponent<StubEnemy>();
                 if (enemy == null)
@@ -400,7 +451,7 @@ namespace RogueShooter.Demo
                 if (ai == null)
                     ai = go.AddComponent<MobFourStateAi>();
                 ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
-                string capturedId = node.Id;
+                string capturedId = roomId;
                 enemy.Died += _ => OnEnemyDied(capturedId);
                 go.SetActive(true);
                 _live.Add(go);
@@ -431,6 +482,13 @@ namespace RogueShooter.Demo
 
         void KillLiveWave()
         {
+            if (_portalWaiting)
+            {
+                _skipPortalWait = true;
+                Flash("skip portal wait");
+                return;
+            }
+
             var snapshot = _live.ToArray();
             for (int i = 0; i < snapshot.Length; i++)
             {
@@ -631,6 +689,17 @@ namespace RogueShooter.Demo
                 Debug.LogError("[S1Maze] " + _status);
         }
 
+        void ClearPortals()
+        {
+            for (int i = 0; i < _portals.Count; i++)
+            {
+                if (_portals[i] != null)
+                    Destroy(_portals[i]);
+            }
+
+            _portals.Clear();
+        }
+
         void ClearLive()
         {
             for (int i = 0; i < _live.Count; i++)
@@ -644,6 +713,14 @@ namespace RogueShooter.Demo
 
         void ClearWorld()
         {
+            if (_cadence != null)
+            {
+                StopCoroutine(_cadence);
+                _cadence = null;
+            }
+            _portalWaiting = false;
+            _skipPortalWait = false;
+            ClearPortals();
             ClearLive();
             _sessions.Clear();
             _roomFloors.Clear();
@@ -717,7 +794,7 @@ namespace RogueShooter.Demo
             GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 54),
                 "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
                 "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock → [StagePool] S1 draw → clear → open  |  Chest/Altar two waves + [PortalFx] stub",
+                "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 84, w - 16, 36), graph, style);
@@ -731,7 +808,8 @@ namespace RogueShooter.Demo
                 ? "active " + _active.RoomId + " " + _active.Phase + " wave=" + _active.CurrentWave
                   + "/" + _active.WavesTotal + " doors=" + (_active.DoorsLocked ? "LOCKED" : "OPEN")
                   + " live=" + _live.Count
-                : "walk a combat room to lock + spawn";
+                  + (_portalWaiting ? " PORTAL 1.0s" : "")
+                : "walk a combat room to lock + portal + spawn";
             GUI.Label(new Rect(pad + 8, pad + 142, w - 16, 18), room, style);
             string status = _pass
                 ? "<color=#88ff88>" + _status + "</color>"

@@ -212,6 +212,8 @@ namespace RogueShooter.Maze
         public const float CorridorWidth = 4.2f;
         public const float LargeChestChance = 0.25f;
         public const float WavePacingEstimateSeconds = 28f;
+        /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
+        public const float PortalHoldSeconds = 1.0f;
         public const int QuotaNormal = 2;
         public const int QuotaChest = 1;
         public const int QuotaAltar = 1;
@@ -235,9 +237,7 @@ namespace RogueShooter.Maze
 
         public static bool UsesPortalFx(MazeNodeKind kind)
         {
-            return kind == MazeNodeKind.Chest
-                || kind == MazeNodeKind.LargeChest
-                || kind == MazeNodeKind.Altar;
+            return WaveCount(kind) > 0;
         }
 
         public static CombatRoomKind ToPoolRoom(MazeNodeKind kind)

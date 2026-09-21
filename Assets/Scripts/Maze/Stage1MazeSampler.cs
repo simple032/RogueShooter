@@ -59,6 +59,7 @@ namespace RogueShooter.Maze
             sb.Append(" conn=").Append(pace.ConnectorReachable ? 1 : 0);
             sb.Append(" move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" ortho=").Append(MazeRules.PlayOrtho.ToString("0"));
+            sb.Append(" portalHold=").Append(MazeRules.PortalHoldSeconds.ToString("0.0")).Append("s");
             sb.AppendLine();
 
             if (maze.Nodes != null)

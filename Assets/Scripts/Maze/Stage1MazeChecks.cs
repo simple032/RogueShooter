@@ -31,9 +31,10 @@ namespace RogueShooter.Maze
             sb.Append("ACCEPTANCE PASS stage1-maze ");
             sb.Append("quota=Chest×1+Altar×1+Normal×2+CONN-stub ");
             sb.Append("seeded=1 corridors=noSpawn ");
-            sb.Append("combat=enter→lock→pool→clear→open ");
+            sb.Append("combat=enter→lock→PortalFx→1.0s→spawn→clear→open ");
+            sb.Append("everyWave=PortalFx-visible ");
             sb.Append("chestAltar=2waves+[PortalFx] ");
-            sb.Append("normal=1wave ");
+            sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
             sb.Append("pacing=reachability-first no-clock-lock ");
@@ -54,6 +55,15 @@ namespace RogueShooter.Maze
             if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.68f) > 0.001f
                 || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.72f) > 0.001f)
                 return "weak window must stay 0.68–0.72";
+            if (Math.Abs(MazeRules.PortalHoldSeconds - 1.0f) > 0.001f)
+                return "portal hold 1.0s";
+            if (!MazeRules.UsesPortalFx(MazeNodeKind.Normal)
+                || !MazeRules.UsesPortalFx(MazeNodeKind.Chest)
+                || !MazeRules.UsesPortalFx(MazeNodeKind.Altar))
+                return "every combat wave uses PortalFx";
+            if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
+                || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
+                return "START/CONN must not portal";
             return null;
         }
 
@@ -149,6 +159,8 @@ namespace RogueShooter.Maze
             int spawns = CountKind(dry, "spawn");
             if (portals != 2 || spawns != 2)
                 return "altar must portal+spawn twice got portal=" + portals + " spawn=" + spawns;
+            if (!PortalThenSpawn(dry))
+                return "altar cadence PortalFx then spawn";
             if (!StartsWith(dry[0].Line, "[S1Maze] lock "))
                 return "first step must lock " + dry[0].Line;
             if (!StartsWith(LastOfKind(dry, "open").Line, "[S1Maze] open "))
@@ -165,23 +177,48 @@ namespace RogueShooter.Maze
             CombatStep[] cd = chestS.DryRun();
             if (CountKind(cd, "portal") != 2 || CountKind(cd, "spawn") != 2)
                 return "chest/large must two waves + portal";
+            if (!PortalThenSpawn(cd))
+                return "chest cadence PortalFx then spawn";
 
             MazeNode n1 = maze.Find("N1");
             if (n1 == null)
                 return "missing N1";
             var nS = new CombatRoomSession(n1);
             CombatStep[] nd = nS.DryRun();
-            if (CountKind(nd, "portal") != 0)
-                return "normal room must not portal";
+            if (CountKind(nd, "portal") != 1)
+                return "normal room one PortalFx got " + CountKind(nd, "portal");
             if (CountKind(nd, "spawn") != 1 || CountKind(nd, "clear") != 1)
                 return "normal room one wave";
             if (!HasKind(nd, "lock") || !HasKind(nd, "open"))
                 return "normal room lock/open";
+            if (!PortalThenSpawn(nd))
+                return "normal cadence PortalFx then spawn";
 
-            string fx = PortalFxHook.Format("ALTAR", 1);
-            if (fx.IndexOf("[PortalFx] room=ALTAR wave=1", StringComparison.Ordinal) != 0)
-                return "portal fx contract " + fx;
+            string show = PortalFxHook.FormatShow("ALTAR", 1);
+            if (show != "[PortalFx] room=ALTAR wave=1 show")
+                return "portal show contract " + show;
+            string spawn = PortalFxHook.FormatSpawn("N1", 1);
+            if (spawn != "[PortalFx] room=N1 wave=1 spawn after 1.0s")
+                return "portal spawn contract " + spawn;
             return null;
+        }
+
+        static bool PortalThenSpawn(CombatStep[] steps)
+        {
+            for (int i = 0; i < steps.Length; i++)
+            {
+                if (steps[i].Kind != "portal")
+                    continue;
+                if (i + 1 >= steps.Length || steps[i + 1].Kind != "spawn")
+                    return false;
+                if (!StartsWith(steps[i].Line, "[PortalFx] ") || steps[i].Line.IndexOf(" show", StringComparison.Ordinal) < 0)
+                    return false;
+                if (!StartsWith(steps[i + 1].Line, "[PortalFx] ")
+                    || steps[i + 1].Line.IndexOf(" spawn after 1.0s", StringComparison.Ordinal) < 0)
+                    return false;
+            }
+
+            return HasKind(steps, "portal");
         }
 
         static string CheckPoolRouting()

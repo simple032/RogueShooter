@@ -58,8 +58,7 @@ namespace RogueShooter.Maze
             Phase = CombatRoomPhase.Sealed;
             CurrentWave = 1;
             steps.Add(LockStep());
-            if (_node.UsesPortalFx)
-                steps.Add(PortalStep(1));
+            steps.Add(PortalStep(1));
             steps.Add(SpawnStep(1));
             return steps.ToArray();
         }
@@ -85,8 +84,7 @@ namespace RogueShooter.Maze
             {
                 CurrentWave++;
                 Phase = CombatRoomPhase.Sealed;
-                if (_node.UsesPortalFx)
-                    steps.Add(PortalStep(CurrentWave));
+                steps.Add(PortalStep(CurrentWave));
                 steps.Add(SpawnStep(CurrentWave));
                 return steps.ToArray();
             }
@@ -145,8 +143,7 @@ namespace RogueShooter.Maze
                 Kind = "spawn",
                 Wave = wave,
                 ShouldSpawn = true,
-                Line = "[S1Maze] spawn room=" + RoomId + " wave=" + wave
-                    + "/" + WavesTotal + " pool=" + MazeRules.Label(Kind)
+                Line = PortalFxHook.FormatSpawn(RoomId, wave)
             };
         }
 
