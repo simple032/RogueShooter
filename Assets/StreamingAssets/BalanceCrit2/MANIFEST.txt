@@ -3,6 +3,10 @@
   - balance_shop_prices_箭骸.csv
   - balance_offer_rules_箭骸.csv
   - balance_elite_chest_pool_箭骸.csv
+  - balance_crit2_sync_evidence.csv
 relation: coexist_with_BalanceLock_v042
 elite_EL_C: E4+E3
+high_pool: R3/R7H/R8H/R9H/R12H/R13H/R14H
+shop_ratio: 1:2:3
+shop_high: 54-66
 test: T-crit2b PASS

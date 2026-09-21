@@ -21,29 +21,43 @@ namespace RogueShooter.Build
     /// </summary>
     public static class RewardCatalog
     {
+        /// <summary>Producer lock: high draws only these ids. Deleted R1H/R2H/R4H/R5H/R6H.</summary>
+        public static readonly string[] HighPoolIds =
+            { "R3", "R7H", "R8H", "R9H", "R12H", "R13H", "R14H" };
+
+        public static readonly string[] DeletedHighIds = { "R1H", "R2H", "R4H", "R5H", "R6H" };
+
+        static IList<string> _poolOwned;
+
+        public static void BindPoolOwned(IList<string> owned)
+        {
+            _poolOwned = owned;
+        }
+
         public static readonly RewardRow[] All =
         {
-            Row("R1L", "锋矢", "damage", 0.15f, "percent", "伤害+15%", RewardTier.Low, 20, 1),
-            Row("R1M", "锋矢", "damage", 0.225f, "percent", "伤害+22.5%", RewardTier.Mid, 40, 2),
-            Row("R1H", "锋矢", "damage", 0.3375f, "percent", "伤害+33.75%", RewardTier.High, 80, 4),
-            Row("R2L", "疾张", "charge_time", -0.1304f, "percent", "满蓄缩短13.04%", RewardTier.Low, 20, 1),
-            Row("R2M", "疾张", "charge_time", -0.1837f, "percent", "满蓄缩短18.37%", RewardTier.Mid, 40, 2),
-            Row("R2H", "疾张", "charge_time", -0.2523f, "percent", "满蓄缩短25.23%", RewardTier.High, 80, 4),
-            Row("R3", "鸿运", "crit_window", 0.06f, "seconds", "幸运窗+0.06s", RewardTier.High, 80, 4),
-            Row("R4L", "骨甲", "max_hp", 0.15f, "percent", "最大生命+15%", RewardTier.Low, 20, 1),
-            Row("R4M", "骨甲", "max_hp", 0.225f, "percent", "最大生命+22.5%", RewardTier.Mid, 40, 2),
-            Row("R4H", "骨甲", "max_hp", 0.3375f, "percent", "最大生命+33.75%", RewardTier.High, 80, 4),
-            Row("R5L", "残影", "move_speed", 0.15f, "percent", "移速+15%", RewardTier.Low, 20, 1),
-            Row("R5M", "残影", "move_speed", 0.225f, "percent", "移速+22.5%", RewardTier.Mid, 40, 2),
-            Row("R5H", "残影", "move_speed", 0.3375f, "percent", "移速+33.75%", RewardTier.High, 80, 4),
-            Row("R6L", "盗墓者", "gold_gain", 0.15f, "percent", "掉金+15%", RewardTier.Low, 20, 1),
-            Row("R6M", "盗墓者", "gold_gain", 0.225f, "percent", "掉金+22.5%", RewardTier.Mid, 40, 2),
-            Row("R6H", "盗墓者", "gold_gain", 0.3375f, "percent", "掉金+33.75%", RewardTier.High, 80, 4),
-            Row("R7M", "瞬击预感", "crit_rate", 0.20f, "percent_add", "暴击率+20%", RewardTier.Mid, 40, 2),
-            Row("R7H", "瞬击预感", "crit_rate", 0.40f, "percent_add", "暴击率+40%", RewardTier.High, 80, 4),
-            Row("R8H", "破甲猛击", "crit_damage", 0.60f, "percent", "暴击伤害+60%", RewardTier.High, 80, 4),
-            Row("R9H", "隙矢追猎", "weak_damage", 0.50f, "percent", "弱点攻击伤害+50%", RewardTier.High, 80, 4),
+            Row("R1L", "锋矢", "damage", 0.10f, "percent", "伤害+10%", RewardTier.Low, 20, 1),
+            Row("R1M", "锋矢", "damage", 0.20f, "percent", "伤害+20%", RewardTier.Mid, 40, 2),
+            Row("R2L", "疾张", "charge_time", -0.0909f, "percent", "满蓄缩短9.09%", RewardTier.Low, 20, 1),
+            Row("R2M", "疾张", "charge_time", -0.1667f, "percent", "满蓄缩短16.67%", RewardTier.Mid, 40, 2),
+            Row("R3", "鸿运", "crit_window", 0.06f, "seconds", "幸运窗+0.06s", RewardTier.High, 60, 3),
+            Row("R4L", "骨甲", "max_hp", 0.10f, "percent", "最大生命+10%", RewardTier.Low, 20, 1),
+            Row("R4M", "骨甲", "max_hp", 0.20f, "percent", "最大生命+20%", RewardTier.Mid, 40, 2),
+            Row("R5L", "残影", "move_speed", 0.10f, "percent", "移速+10%", RewardTier.Low, 20, 1),
+            Row("R5M", "残影", "move_speed", 0.20f, "percent", "移速+20%", RewardTier.Mid, 40, 2),
+            Row("R6L", "盗墓者", "gold_gain", 0.10f, "percent", "掉金+10%", RewardTier.Low, 20, 1),
+            Row("R6M", "盗墓者", "gold_gain", 0.20f, "percent", "掉金+20%", RewardTier.Mid, 40, 2),
+            Row("R7M", "瞬击预感", "crit_rate", 0.26f, "percent_add", "暴击率+26%", RewardTier.Mid, 40, 2),
+            Row("R7H", "瞬击预感", "crit_rate", 0.39f, "percent_add", "暴击率+39%", RewardTier.High, 60, 3),
+            Row("R8H", "破甲猛击", "crit_damage", 0.65f, "percent", "暴击伤害+65%", RewardTier.High, 60, 3),
+            Row("R9H", "隙矢追猎", "weak_damage", 0.65f, "percent", "弱点攻击伤害+65%", RewardTier.High, 60, 3),
             Row("R10", "止血", "heal", 0.40f, "percent_max_hp", "回复40%最大生命", RewardTier.Mid, 40, 2),
+            Row("R11L", "满血额外伤害", "dmg_vs_fullhp", 0.20f, "percent", "满血目标伤害+20%", RewardTier.Low, 20, 1),
+            Row("R11M", "满血额外伤害", "dmg_vs_fullhp", 0.40f, "percent", "满血目标伤害+40%", RewardTier.Mid, 40, 2),
+            Row("R12M", "进房间5s内加攻", "atk_enter_room_5s", 0.30f, "percent", "进房5s内攻击+30%", RewardTier.Mid, 40, 2),
+            Row("R12H", "进房间5s内加攻", "atk_enter_room_5s", 0.45f, "percent", "进房5s内攻击+45%", RewardTier.High, 60, 3),
+            Row("R13H", "攻击吸血", "lifesteal", 0.15f, "percent", "攻击吸血15%", RewardTier.High, 60, 3),
+            Row("R14H", "穿透后排", "pierce_back", 0.40f, "percent_add", "穿透后排伤害+40%", RewardTier.High, 60, 3),
             Row("R15_C", "震矢", "kb_dist_pct", 0.20f, "percent", "满蓄击退距离+20%", RewardTier.Low, 20, 1),
             Row("R15_R", "震矢", "kb_dist_pct", 0.40f, "percent", "满蓄击退距离+40%", RewardTier.Mid, 40, 2),
         };
@@ -90,12 +104,56 @@ namespace RogueShooter.Build
             }
         }
 
+        public static bool IsHighPoolId(string id)
+        {
+            if (string.IsNullOrEmpty(id) || HighPoolIds == null)
+                return false;
+            for (int i = 0; i < HighPoolIds.Length; i++)
+            {
+                if (HighPoolIds[i] == id)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public static bool IsDeletedHighId(string id)
+        {
+            if (string.IsNullOrEmpty(id) || DeletedHighIds == null)
+                return false;
+            for (int i = 0; i < DeletedHighIds.Length; i++)
+            {
+                if (DeletedHighIds[i] == id)
+                    return true;
+            }
+
+            return false;
+        }
+
+        static bool EligibleForPool(RewardRow row, RewardTier tier)
+        {
+            if (row.Tier != tier)
+                return false;
+            if (IsDeletedHighId(row.Id))
+                return false;
+            if (tier == RewardTier.High && !IsHighPoolId(row.Id))
+                return false;
+            if (RewardStatHooks.IsPoolExcluded(row, _poolOwned))
+                return false;
+            return true;
+        }
+
+        public static bool CanOffer(RewardRow row, RewardTier tier)
+        {
+            return EligibleForPool(row, tier);
+        }
+
         public static int CountInTier(RewardTier tier)
         {
             int n = 0;
             for (int i = 0; i < All.Length; i++)
             {
-                if (All[i].Tier == tier)
+                if (EligibleForPool(All[i], tier))
                     n++;
             }
 
@@ -137,7 +195,7 @@ namespace RogueShooter.Build
             int total = 0;
             for (int i = 0; i < All.Length; i++)
             {
-                if (All[i].Tier != tier)
+                if (!EligibleForPool(All[i], tier))
                     continue;
                 if (usedIds != null && usedIds.Contains(All[i].Id))
                     continue;
@@ -153,7 +211,7 @@ namespace RogueShooter.Build
             int acc = 0;
             for (int i = 0; i < All.Length; i++)
             {
-                if (All[i].Tier != tier)
+                if (!EligibleForPool(All[i], tier))
                     continue;
                 if (usedIds != null && usedIds.Contains(All[i].Id))
                     continue;
@@ -173,7 +231,7 @@ namespace RogueShooter.Build
 
         public static string FormatAttackTiers()
         {
-            return "R1L/M/H damage +15%/+22.5%/+33.75%";
+            return "R1L/M damage +10%/+20% (no R1H)";
         }
 
         public static string FormatSpecialTiers()

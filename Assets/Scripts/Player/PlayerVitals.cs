@@ -37,5 +37,17 @@ namespace RogueShooter.Player
             Hp = Mathf.Max(0f, Hp - dmg);
             Debug.Log($"[PlayerVitals] hit kind={kindId} dmg={dmg:0.#} hp={Hp:0.#}/{MaxHp:0.#}");
         }
+
+        public float Heal(float amount)
+        {
+            if (amount <= 0f || Hp <= 0f)
+                return 0f;
+            float before = Hp;
+            Hp = Mathf.Min(maxHp, Hp + amount);
+            float gained = Hp - before;
+            if (gained > 0f)
+                Debug.Log($"[PlayerVitals] heal +{gained:0.#} hp={Hp:0.#}/{MaxHp:0.#}");
+            return gained;
+        }
     }
 }

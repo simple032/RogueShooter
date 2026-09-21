@@ -1,0 +1,9 @@
+check,status,detail
+rewards_sync,PASS,byte-match producer <-> balance_rewards_箭骸.csv sha=78129e8fc68069e3
+offer_sync,PASS,byte-match producer <-> balance_offer_rules_箭骸.csv sha=39ded64891217b14
+shop_sync,PASS,byte-match producer <-> balance_shop_prices_箭骸.csv sha=4774084dee978a5a
+no_deleted_h,PASS,R11=0.20/0.40 R12=0.30/0.45 R13=0.15 R14=0.40; R1-R14 present; deleted_absent; r15_kept; mirror=ok
+high_pool_only_R3_R7H_R8H_R9H,PASS,lock=['R12H'; 'R13H'; 'R14H'; 'R3'; 'R7H'; 'R8H'; 'R9H']; sim500=['R12H'; 'R13H'; 'R14H'; 'R3'; 'R7H'; 'R8H'; 'R9H']
+price_ratio_1_2_3,PASS,csv+cs 1:2:3 high 54-66 mid 60
+r14h_pierce_cap,PASS,R14H +0.40/hit; Σ0.80 (2 stacks) still offers; Σ1.20 (3 stacks) excluded; 200 cap draws no R14H
+new_stat_hooks,PASS,R11 20/40 mul; R12 30/45 window; R13 15% lifesteal; R14 +40% pierce 2nd target

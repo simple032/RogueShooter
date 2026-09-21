@@ -1,5 +1,5 @@
-# crit2.docx 一字对齐：容器权重 / 去重 / 未选回归 / 店弹性
-# 奖励幅度见 balance_rewards_箭骸.csv；店价见 balance_shop_prices_箭骸.csv
+# crit2 重标定：容器权重不变；当量/价 1:2:3
+# 奖励幅度见 balance_rewards_箭骸.csv
 
 section,item,value,note
 container,altar_small,72/28/0,低/中/高
@@ -11,8 +11,9 @@ shop,shelf,1普+1中+1高+1回血+2弹性,
 shop,flex_w,56/32/12,普/中/高·不出回血
 shop,price_low,18-22,当量1
 shop,price_mid,36-44,当量2
-shop,price_high,72-88,当量4
+shop,price_high,54-66,当量3
 shop,price_heal,36-44,当量2=中
+shop,equiv,1/2/3/2,普/中/高/回血
 dedupe,same_offer_unique,true,同一次三选一不重复同一条
 dedupe,heal_max,1,
 dedupe,reroll_same_tier,5,仍重复则从未出现池随机

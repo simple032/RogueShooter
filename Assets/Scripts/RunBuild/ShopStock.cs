@@ -30,7 +30,7 @@ namespace RogueShooter.Build
 
     /// <summary>
     /// N38 shop: 6 shelves = 普/中/高/回血各1 + 弹性2. Never refresh.
-    /// Locked prices 20/40/80/40 (no float). Elastic 56/32/12, no heal.
+    /// Locked mid prices 20/40/60/40 (ratio 1:2:3; high band 54–66). Elastic 56/32/12, no heal.
     /// </summary>
     public static class ShopStock
     {
@@ -39,10 +39,14 @@ namespace RogueShooter.Build
         public const int ElasticCount = 2;
         public const int PriceBaseLow = 20;
         public const int PriceBaseMid = 40;
-        public const int PriceBaseHigh = 80;
+        public const int PriceBaseHigh = 60;
         public const int PriceBaseHeal = 40;
-        public const int LowPriceMin = 20;
-        public const int LowPriceMax = 20;
+        public const int LowPriceMin = 18;
+        public const int LowPriceMax = 22;
+        public const int MidPriceMin = 36;
+        public const int MidPriceMax = 44;
+        public const int HighPriceMin = 54;
+        public const int HighPriceMax = 66;
         public const int ElasticWLow = 56;
         public const int ElasticWMid = 32;
         public const int ElasticWHigh = 12;
@@ -83,15 +87,16 @@ namespace RogueShooter.Build
 
         public static int PriceFromLow(ShopSlotRole role, int lowAnchor)
         {
+            int low = lowAnchor > 0 ? lowAnchor : PriceBaseLow;
             switch (role)
             {
                 case ShopSlotRole.Mid:
                 case ShopSlotRole.Heal:
-                    return PriceBaseMid;
+                    return low * 2;
                 case ShopSlotRole.High:
-                    return PriceBaseHigh;
+                    return low * 3;
                 default:
-                    return PriceBaseLow;
+                    return low;
             }
         }
 
@@ -186,11 +191,13 @@ namespace RogueShooter.Build
                 {
                     for (int r = 0; r < RewardCatalog.All.Length; r++)
                     {
-                        if (!used.Contains(RewardCatalog.All[r].Id))
-                        {
-                            row = RewardCatalog.All[r];
-                            break;
-                        }
+                        RewardRow cand = RewardCatalog.All[r];
+                        if (used.Contains(cand.Id))
+                            continue;
+                        if (!RewardCatalog.CanOffer(cand, tier))
+                            continue;
+                        row = cand;
+                        break;
                     }
                 }
             }
