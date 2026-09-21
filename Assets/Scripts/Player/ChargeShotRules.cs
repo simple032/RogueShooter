@@ -27,6 +27,7 @@ namespace RogueShooter.Player
         public const float FullMul = 1.00f;
         public const float CritMul = 2.00f;
         public const float RecoverSeconds = 0.20f;
+        public const float WeakSpotStaggerSeconds = 0.50f;
 
         public static float Progress(float heldSeconds)
         {

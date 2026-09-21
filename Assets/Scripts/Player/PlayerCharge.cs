@@ -202,6 +202,8 @@ namespace RogueShooter.Player
                 if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
                 {
                     boss.DealDamage(damage);
+                    if (kind == ChargeShotKind.Crit)
+                        boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
                     Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
                               $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
                     return;
@@ -219,6 +221,8 @@ namespace RogueShooter.Player
                 stub.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(damage)));
             else
                 best.NotifyDamaged();
+            if (kind == ChargeShotKind.Crit)
+                best.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
             Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={damage:0.0} dist={bestD:0.00}");
         }
 

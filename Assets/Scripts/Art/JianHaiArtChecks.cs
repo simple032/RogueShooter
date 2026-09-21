@@ -73,6 +73,8 @@ namespace RogueShooter.Art
                 return "weak-spot window 0.68–0.72s";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
                 return "shoot recovery must be 0.20s";
+            if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
+                return "weak-spot stagger must be 0.50s";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

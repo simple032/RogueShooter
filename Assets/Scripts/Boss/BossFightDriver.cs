@@ -24,6 +24,9 @@ namespace RogueShooter.Boss
 
         float _lastWallMinutes;
         int _lastTimeTier = -1;
+        float _staggerUntil;
+
+        public bool IsStaggered => Time.time < _staggerUntil;
 
         void Awake()
         {
@@ -106,6 +109,17 @@ namespace RogueShooter.Boss
                 Finish(BossSettleOutcome.Win);
         }
 
+        /// <summary>Spec §4 弱点命中硬直: interrupt current boss move and freeze ticks.</summary>
+        public void ApplyWeakSpotStagger(float seconds)
+        {
+            if (!FightStarted || FightSettled || Brain == null)
+                return;
+            float dur = seconds > 0.01f ? seconds : 0.50f;
+            _staggerUntil = Time.time + dur;
+            Brain.InterruptCurrentMove();
+            Debug.Log($"[BossFight] weak-spot stagger {dur:0.00}s");
+        }
+
         public void NotifyPlayerDead()
         {
             if (!FightStarted || FightSettled)
@@ -136,6 +150,8 @@ namespace RogueShooter.Boss
         void Update()
         {
             if (!FightStarted || Brain == null || FightSettled)
+                return;
+            if (IsStaggered)
                 return;
             var before = Brain.Phase;
             bool doorBefore = Brain.DoorClosed;
