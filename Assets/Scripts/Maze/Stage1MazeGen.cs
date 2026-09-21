@@ -9,7 +9,8 @@ namespace RogueShooter.Maze
     /// Normal×2 + START + connector stub. Corridors are edges and never spawn.
     /// Same seed → same graph. No S2/S3 layouts.
     /// v2e: rooms 52×40, pitch 82×70, N口 fixed Normal, 4-slot shuffle,
-    /// CONN follows Altar. START door ~18u feel. Folds only if diagonal.
+    /// CONN follows Altar. Ordinary Chest×2 (no LargeChest upgrade).
+    /// START door ~18u feel. Folds only if diagonal.
     /// </summary>
     public static class Stage1MazeGen
     {
@@ -59,28 +60,16 @@ namespace RogueShooter.Maze
 
             int normalIx = 2;
             int chestIx = 1;
-            bool anyLarge = false;
             int altarNode = -1;
             int altarShuffle = -1;
             for (int i = 0; i < 4; i++)
             {
                 MazeNodeKind kind = shuffleKinds[i];
-                if (kind == MazeNodeKind.Chest && rng.NextDouble() < MazeRules.LargeChestChance)
-                {
-                    kind = MazeNodeKind.LargeChest;
-                    anyLarge = true;
-                }
-
                 string id;
                 if (kind == MazeNodeKind.Normal)
                     id = "N" + (normalIx++);
                 else if (kind == MazeNodeKind.Altar)
                     id = "ALTAR";
-                else if (kind == MazeNodeKind.LargeChest)
-                {
-                    id = chestIx == 1 ? "LARGE" : "LARGE" + chestIx;
-                    chestIx++;
-                }
                 else
                 {
                     id = chestIx == 1 ? "CHEST" : "CHEST" + chestIx;
@@ -118,7 +107,7 @@ namespace RogueShooter.Maze
             {
                 Seed = seed,
                 TemplateId = tpl.Id,
-                LargeChestUpgraded = anyLarge,
+                LargeChestUpgraded = false,
                 Nodes = nodes,
                 Edges = edges
             };
@@ -275,7 +264,7 @@ namespace RogueShooter.Maze
 
         public static string FormatQuota(Stage1Maze maze)
         {
-            int chest = maze.CountKind(MazeNodeKind.Chest) + maze.CountKind(MazeNodeKind.LargeChest);
+            int chest = maze.CountKind(MazeNodeKind.Chest);
             return "quota Chest=" + chest
                 + " Altar=" + maze.CountKind(MazeNodeKind.Altar)
                 + " Normal=" + maze.CountKind(MazeNodeKind.Normal)

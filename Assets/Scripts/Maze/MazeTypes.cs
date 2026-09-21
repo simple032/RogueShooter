@@ -244,7 +244,6 @@ namespace RogueShooter.Maze
         /// <summary>START→N口 door gap feel (~3s @ 6). Not an ACCEPTANCE clock.</summary>
         public const float StartDoorGap = 18f;
         public const float StartPitchY = 58f;
-        public const float LargeChestChance = 0.25f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
         public const float PortalHoldSeconds = 1.0f;

@@ -14,7 +14,7 @@ seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,start_n,conn_altar,
 2026,Z,18.0,3.0,280.0,46.7,30.0,5.00,PASS,PASS,PASS
 
 # seed 42 detail
-[S1Maze] seed=42 tpl=I largeChest=1 rooms=START(START@0,0),N1(Normal@0,58),CHEST(Chest@-82,58),N2(Normal@82,58),ALTAR(Altar@-82,128),LARGE2(LargeChest@0,128),CONN(Connector@-164,128) edges=START--N1;N1--CHEST;N1--N2;N1--LARGE2;CHEST--ALTAR;ALTAR--LARGE2;ALTAR--CONN
+[S1Maze] seed=42 tpl=I largeChest=0 rooms=START(START@0,0),N1(Normal@0,58),CHEST(Chest@-82,58),N2(Normal@82,58),ALTAR(Altar@-82,128),CHEST2(Chest@0,128),CONN(Connector@-164,128) edges=START--N1;N1--CHEST;N1--N2;N1--CHEST2;CHEST--ALTAR;ALTAR--CHEST2;ALTAR--CONN
 [S1Maze] quota Chest=2 Altar=1 Normal=2 Start=1 Connector=stub
 [S1Maze] walkOnly move=6 firstHop=18.0u/3.0s (feel ~3s, not a lock) shortest=292.0u/48.7s START→CONN maxSeg=30.0u/5.00s pitch=82/70 rooms=52x40 altar=52x40
 # GEOMETRY PASS (rooms/pitch/gap/startN/connAltar; no walk-clock gate)

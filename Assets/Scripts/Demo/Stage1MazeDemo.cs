@@ -738,7 +738,7 @@ namespace RogueShooter.Demo
         {
             MazeNode n = _maze != null ? _maze.Find("CHEST") : null;
             if (n == null)
-                n = _maze != null ? _maze.Find("LARGE") : null;
+                n = _maze != null ? _maze.Find("CHEST2") : null;
             if (n != null)
                 Teleport(n.Id);
         }

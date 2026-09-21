@@ -36,10 +36,10 @@ namespace RogueShooter.Maze
             sb.Append("everyWave=PortalFx-visible ");
             sb.Append("chestAltar=2waves+[PortalFx] ");
             sb.Append("normal=1wave+[PortalFx] ");
-            sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
+            sb.Append("pool=S1 Normal/Chest→N Altar→E ");
             sb.Append("ortho=6 move=6 ");
             sb.Append("rooms=52x40 pitch=82/70 gap=30u startDoor~18u ");
-            sb.Append("startN=fixedNormal shuffle4=Altar+Chest×2+Normal ");
+            sb.Append("startN=fixedNormal shuffle4=Altar+Chest×2+Normal noLargeChest ");
             sb.Append("connFollowsAltar orthoStraight diagFoldOnly ");
             sb.Append("no-walk-clock-gate ");
             sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
@@ -338,9 +338,11 @@ namespace RogueShooter.Maze
                 return "need Normal×2 got " + maze.CountKind(MazeNodeKind.Normal);
             if (maze.CountKind(MazeNodeKind.Altar) != 1)
                 return "need Altar×1";
-            int chests = maze.CountKind(MazeNodeKind.Chest) + maze.CountKind(MazeNodeKind.LargeChest);
+            if (maze.CountKind(MazeNodeKind.LargeChest) != 0 || maze.LargeChestUpgraded)
+                return "S1 quota is ordinary Chest×2; LargeChest upgrade is off";
+            int chests = maze.CountKind(MazeNodeKind.Chest);
             if (chests != 2)
-                return "need Chest×2 (or LargeChest upgrade) got " + chests;
+                return "need ordinary Chest×2 got " + chests;
             if (maze.CombatRoomCount() != 5)
                 return "S1 combat rooms must be 5";
             int waves = maze.FullClearWaveCount();
@@ -399,13 +401,13 @@ namespace RogueShooter.Maze
 
             MazeNode chest = maze.Find("CHEST");
             if (chest == null)
-                chest = maze.Find("LARGE");
-            if (chest == null)
-                return "missing chest room";
+                chest = maze.Find("CHEST2");
+            if (chest == null || chest.Kind != MazeNodeKind.Chest)
+                return "missing ordinary chest room";
             var chestS = new CombatRoomSession(chest);
             CombatStep[] cd = chestS.DryRun();
             if (CountKind(cd, "portal") != 2 || CountKind(cd, "spawn") != 2)
-                return "chest/large must two waves + portal";
+                return "ordinary Chest must two waves + portal";
             if (!PortalThenSpawn(cd))
                 return "chest cadence PortalFx then spawn";
 
@@ -459,6 +461,8 @@ namespace RogueShooter.Maze
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
                 MazeNode n = maze.Nodes[i];
+                if (n.Kind == MazeNodeKind.LargeChest)
+                    return n.Id + " S1 must not place LargeChest";
                 if (!n.SpawnsEnemies)
                     continue;
                 for (int w = 1; w <= n.WaveCount; w++)
