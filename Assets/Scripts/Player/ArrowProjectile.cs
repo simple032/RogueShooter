@@ -8,7 +8,8 @@ using RogueShooter.Combat;
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Flying charge arrow. Visual = jh_fx_charge_arrow_tip. Stops on wall/door or first mob/boss.
+    /// Flying charge arrow. Visual = jh_proj_arrow_fly (faces +X, program rotates).
+    /// Charge-string tip stays jh_fx_charge_arrow_tip. Stops on wall/door or first mob/boss.
     /// </summary>
     public class ArrowProjectile : MonoBehaviour
     {
@@ -38,7 +39,6 @@ namespace RogueShooter.Player
             var go = new GameObject("Arrow_" + kind);
             go.transform.position = origin;
             JianHaiBind.ApplyTo(go, JianHaiArtCatalog.ArrowFlight);
-            go.transform.localScale = new Vector3(0.85f, 0.45f, 1f);
             CollisionVolume.Add(go, CollisionLayer.Projectile, false, ProjectileRules.ArrowHitRadius, ProjectileRules.ArrowHitRadius);
             go.AddComponent<ProjectileTrail>().Configure(
                 JianHaiArtCatalog.FxTipIdle, 0.045f, 0.14f, 0.38f);

@@ -109,13 +109,20 @@ namespace RogueShooter.Combat
                 && ActionSpecP1.PlayerRoll.Root == "jh_char_archer_roll"
                 && ActionSpecP1.EnemyRoot(EnemyKindIds.Dog) == "jh_enemy_dog",
                 "fps=12 roll+charge/atk idle/move/hurt/death; S1 N/D/M clips; OnFire@_01");
+            Row(sb, "phase1_sprite_contract",
+                JianHaiArtCatalog.Ppu == 32
+                && System.Math.Abs(JianHaiArtCatalog.PivotS1.x - 0.5f) < 0.001f
+                && System.Math.Abs(JianHaiArtCatalog.PivotS1.y - 0.15f) < 0.001f
+                && JianHaiArtCatalog.ArrowFlight == "jh_proj_arrow_fly"
+                && JianHaiSprites.HasClip(EntityAnimCatalog.PlayerRoll),
+                "PPU32 pivotS1=(0.5;0.15) arrow=+X orb=32c roll=jh_char_archer_roll_*");
             Row(sb, "arrow_art",
-                JianHaiArtCatalog.ArrowFlight == JianHaiArtCatalog.FxTipWarm
+                JianHaiArtCatalog.ArrowFlight == "jh_proj_arrow_fly"
                 && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight),
-                JianHaiArtCatalog.ArrowFlight);
+                JianHaiArtCatalog.ArrowFlight + " +X pivot=0.2,0.5");
             Row(sb, "orb_art",
-                JianHaiSprites.HasSourceFile(JianHaiArtCatalog.FxMageOrb),
-                JianHaiArtCatalog.FxMageOrb + " " + JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxMageOrb));
+                JianHaiSprites.HasSourceFile(JianHaiArtCatalog.OrbFlight),
+                JianHaiArtCatalog.OrbFlight + " " + JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight));
             Row(sb, "jianhai_png_runtime",
                 JianHaiSprites.HasSourceFile(JianHaiArtCatalog.PlayerIdle)
                 && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.TileFloorCorridor)

@@ -16,7 +16,9 @@ Drop PNG here. **Interact GameObject names stay HOOKS IDs** (`Chest_01`, `A_Shar
 
 | Kind | Canvas | Pivot |
 |------|--------|-------|
-| Player / E1 | 64×64 | **(0.5, 0.15)** feet |
+| Player / E1 / S1 | 64×64 | **(0.5, 0.15)** feet (PHASE1) |
+| Arrow `jh_proj_arrow_fly` | 32×8 | **(0.2, 0.5)** mid-rear; art faces **+X** |
+| Orb `jh_proj_orb_mage_fly` | 32×32 | **(0.5, 0.5)** center |
 | BOSS | 128×128 | **(0.5, 0.12)** |
 | Props (chest / altar / shop) | 64×64 or 96×96 | **(0.5, 0.2)** |
 | Tiles | 32×32 | **(0.5, 0.5)** center |
@@ -28,7 +30,7 @@ Drop PNG here. **Interact GameObject names stay HOOKS IDs** (`Chest_01`, `A_Shar
 
 `Ground` → `Decal` → `Prop` → `Entity` → `FX` → `UI`
 
-Props (chest/altar/shop) = **Prop**. Player / E1 / BOSS = **Entity**.
+Props (chest/altar/shop) = **Prop**. Player / E1 / BOSS = **Entity** order 20. Projectiles / FX = **FX** order 30.
 
 ## Hook → art (do not rename interact IDs)
 
@@ -45,7 +47,8 @@ Stage-1 maze floors/walls/doors use `SpriteDrawMode.Tiled` at `localScale=1`; co
 ## Folders
 
 ```
-Characters/  Enemies/  Boss/  Props/  Tiles/  UI/  _Spec/
+Characters/  Enemies/  Boss/  Props/  Tiles/  UI/  Projectiles/  FX/  _Spec/
 ```
 
-See `_Spec/STYLE_SPEC_v01.md` and `hook_map.csv`.
+See `_Spec/STYLE_SPEC_v01.md`, `_Spec/PHASE1_PLAYABLE_SPEC_v01.md`, `_Spec/ACTION_SPEC_P1_v01.md` and `hook_map.csv`.
+True art drop-in: replace the named PNG, keep the `.meta` (PPU 32 / Point / pivot).

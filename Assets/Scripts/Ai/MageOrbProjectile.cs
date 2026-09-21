@@ -27,14 +27,13 @@ namespace RogueShooter.Ai
         {
             var go = new GameObject("Orb");
             go.transform.position = origin;
-            JianHaiBind.ApplyTo(go, JianHaiArtCatalog.FxMageOrb);
+            JianHaiBind.ApplyTo(go, JianHaiArtCatalog.OrbFlight);
             var sr = go.GetComponent<SpriteRenderer>();
             if (sr != null)
                 sr.color = tint;
-            go.transform.localScale = new Vector3(0.72f, 0.72f, 1f);
             CollisionVolume.Add(go, CollisionLayer.Projectile, false, ProjectileRules.OrbHitRadius, ProjectileRules.OrbHitRadius);
             go.AddComponent<ProjectileTrail>().Configure(
-                JianHaiArtCatalog.FxMageOrb, 0.05f, 0.18f, 0.36f);
+                JianHaiArtCatalog.OrbFlight, 0.05f, 0.18f, 0.36f);
             return go.AddComponent<MageOrbProjectile>();
         }
 

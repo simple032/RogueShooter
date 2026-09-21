@@ -115,6 +115,23 @@ namespace RogueShooter.Art
                 return "";
             string folder = JianHaiArtCatalog.FolderForArtId(artId);
             string file = artId + ".png";
+            string[] ids = JianHaiArtCatalog.ArtSearchIds(artId);
+            for (int i = 0; i < ids.Length; i++)
+            {
+                string found = FindDisk(ids[i]);
+                if (!string.IsNullOrEmpty(found) && File.Exists(found))
+                    return found;
+            }
+
+            return Path.Combine("Assets", "Art", "JianHai", folder, file);
+        }
+
+        static string FindDisk(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return "";
+            string folder = JianHaiArtCatalog.FolderForArtId(artId);
+            string file = artId + ".png";
             try
             {
                 if (!string.IsNullOrEmpty(Application.dataPath))
@@ -148,10 +165,14 @@ namespace RogueShooter.Art
         static Sprite LoadImported(string artId)
         {
 #if UNITY_EDITOR
-            string path = JianHaiArtCatalog.AssetPath(artId);
-            var imported = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
-            if (imported != null)
-                return imported;
+            string[] ids = JianHaiArtCatalog.ArtSearchIds(artId);
+            for (int i = 0; i < ids.Length; i++)
+            {
+                string path = JianHaiArtCatalog.AssetPath(ids[i]);
+                var imported = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                if (imported != null)
+                    return imported;
+            }
 #endif
             return null;
         }
@@ -239,7 +260,7 @@ namespace RogueShooter.Art
             sr.sprite = Get(artId);
             sr.drawMode = SpriteDrawMode.Simple;
             sr.sortingLayerName = JianHaiArtCatalog.SortingLayer(artId);
-            sr.sortingOrder = 0;
+            sr.sortingOrder = JianHaiArtCatalog.SortingOrderForArtId(artId);
             sr.color = Color.white;
         }
 
@@ -253,7 +274,7 @@ namespace RogueShooter.Art
             sr.size = worldSize;
             sr.color = tint.a <= 0.001f ? Color.white : tint;
             sr.sortingLayerName = JianHaiArtCatalog.SortingLayer(artId);
-            sr.sortingOrder = order;
+            sr.sortingOrder = order != 0 ? order : JianHaiArtCatalog.SortingOrderForArtId(artId);
         }
 
         static Color FillColor(string artId)
@@ -290,8 +311,12 @@ namespace RogueShooter.Art
                 return Hex(0xe0b56a);
             if (artId.Contains("glow_cold"))
                 return Hex(0xb8c4d4);
-            if (artId.Contains("mage_orb"))
+            if (artId.Contains("proj_arrow") || artId.Contains("arrow_fly"))
+                return Hex(0xd4c4a0);
+            if (artId.Contains("orb_mage") || artId.Contains("mage_orb") || artId.Contains("proj_orb"))
                 return Hex(0xc22bd4);
+            if (artId.Contains("roll"))
+                return Hex(0xb8b0a0);
             if (artId.Contains("string_glow") || artId.Contains("bow_edge") || artId.Contains("arrow_tip"))
                 return Hex(0xd4a05a);
             if (artId.Contains("fx"))

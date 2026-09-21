@@ -38,8 +38,8 @@ namespace RogueShooter.Combat
             sb.Append("art=JianHai-PNG-runtime ");
             sb.Append("layers=Player/Mob/Wall/Door/Projectile ");
             sb.Append("door=locked-blocks/open-pass ");
-            sb.Append("arrow=jh_fx_charge_arrow_tip speed=").Append(ProjectileRules.ArrowSpeed.ToString("0"));
-            sb.Append(" orb=jh_fx_mage_orb ");
+            sb.Append("arrow=jh_proj_arrow_fly speed=").Append(ProjectileRules.ArrowSpeed.ToString("0"));
+            sb.Append(" orb=jh_proj_orb_mage_fly ");
             sb.Append("dodge dur=").Append(DodgeRules.DurationSeconds.ToString("0.00"));
             sb.Append("s iframe=").Append(DodgeRules.IFrameStartSeconds.ToString("0.00"));
             sb.Append("-").Append(DodgeRules.IFrameEndSeconds.ToString("0.00"));
@@ -178,15 +178,37 @@ namespace RogueShooter.Combat
                 return "arrow range must stay charge 8";
             if (Math.Abs(ProjectileRules.ArrowHitRadius - EnemyCombatRules.OrbHitRadiusStub) > 0.0001f)
                 return "arrow hit radius must reuse orb 0.40";
-            if (JianHaiArtCatalog.ArrowFlight != JianHaiArtCatalog.FxTipWarm)
-                return "arrow visual uses charge tip art";
-            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.FxMageOrb) != "FX")
-                return "orb art folder";
-            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.FxMageOrb))
-                return "mage orb PNG missing under Art/JianHai/FX";
-            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxMageOrb)
-                != "Assets/Art/JianHai/FX/jh_fx_mage_orb.png")
+            if (JianHaiArtCatalog.ArrowFlight != "jh_proj_arrow_fly")
+                return "arrow visual uses PHASE1 jh_proj_arrow_fly";
+            if (Math.Abs(JianHaiArtCatalog.PivotForArtId(JianHaiArtCatalog.ArrowFlight).x - 0.2f) > 0.001f
+                || Math.Abs(JianHaiArtCatalog.PivotForArtId(JianHaiArtCatalog.ArrowFlight).y - 0.5f) > 0.001f)
+                return "arrow pivot mid-rear (0.2,0.5) facing +X";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ArrowFlight) != "Projectiles")
+                return "arrow folder Projectiles";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.OrbFlight) != "Projectiles")
+                return "orb art folder Projectiles";
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight))
+                return "arrow PNG missing jh_proj_arrow_fly";
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.OrbFlight))
+                return "mage orb PNG missing jh_proj_orb_mage_fly";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight)
+                != "Assets/Art/JianHai/Projectiles/jh_proj_orb_mage_fly.png")
                 return "mage orb asset path";
+            int ow, oh;
+            JianHaiArtCatalog.CanvasForArtId(JianHaiArtCatalog.OrbFlight, out ow, out oh);
+            if (ow != 32 || oh != 32)
+                return "orb canvas 32x32";
+            if (Math.Abs(JianHaiArtCatalog.PivotForArtId(JianHaiArtCatalog.OrbFlight).x - 0.5f) > 0.001f
+                || Math.Abs(JianHaiArtCatalog.PivotForArtId(JianHaiArtCatalog.OrbFlight).y - 0.5f) > 0.001f)
+                return "orb pivot center";
+            if (JianHaiArtCatalog.SortingOrderForArtId(JianHaiArtCatalog.ArrowFlight)
+                != JianHaiArtCatalog.SortingOrderProjectile)
+                return "projectile sorting order 30";
+            if (JianHaiArtCatalog.Ppu != 32)
+                return "PHASE1 PPU 32";
+            if (Math.Abs(JianHaiArtCatalog.PivotS1.x - 0.5f) > 0.001f
+                || Math.Abs(JianHaiArtCatalog.PivotS1.y - 0.15f) > 0.001f)
+                return "S1 pivot (0.5,0.15)";
 
             Stage1Maze maze = Stage1MazeGen.Generate(42);
             List<MazeSolid> solids = MazeCollisionBuilder.Build(maze);
@@ -243,7 +265,8 @@ namespace RogueShooter.Combat
                 JianHaiArtCatalog.BossIdle,
                 JianHaiArtCatalog.ArrowFlight,
                 JianHaiArtCatalog.FxTipIdle,
-                JianHaiArtCatalog.FxMageOrb,
+                JianHaiArtCatalog.OrbFlight,
+                JianHaiArtCatalog.PlayerRollRoot + "_00",
                 JianHaiArtCatalog.TileFloorSpawn,
                 JianHaiArtCatalog.TileFloorCorridor,
                 JianHaiArtCatalog.TileFloorAltar,
@@ -259,10 +282,13 @@ namespace RogueShooter.Combat
                     return "missing JianHai PNG " + must[i];
             }
 
-            if (JianHaiSprites.HasSourceFile(EntityAnimCatalog.PlayerWalk))
+            if (JianHaiSprites.HasSourceFile(EntityAnimCatalog.PlayerWalk)
+                || JianHaiSprites.HasClip(EntityAnimCatalog.PlayerWalk))
             { /* drop-in walk frames welcome */ }
             else if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle)
                 return "missing walk must fall back to idle";
+            if (!JianHaiSprites.HasClip(EntityAnimCatalog.PlayerRoll))
+                return "roll stub jh_char_archer_roll_* missing";
             return null;
         }
 
@@ -272,9 +298,15 @@ namespace RogueShooter.Combat
                 return "player idle hook";
             if (EntityAnimCatalog.EnemyIdle != JianHaiArtCatalog.EnemyE1Idle)
                 return "enemy idle hook";
-            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle)
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle
+                && !EntityAnimCatalog.Present(EntityAnimCatalog.PlayerWalk))
                 return "missing walk must fall back to idle";
-            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Dodge) != JianHaiArtCatalog.PlayerIdle)
+            if (EntityAnimCatalog.Present(EntityAnimCatalog.PlayerRoll))
+            {
+                if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Dodge) != EntityAnimCatalog.PlayerRoll)
+                    return "roll clip present must resolve";
+            }
+            else if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Dodge) != JianHaiArtCatalog.PlayerIdle)
                 return "missing roll clip must fall back to idle";
             if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk) != JianHaiArtCatalog.EnemyE1Idle)
                 return "missing enemy walk must fall back to idle";

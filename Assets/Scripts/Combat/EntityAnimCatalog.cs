@@ -20,7 +20,8 @@ namespace RogueShooter.Combat
 
     /// <summary>
     /// ACTION_SPEC_P1 clip hooks. Present() is file-based under Assets/Art/JianHai/.
-    /// Missing walk/atk/roll PNGs fall back to idle — do not invent frames.
+    /// Missing walk/atk PNGs fall back to idle — do not invent frames.
+    /// Roll uses jh_char_archer_roll_* when present.
     /// </summary>
     public static class EntityAnimCatalog
     {
@@ -129,12 +130,11 @@ namespace RogueShooter.Combat
         public static string GapNote()
         {
             var sb = new StringBuilder();
-            sb.Append("ACTION_SPEC_P1 wired; missing PNGs fall back to idle. ");
-            sb.Append("player: need walk_{snew}_## roll_## charge_## atk_## hurt_## die_##; ");
-            sb.Append("have jh_char_archer_idle. ");
+            sb.Append("ACTION_SPEC_P1 + PHASE1_PLAYABLE wired; missing PNGs fall back to idle. ");
+            sb.Append("player: have idle + roll_## stubs; need walk_{snew}_## charge_## atk_## hurt_## die_##. ");
             sb.Append("S1: e1_skel/dog/mage idle/walk/alert/chase|cast/atk/hurt/die; ");
             sb.Append("have jh_enemy_e1_skel_idle only. ");
-            sb.Append("no Animator; orb PNG present; arrow reuses charge tip");
+            sb.Append("no Animator; arrow=jh_proj_arrow_fly; orb=jh_proj_orb_mage_fly");
             return sb.ToString();
         }
     }
