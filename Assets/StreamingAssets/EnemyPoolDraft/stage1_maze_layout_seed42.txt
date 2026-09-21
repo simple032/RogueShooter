@@ -1,28 +1,28 @@
-# Stage1MazeSampler layout seed=42 (DRAFT schematic 48x36 / pitch 78/66 gap30)
-moveSpeed=6 rooms=48x36 altar=60x48 pitch=78/66 hub=48x36 segMax=30u/5s
-[S1Maze] seed=42 tpl=I largeChest=1 rooms=START(START@0,0),LARGE(LargeChest@0,66),N1(Normal@-78,66),ALTAR(Altar@78,66),N2(Normal@156,66),CHEST2(Chest@0,132),CONN(Connector@78,132) edges=START--LARGE;LARGE--N1;LARGE--ALTAR;ALTAR--N2;LARGE--CHEST2;CHEST2--CONN
+# Stage1MazeSampler layout seed=42 (v2c B_推荐 100x80 / pitch 130/110 gap30)
+moveSpeed=6 rooms=100x80 altar=120x96 pitch=130/110 hub=80x80 segMax=30u/5s
+[S1Maze] seed=42 tpl=I largeChest=1 rooms=START(START@0,0),LARGE(LargeChest@0,110),N1(Normal@-130,110),ALTAR(Altar@130,110),N2(Normal@260,110),CHEST2(Chest@0,220),CONN(Connector@130,220) edges=START--LARGE;LARGE--N1;LARGE--ALTAR;ALTAR--N2;LARGE--CHEST2;CHEST2--CONN
 [S1Maze] quota Chest=2 Altar=1 Normal=2 Start=1 Connector=stub
-[S1Maze] walkOnly move=6 firstHop=66.0u/11.0s (1 pitch) shortest=210.0u/35.0s START→CONN maxSeg=30.0u/5.00s
+[S1Maze] walkOnly move=6 firstHop=110.0u/18.3s (1 pitch) shortest=350.0u/58.3s START→CONN maxSeg=30.0u/5.00s
 [S1Maze] reachable=1 conn=1 tpl=I
 # rooms
-room START kind=START center=0,0 size=48x36 spawn=0
-room LARGE kind=LargeChest center=0,66 size=48x36 spawn=1
-room N1 kind=Normal center=-78,66 size=48x36 spawn=1
-room ALTAR kind=Altar center=78,66 size=60x48 spawn=1
-room N2 kind=Normal center=156,66 size=48x36 spawn=1
-room CHEST2 kind=Chest center=0,132 size=48x36 spawn=1
-room CONN kind=Connector center=78,132 size=48x36 spawn=0
+room START kind=START center=0,0 size=80x80 spawn=0
+room LARGE kind=LargeChest center=0,110 size=100x80 spawn=1
+room N1 kind=Normal center=-130,110 size=100x80 spawn=1
+room ALTAR kind=Altar center=130,110 size=120x96 spawn=1
+room N2 kind=Normal center=260,110 size=100x80 spawn=1
+room CHEST2 kind=Chest center=0,220 size=100x80 spawn=1
+room CONN kind=Connector center=130,220 size=100x80 spawn=0
 # straight ortho edges (Manhattan=1; each door gap ≤30u)
-edge START--LARGE folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=0,18 0,48
-edge LARGE--N1 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=-24,66 -54,66
-edge LARGE--ALTAR folds=1 len=24.0u/4.0s maxSeg=24.0u/4.00s pts=24,66 48,66
-edge ALTAR--N2 folds=1 len=24.0u/4.0s maxSeg=24.0u/4.00s pts=108,66 132,66
-edge LARGE--CHEST2 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=0,84 0,114
-edge CHEST2--CONN folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=24,132 54,132
-# ASCII topology (col,row) Pitch 78/66  all edges Manhattan=1
+edge START--LARGE folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=0,40 0,70
+edge LARGE--N1 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=-50,110 -80,110
+edge LARGE--ALTAR folds=1 len=20.0u/3.3s maxSeg=20.0u/3.33s pts=50,110 70,110
+edge ALTAR--N2 folds=1 len=20.0u/3.3s maxSeg=20.0u/3.33s pts=190,110 210,110
+edge LARGE--CHEST2 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=0,150 0,180
+edge CHEST2--CONN folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=50,220 80,220
+# ASCII topology (col,row) Pitch 130/110  all edges Manhattan=1
 I              N(1,2) -- CONN(2,2)
                  |
     W(0,1) -- entry(1,1) -- E(2,1) -- E2(3,1)
                  |
               START(1,0)
-    all edges Manhattan=1  CONN adj N  extra=E2
+    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=E2

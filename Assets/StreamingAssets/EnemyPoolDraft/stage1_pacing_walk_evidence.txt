@@ -1,19 +1,20 @@
-# Stage-1 walk-only evidence (DRAFT schematic)
+# Stage-1 walk-only evidence (v2c B_推荐)
 # seconds = center-to-center path / moveSpeed. 60/240 is NOT a lock.
-moveSpeed=6 pitch=78/66 rooms=48x36 altar=60x48 hub=48x36 corridor=8 segMax=30
-ACCEPTANCE rooms=48x36 pitch=78/66 gap=30u START=1pitch manhattan=1 CONN-adj-combat
+# I no-fold ≈ 2·Py+Px ≈59s; C snake ≈ 2·Py+3·Px ≈102s (CSV B_推荐).
+moveSpeed=6 pitch=130/110 rooms=100x80 altar=120x96 hub=80x80 corridor=8 segMax=30
+ACCEPTANCE rooms=100x80 pitch=130/110 gap=30u START=1pitch manhattan=1 CONN-adj-combat v2c-B_推荐
 quota Chest×2+Altar×1+Normal×2+START+CONN
 
 seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,hop_ok,corr_ok
-1,Z,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
-2,C,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
-17,C,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
-42,I,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
-99,I,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
-2026,Z,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
+1,Z,110.0,18.3,350.0,58.3,30.0,5.00,PASS,PASS
+2,C,110.0,18.3,610.0,101.7,30.0,5.00,PASS,PASS
+17,C,110.0,18.3,610.0,101.7,30.0,5.00,PASS,PASS
+42,I,110.0,18.3,350.0,58.3,30.0,5.00,PASS,PASS
+99,I,110.0,18.3,350.0,58.3,30.0,5.00,PASS,PASS
+2026,Z,110.0,18.3,350.0,58.3,30.0,5.00,PASS,PASS
 
 # seed 42 detail
-[S1Maze] seed=42 tpl=I largeChest=1 rooms=START(START@0,0),LARGE(LargeChest@0,66),N1(Normal@-78,66),ALTAR(Altar@78,66),N2(Normal@156,66),CHEST2(Chest@0,132),CONN(Connector@78,132) edges=START--LARGE;LARGE--N1;LARGE--ALTAR;ALTAR--N2;LARGE--CHEST2;CHEST2--CONN
+[S1Maze] seed=42 tpl=I largeChest=1 rooms=START(START@0,0),LARGE(LargeChest@0,110),N1(Normal@-130,110),ALTAR(Altar@130,110),N2(Normal@260,110),CHEST2(Chest@0,220),CONN(Connector@130,220) edges=START--LARGE;LARGE--N1;LARGE--ALTAR;ALTAR--N2;LARGE--CHEST2;CHEST2--CONN
 [S1Maze] quota Chest=2 Altar=1 Normal=2 Start=1 Connector=stub
-[S1Maze] walkOnly move=6 firstHop=66.0u/11.0s (1 pitch) shortest=210.0u/35.0s START→CONN maxSeg=30.0u/5.00s pitch=78/66 rooms=48x36 altar=60x48
+[S1Maze] walkOnly move=6 firstHop=110.0u/18.3s (1 pitch) shortest=350.0u/58.3s START→CONN maxSeg=30.0u/5.00s pitch=130/110 rooms=100x80 altar=120x96
 # WALK GATES PASS (hop=1pitch corr≤5s; 60/240 not locked)

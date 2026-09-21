@@ -8,8 +8,8 @@ namespace RogueShooter.Maze
     /// Seeded Stage-1 maze only (Spec v0.5 §1/§3). Quota: Chest×2 + Altar×1 +
     /// Normal×2 + START + connector stub. Corridors are edges and never spawn.
     /// Same seed → same graph. No S2/S3 layouts.
-    /// Schematic rooms 48×36, pitch 78×66, Manhattan=1 orthogonal edges,
-    /// START hop = 1×Pitch. Folds only if a diagonal edge exists (none here).
+    /// v2c B_推荐 rooms 100×80, pitch 130×110, Manhattan=1 orthogonal edges,
+    /// START hop = 1×Pitch. I ≈59s, C snake ≈102s. Folds only if diagonal.
     /// </summary>
     public static class Stage1MazeGen
     {
@@ -541,9 +541,9 @@ namespace RogueShooter.Maze
 
         static Tpl[] BuildTemplates()
         {
-            // Schematic 48×36 / pitch 78×66. Every edge Manhattan=1, orthogonal
-            // straight, door gap 30u. Fifth combat slot for Chest×2. C CONN sits
-            // on (2,2) next to (1,2) — no two-cell span.
+            // v2c B_推荐 100×80 / pitch 130×110. Every edge Manhattan=1, orthogonal
+            // straight, door gap 30u. I/Z star + extra combat: START→CONN = 2·Py+Px.
+            // C snake + west stub: START→CONN = 2·Py+3·Px. CONN always adj a combat.
             return new[]
             {
                 new Tpl
@@ -585,14 +585,14 @@ namespace RogueShooter.Maze
                     {
                         S(1, 0, true, false, false),
                         S(1, 1, false, true, false),
-                        S(0, 1, false, true, false),
                         S(2, 1, false, true, false),
-                        S(1, 2, false, true, false),
-                        S(0, 2, false, true, false),
-                        S(2, 2, false, false, true)
+                        S(3, 1, false, true, false),
+                        S(3, 2, false, true, false),
+                        S(0, 1, false, true, false),
+                        S(4, 2, false, false, true)
                     },
-                    EdgeA = new[] { 0, 1, 1, 1, 2, 5, 4 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5, 4, 6 }
+                    EdgeA = new[] { 0, 1, 2, 3, 4, 1 },
+                    EdgeB = new[] { 1, 2, 3, 4, 6, 5 }
                 }
             };
         }

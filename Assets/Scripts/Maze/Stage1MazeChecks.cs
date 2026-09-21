@@ -38,9 +38,9 @@ namespace RogueShooter.Maze
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
-            sb.Append("rooms=48x36 altar=60x48 hub=48x36 pitch=78/66 gap=30u ");
+            sb.Append("rooms=100x80 altar=120x96 hub=80x80 pitch=130/110 gap=30u ");
             sb.Append("corridorSeg≤5s startHop=1pitch orthoStraight manhattan1 ");
-            sb.Append("pacing=short-corridor no-fold-pad no-span ");
+            sb.Append("pacing=v2c-B_推荐 I≈59s C≈102s no-fold-pad ");
             sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
             sb.Append("ws=×1.5+stagger0.5 shieldShatter=1.0s ");
             sb.Append("return=0.6s formula=move×0.6(non-boss) ");
@@ -73,21 +73,21 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
-            if (Math.Abs(MazeRules.CombatWidth - 48f) > 0.001f
-                || Math.Abs(MazeRules.CombatHeight - 36f) > 0.001f)
-                return "combat rooms must be 48x36";
-            if (Math.Abs(MazeRules.PitchX - 78f) > 0.001f
-                || Math.Abs(MazeRules.PitchY - 66f) > 0.001f)
-                return "pitch must be 78/66";
+            if (Math.Abs(MazeRules.CombatWidth - 100f) > 0.001f
+                || Math.Abs(MazeRules.CombatHeight - 80f) > 0.001f)
+                return "combat rooms must be 100x80 (v2c B_推荐)";
+            if (Math.Abs(MazeRules.PitchX - 130f) > 0.001f
+                || Math.Abs(MazeRules.PitchY - 110f) > 0.001f)
+                return "pitch must be 130/110 (v2c B_推荐)";
             if (Math.Abs(MazeRules.PitchX - MazeRules.CombatWidth - 30f) > 0.01f
                 || Math.Abs(MazeRules.PitchY - MazeRules.CombatHeight - 30f) > 0.01f)
                 return "net gap Pitch-room must be 30u (corridor ≤5s)";
-            if (Math.Abs(MazeRules.HubWidth - 48f) > 0.001f
-                || Math.Abs(MazeRules.HubHeight - 36f) > 0.001f)
-                return "START hub 48x36 so START→first is 1 pitch with a 30u door gap";
-            if (MazeRules.AltarWidth <= MazeRules.CombatWidth
-                || MazeRules.AltarHeight <= MazeRules.CombatHeight)
-                return "altar room must be larger than a normal combat room";
+            if (Math.Abs(MazeRules.HubWidth - 80f) > 0.001f
+                || Math.Abs(MazeRules.HubHeight - 80f) > 0.001f)
+                return "START hub 80x80 so the first vertical door gap is 30u";
+            if (Math.Abs(MazeRules.AltarWidth - 120f) > 0.001f
+                || Math.Abs(MazeRules.AltarHeight - 96f) > 0.001f)
+                return "altar room must be 120x96 (larger than combat 100x80)";
             float startGapY = MazeRules.PitchY - MazeRules.HubHeight * 0.5f - MazeRules.CombatHeight * 0.5f;
             if (startGapY > 30.01f)
                 return "START door gap must be ≤30u";
@@ -261,6 +261,17 @@ namespace RogueShooter.Maze
                 MazeNode first = maze.Find(start.NeighborIds[0]);
                 if (first == null || !first.SpawnsEnemies)
                     return "seed " + seeds[s] + " START neighbor must be combat";
+                float expect;
+                if (maze.TemplateId == "C")
+                    expect = (MazeRules.CNofoldHopsY * MazeRules.PitchY
+                        + MazeRules.CNofoldHopsX * MazeRules.PitchX) / MazeRules.PlayMoveSpeed;
+                else
+                    expect = (MazeRules.INofoldHopsY * MazeRules.PitchY
+                        + MazeRules.INofoldHopsX * MazeRules.PitchX) / MazeRules.PlayMoveSpeed;
+                if (Math.Abs(pace.ShortestWalkSeconds - expect) > 0.25f)
+                    return "seed " + seeds[s] + " tpl " + maze.TemplateId
+                        + " START→CONN " + pace.ShortestWalkSeconds.ToString("0.0")
+                        + "s != v2c no-fold " + expect.ToString("0.0") + "s";
                 for (int e = 0; e < maze.Edges.Length; e++)
                 {
                     MazeEdge edge = maze.Edges[e];

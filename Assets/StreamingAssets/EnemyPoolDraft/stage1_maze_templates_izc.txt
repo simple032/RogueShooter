@@ -1,25 +1,25 @@
-# S1 maze I/Z/C templates (schematic 48×36 / pitch 78×66 gap 30)
+# S1 maze I/Z/C templates (v2c B_推荐 100×80 / pitch 130×110 gap 30)
 # Quota Chest×2 + Altar×1 + Normal×2 + START + CONN (5 combat slots)
 # All edges Manhattan=1 orthogonal straight. CONN adjacent to a combat room.
-# Altar 60×48. START→first = 1×PitchY. No two-cell span. No fold padding.
+# Altar 120×96. START→first = 1×PitchY. I≈59s C≈102s. No ortho fold-pad.
 
 I              N(1,2) -- CONN(2,2)
                  |
     W(0,1) -- entry(1,1) -- E(2,1) -- E2(3,1)
                  |
               START(1,0)
-    all edges Manhattan=1  CONN adj N  extra=E2
+    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=E2
 
 Z  CONN(0,2) -- N(1,2)
               |
  W2(-1,1) -- W(0,1) -- entry(1,1) -- E(2,1)
                           |
                        START(1,0)
-    all edges Manhattan=1  CONN adj N  extra=W2
+    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=W2
 
-C   NW(0,2) -- N(1,2) -- CONN(2,2)
-         |         |
-      W(0,1) -- entry(1,1) -- E(2,1)
-                    |
-                 START(1,0)
-    all edges Manhattan=1  CONN(2,2) adj N(1,2)  no two-cell span
+C                    c2(3,1) -- c3(3,2) -- CONN(4,2)
+                         |
+ extra(0,1) -- c0(1,1) -- c1(2,1)
+                  |
+               START(1,0)
+    snake 2·Py+3·Px ≈102s  CONN adj c3  extra west stub  Manhattan=1

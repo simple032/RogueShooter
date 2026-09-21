@@ -51,7 +51,7 @@ namespace RogueShooter.Maze
             Stage1Maze maze = Stage1MazeGen.Generate(seed);
             MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (DRAFT schematic 48x36 / pitch 78/66 gap30)");
+            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (v2c B_推荐 100x80 / pitch 130/110 gap30)");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
@@ -119,7 +119,7 @@ namespace RogueShooter.Maze
                 }
             }
 
-            sb.AppendLine("# ASCII topology (col,row) Pitch 78/66  all edges Manhattan=1");
+            sb.AppendLine("# ASCII topology (col,row) Pitch 130/110  all edges Manhattan=1");
             sb.AppendLine(AsciiTopology(maze.TemplateId));
             return sb.ToString();
         }
@@ -135,7 +135,7 @@ namespace RogueShooter.Maze
                     " W2(-1,1) -- W(0,1) -- entry(1,1) -- E(2,1)",
                     "                          |",
                     "                       START(1,0)",
-                    "    all edges Manhattan=1  CONN adj N  extra=W2"
+                    "    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=W2"
                 });
             }
 
@@ -143,12 +143,12 @@ namespace RogueShooter.Maze
             {
                 return string.Join("\n", new[]
                 {
-                    "C   NW(0,2) -- N(1,2) -- CONN(2,2)",
-                    "         |         |",
-                    "      W(0,1) -- entry(1,1) -- E(2,1)",
-                    "                    |",
-                    "                 START(1,0)",
-                    "    all edges Manhattan=1  CONN(2,2) adj N(1,2)  no two-cell span"
+                    "C                    c2(3,1) -- c3(3,2) -- CONN(4,2)",
+                    "                         |",
+                    " extra(0,1) -- c0(1,1) -- c1(2,1)",
+                    "                  |",
+                    "               START(1,0)",
+                    "    snake 2·Py+3·Px ≈102s  CONN adj c3  extra west stub  Manhattan=1"
                 });
             }
 
@@ -159,7 +159,7 @@ namespace RogueShooter.Maze
                 "    W(0,1) -- entry(1,1) -- E(2,1) -- E2(3,1)",
                 "                 |",
                 "              START(1,0)",
-                "    all edges Manhattan=1  CONN adj N  extra=E2"
+                "    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=E2"
             });
         }
 
@@ -178,8 +178,9 @@ namespace RogueShooter.Maze
         {
             int[] seeds = { 1, 2, 17, 42, 99, 2026 };
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage-1 walk-only evidence (DRAFT schematic)");
+            sb.AppendLine("# Stage-1 walk-only evidence (v2c B_推荐)");
             sb.AppendLine("# seconds = center-to-center path / moveSpeed. 60/240 is NOT a lock.");
+            sb.AppendLine("# I no-fold ≈ 2·Py+Px ≈59s; C snake ≈ 2·Py+3·Px ≈102s (CSV B_推荐).");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/")
               .Append(MazeRules.PitchY.ToString("0"));
@@ -192,7 +193,7 @@ namespace RogueShooter.Maze
             sb.Append(" corridor=").Append(MazeRules.CorridorWidth.ToString("0.#"));
             sb.Append(" segMax=").Append(MazeRules.CorridorSegMax.ToString("0"));
             sb.AppendLine();
-            sb.AppendLine("ACCEPTANCE rooms=48x36 pitch=78/66 gap=30u START=1pitch manhattan=1 CONN-adj-combat");
+            sb.AppendLine("ACCEPTANCE rooms=100x80 pitch=130/110 gap=30u START=1pitch manhattan=1 CONN-adj-combat v2c-B_推荐");
             sb.AppendLine("quota Chest×2+Altar×1+Normal×2+START+CONN");
             sb.AppendLine();
             sb.AppendLine("seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,hop_ok,corr_ok");
