@@ -111,7 +111,9 @@ namespace RogueShooter.Demo
                       + " grand=" + FullChargeKnockback.MidDistance(EnemyKindIds.GrandMage, false).ToString("0.00")
                       + " shield=" + FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false).ToString("0.00")
                       + "/" + FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true).ToString("0.00")
-                      + " boss=" + FullChargeKnockback.MidDistance(null, false, true).ToString("0.00"));
+                      + " boss=" + FullChargeKnockback.MidDistance(null, false, true).ToString("0.00")
+                      + " return=" + FullChargeKnockback.ReturnSeconds.ToString("0.0") + "s"
+                      + " " + FullChargeKnockback.FormulaNote);
         }
 
         void BuildWorld()
@@ -805,7 +807,7 @@ namespace RogueShooter.Demo
                 "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
                 "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
                 "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence\n" +
-                "full charge (≥0.70s) knockback DRAFT mid  ·  weak charge no KB",
+                "full charge (≥0.70s) knockback DRAFT mid · return 0.6s · weak charge no KB",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 84, w - 16, 36), graph, style);

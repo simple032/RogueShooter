@@ -132,11 +132,11 @@ namespace RogueShooter.Boss
             if (shotAway.sqrMagnitude < 0.0001f)
                 shotAway = Vector3.up;
             _knockDir = shotAway.normalized;
-            float dur = FullChargeKnockback.SlideSeconds(distance);
+            float dur = FullChargeKnockback.SlideSeconds(distance, true);
             _knockLeft = dur;
             _knockSpeed = dur > 0.001f ? distance / dur : 0f;
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=BOSS dist=" + distance.ToString("0.00")
-                      + " t=" + dur.ToString("0.00") + "s");
+                      + " t=" + dur.ToString("0.00") + "s (no move×0.6)");
         }
 
         public void NotifyPlayerDead()

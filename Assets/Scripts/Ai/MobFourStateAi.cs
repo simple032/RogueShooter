@@ -226,6 +226,7 @@ namespace RogueShooter.Ai
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
                       + " dist=" + distance.ToString("0.00")
                       + " t=" + dur.ToString("0.00")
+                      + "s return=" + FullChargeKnockback.ReturnSeconds.ToString("0.0")
                       + "s shield=" + (_shieldRaised ? 1 : 0)
                       + " elite=" + (_elite ? 1 : 0)
                       + " (same-species)");

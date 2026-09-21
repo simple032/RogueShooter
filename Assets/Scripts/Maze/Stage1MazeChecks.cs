@@ -38,7 +38,8 @@ namespace RogueShooter.Maze
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
             sb.Append("rooms=20x16 hub=13x11 pitch=52/46 ");
-            sb.Append("knockback=draftMid dog2.1/mage1.6/normal1.4/grand1.0/shield0.75|0.30/boss0.30 ");
+            sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|1.35/boss0.30 ");
+            sb.Append("return=0.6s formula=move×0.6(non-boss) ");
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("pacing=reachability-first no-clock-lock ");
             sb.Append("S2S3=not-built");
@@ -90,20 +91,27 @@ namespace RogueShooter.Maze
                 return "full charge held≥0.70 must knockback (not crit-only)";
             if (FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.68f))
                 return "crit below ring-full 0.70 must not knockback";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false), 2.1f))
-                return "kb dog mid 2.1";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false), 1.6f))
-                return "kb mage mid 1.6";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Normal, false), 1.4f))
-                return "kb normal mid 1.4";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.GrandMage, false), 1.0f))
-                return "kb grand mid 1.0";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false), 0.75f))
-                return "kb shield open 0.75";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true), 0.30f))
-                return "kb shield raised 0.30";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false), 4.32f))
+                return "kb dog mid 4.32";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false), 2.16f))
+                return "kb mage mid 2.16";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Normal, false), 2.7f))
+                return "kb normal mid 2.7";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.GrandMage, false), 1.98f))
+                return "kb grand mid 1.98";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false), 2.7f))
+                return "kb shield open 2.7";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true), 1.35f))
+                return "kb shield raised 1.35";
             if (!NearKb(FullChargeKnockback.MidDistance(null, false, true), 0.30f))
                 return "kb boss 0.30";
+            if (!NearKb(FullChargeKnockback.ReturnSeconds, 0.6f))
+                return "kb t_return 0.6s";
+            if (!NearKb(FullChargeKnockback.SlideSeconds(4.32f, false), 0.6f))
+                return "non-boss slide uses t_return 0.6s";
+            float bossT = FullChargeKnockback.SlideSeconds(0.30f, true);
+            if (NearKb(bossT, 0.6f))
+                return "boss must not use 0.6s return formula";
             float e = FullChargeKnockback.MidDistanceEliteSame(EnemyKindIds.Dog, false, true);
             if (!NearKb(e, FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false)))
                 return "elite same species knockback";

@@ -74,6 +74,8 @@ namespace RogueShooter.Maze
             sb.Append(" shield=").Append(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false).ToString("0.00"));
             sb.Append("/").Append(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true).ToString("0.00"));
             sb.Append(" boss=").Append(FullChargeKnockback.MidDistance(null, false, true).ToString("0.00"));
+            sb.Append(" return=").Append(FullChargeKnockback.ReturnSeconds.ToString("0.0")).Append("s");
+            sb.Append(" formula=").Append(FullChargeKnockback.FormulaNote);
             sb.Append(" elite=same-species");
             sb.AppendLine();
 
