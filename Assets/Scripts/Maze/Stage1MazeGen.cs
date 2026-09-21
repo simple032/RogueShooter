@@ -193,6 +193,13 @@ namespace RogueShooter.Maze
             pace.ShortestCombatEstimate = pace.ShortestWaves * MazeRules.WavePacingEstimateSeconds;
             pace.ShortestTotalEstimate = pace.ShortestWalkSeconds + pace.ShortestCombatEstimate;
 
+            string altarId = "ALTAR";
+            if (IndexOf(maze, altarId) < 0)
+                altarId = "CONN";
+            List<int> altarPath;
+            pace.AltarWalk = ShortestPath(maze, "START", altarId, out altarPath);
+            pace.AltarWalkSeconds = pace.AltarWalk / moveSpeed;
+
             List<int> tour;
             pace.FullWalk = GreedyVisitAll(maze, out tour);
             pace.FullWalkSeconds = pace.FullWalk / moveSpeed;
@@ -406,8 +413,9 @@ namespace RogueShooter.Maze
             var need = new List<int>();
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
-                if (maze.Nodes[i].SpawnsEnemies)
-                    need.Add(i);
+                if (i == start)
+                    continue;
+                need.Add(i);
             }
 
             float total = 0f;
@@ -443,18 +451,6 @@ namespace RogueShooter.Maze
                 need.RemoveAt(best);
             }
 
-            int conn = IndexOf(maze, "CONN");
-            if (conn >= 0)
-            {
-                List<int> p;
-                total += ShortestPath(maze, maze.Nodes[cur].Id, "CONN", out p);
-                if (p != null)
-                {
-                    for (int i = 1; i < p.Count; i++)
-                        tour.Add(p[i]);
-                }
-            }
-
             return total;
         }
 
@@ -488,7 +484,9 @@ namespace RogueShooter.Maze
 
         static Tpl[] BuildTemplates()
         {
-            // South row = 0. START south, CONN north. Shortest always crosses ≥2 combat rooms.
+            // Long START approach (4×PitchY) + compact combat cluster so
+            // walk-only START→Altar is 60–120s and visit-all is ~240s at move=6.
+            // Quota/shuffle unchanged: 4 combat slots + START + CONN stub.
             return new[]
             {
                 new Tpl
@@ -497,11 +495,11 @@ namespace RogueShooter.Maze
                     Slots = new[]
                     {
                         S(1, 0, true, false, false),
-                        S(1, 1, false, true, false),
-                        S(0, 1, false, true, false),
-                        S(2, 1, false, true, false),
-                        S(1, 2, false, true, false),
-                        S(2, 2, false, false, true)
+                        S(1, 4, false, true, false),
+                        S(0, 4, false, true, false),
+                        S(2, 4, false, true, false),
+                        S(1, 5, false, true, false),
+                        S(2, 6, false, false, true)
                     },
                     EdgeA = new[] { 0, 1, 1, 1, 4 },
                     EdgeB = new[] { 1, 2, 3, 4, 5 }
@@ -511,15 +509,15 @@ namespace RogueShooter.Maze
                     Id = "Z",
                     Slots = new[]
                     {
-                        S(0, 0, true, false, false),
-                        S(0, 1, false, true, false),
-                        S(1, 1, false, true, false),
-                        S(2, 1, false, true, false),
-                        S(2, 2, false, true, false),
-                        S(1, 2, false, false, true)
+                        S(1, 0, true, false, false),
+                        S(1, 4, false, true, false),
+                        S(2, 4, false, true, false),
+                        S(0, 4, false, true, false),
+                        S(1, 5, false, true, false),
+                        S(0, 6, false, false, true)
                     },
-                    EdgeA = new[] { 0, 1, 2, 3, 3, 2 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5, 5 }
+                    EdgeA = new[] { 0, 1, 1, 1, 4 },
+                    EdgeB = new[] { 1, 2, 3, 4, 5 }
                 },
                 new Tpl
                 {
@@ -527,13 +525,13 @@ namespace RogueShooter.Maze
                     Slots = new[]
                     {
                         S(1, 0, true, false, false),
-                        S(0, 0, false, true, false),
-                        S(0, 1, false, true, false),
-                        S(0, 2, false, true, false),
-                        S(1, 2, false, true, false),
-                        S(2, 2, false, false, true)
+                        S(1, 4, false, true, false),
+                        S(0, 4, false, true, false),
+                        S(2, 4, false, true, false),
+                        S(1, 5, false, true, false),
+                        S(3, 5, false, false, true)
                     },
-                    EdgeA = new[] { 0, 1, 2, 3, 4 },
+                    EdgeA = new[] { 0, 1, 1, 1, 4 },
                     EdgeB = new[] { 1, 2, 3, 4, 5 }
                 }
             };

@@ -38,13 +38,14 @@ namespace RogueShooter.Maze
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
-            sb.Append("rooms=20x16 hub=13x11 pitch=52/46 ");
+            sb.Append("rooms=40x32 hub=26x22 pitch=130/115 ");
+            sb.Append("walkAltar=60-120s walkAll=240±30s ");
             sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
             sb.Append("ws=×1.5+stagger0.5 shieldShatter=1.0s ");
             sb.Append("return=0.6s formula=move×0.6(non-boss) ");
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("zhenshi=R15_C+20%/R15_R+40% mul-then-ws ");
-            sb.Append("pacing=reachability-first no-clock-lock ");
+            sb.Append("pacing=walkOnly-clocks combatEst-not-locked ");
             sb.Append("S2S3=not-built");
             return sb.ToString();
         }
@@ -71,10 +72,14 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
-            if (MazeRules.CombatWidth < 19.5f || MazeRules.CombatHeight < 15.5f)
-                return "S1 combat rooms must be one step larger than 16x12";
+            if (MazeRules.CombatWidth < 39.5f || MazeRules.CombatHeight < 31.5f)
+                return "S1 combat rooms must be ~40x32";
             if (MazeRules.PitchX <= MazeRules.CombatWidth || MazeRules.PitchY <= MazeRules.CombatHeight)
                 return "pitch must exceed room size";
+            if (Math.Abs(MazeRules.PitchX - 130f) > 0.51f || Math.Abs(MazeRules.PitchY - 115f) > 0.51f)
+                return "pitch ~130/115 walk fold";
+            if (Math.Abs(MazeRules.PlayMoveSpeed - 6f) > 0.001f)
+                return "walk-only pacing keeps moveSpeed 6";
             string kb = CheckKnockbackDraft();
             if (kb != null)
                 return kb;
@@ -223,6 +228,15 @@ namespace RogueShooter.Maze
                     return "seed " + seeds[s] + " CONN not reachable";
                 if (pace.ShortestCombatRooms < 2)
                     return "seed " + seeds[s] + " shortest must visit ≥2 combat rooms";
+                if (pace.AltarWalkSeconds < MazeRules.WalkAltarMinSeconds - 0.05f
+                    || pace.AltarWalkSeconds > MazeRules.WalkAltarMaxSeconds + 0.05f)
+                    return "seed " + seeds[s] + " START→Altar walk " + pace.AltarWalkSeconds.ToString("0.0")
+                        + "s not in 60-120";
+                float allLo = MazeRules.WalkAllTargetSeconds - MazeRules.WalkAllSlackSeconds;
+                float allHi = MazeRules.WalkAllTargetSeconds + MazeRules.WalkAllSlackSeconds;
+                if (pace.FullWalkSeconds < allLo - 0.05f || pace.FullWalkSeconds > allHi + 0.05f)
+                    return "seed " + seeds[s] + " visit-all walk " + pace.FullWalkSeconds.ToString("0.0")
+                        + "s not in 240±30";
                 if (maze.Edges == null || maze.Edges.Length < 4)
                     return "seed " + seeds[s] + " need corridors";
                 for (int i = 0; i < maze.Nodes.Length; i++)

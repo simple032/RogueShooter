@@ -189,6 +189,8 @@ namespace RogueShooter.Maze
         public int ShortestWaves;
         public float ShortestCombatEstimate;
         public float ShortestTotalEstimate;
+        public float AltarWalk;
+        public float AltarWalkSeconds;
         public float FullWalk;
         public float FullWalkSeconds;
         public int FullWaves;
@@ -198,18 +200,23 @@ namespace RogueShooter.Maze
         public bool AllReachable;
     }
 
-    /// <summary>Spec v0.5 S1 maze constants. Pacing numbers are intent, not a clock lock.</summary>
+    /// <summary>Spec v0.5 S1 maze constants. Walk-only START→Altar / visit-all are checked; combat estimates are not a clock lock.</summary>
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        public const float PitchX = 52f;
-        public const float PitchY = 46f;
-        public const float CombatWidth = 20f;
-        public const float CombatHeight = 16f;
-        public const float HubWidth = 13f;
-        public const float HubHeight = 11f;
-        public const float CorridorWidth = 5.0f;
+        /// <summary>Walk-only fold ≈×2.5 on prior 52/46 so START→Altar 60–120s at move=6.</summary>
+        public const float PitchX = 130f;
+        public const float PitchY = 115f;
+        public const float CombatWidth = 40f;
+        public const float CombatHeight = 32f;
+        public const float HubWidth = 26f;
+        public const float HubHeight = 22f;
+        public const float CorridorWidth = 12.5f;
+        public const float WalkAltarMinSeconds = 60f;
+        public const float WalkAltarMaxSeconds = 120f;
+        public const float WalkAllTargetSeconds = 240f;
+        public const float WalkAllSlackSeconds = 30f;
         public const float LargeChestChance = 0.25f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>

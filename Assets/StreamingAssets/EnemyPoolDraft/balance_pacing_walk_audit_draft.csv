@@ -1,0 +1,12 @@
+metric,current,target,pass,notes
+room_combat,20x16,40x32,NA,制作人现口径；现工程仍20x16
+pitch,52/46,见建议,FAIL_if_room40,现Pitch在房40x32时甚至Pitch≤房宽（违规）
+move_spd,6,6,OK,
+tpl_I_shortest_s,24.0,60-120,FAIL,路径=2·Py+Px
+tpl_Z_shortest_s,24.0,60-120,FAIL,同量级
+tpl_C_shortest_s,41.3,60-120,FAIL,偏长但仍<60
+tpl_I_full_greedy_s,66.3,~240,FAIL,
+tpl_Z_full_greedy_s,43.2,~240,FAIL,
+tpl_C_full_greedy_s,41.3,~240,FAIL,线型=最短
+gap_x_current,32,—,PitchX-CombatW
+gap_y_current,30,—,PitchY-CombatH

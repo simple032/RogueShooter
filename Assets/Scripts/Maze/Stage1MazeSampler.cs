@@ -20,9 +20,89 @@ namespace RogueShooter.Maze
             return Path.Combine(DefaultDirectory(), DefaultFileName);
         }
 
+        public static string PacingFileName => "stage1_pacing_walk_evidence.txt";
+
+        public static string PacingPath()
+        {
+            return Path.Combine(DefaultDirectory(), PacingFileName);
+        }
+
         public static string WriteDefault()
         {
+            WritePacingTo(PacingPath());
             return WriteTo(DefaultPath(), 42);
+        }
+
+        public static string WritePacingTo(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                path = PacingPath();
+            string dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(path, PacingText(), new UTF8Encoding(false));
+            return path;
+        }
+
+        public static string PacingText()
+        {
+            int[] seeds = { 1, 2, 17, 42, 99, 2026 };
+            var sb = new StringBuilder();
+            sb.AppendLine("# Stage-1 walk-only pacing evidence (DRAFT)");
+            sb.AppendLine("# seconds = graph path length / moveSpeed");
+            sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
+            sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/")
+              .Append(MazeRules.PitchY.ToString("0"));
+            sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
+              .Append(MazeRules.CombatHeight.ToString("0"));
+            sb.Append(" hub=").Append(MazeRules.HubWidth.ToString("0")).Append("x")
+              .Append(MazeRules.HubHeight.ToString("0"));
+            sb.Append(" corridor=").Append(MazeRules.CorridorWidth.ToString("0.#"));
+            sb.AppendLine();
+            sb.AppendLine("target START→Altar=60-120s visit-all=240±30s (greedy all-nodes)");
+            sb.AppendLine("quota Chest×1+Altar×1+Normal×2+START+CONN unchanged");
+            sb.AppendLine();
+            sb.AppendLine("seed,tpl,altar_u,altar_s,visit_u,visit_s,altar_ok,visit_ok");
+            bool allOk = true;
+            for (int i = 0; i < seeds.Length; i++)
+            {
+                Stage1Maze maze = Stage1MazeGen.Generate(seeds[i]);
+                MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
+                bool altarOk = pace.AltarWalkSeconds >= MazeRules.WalkAltarMinSeconds - 0.05f
+                    && pace.AltarWalkSeconds <= MazeRules.WalkAltarMaxSeconds + 0.05f;
+                float lo = MazeRules.WalkAllTargetSeconds - MazeRules.WalkAllSlackSeconds;
+                float hi = MazeRules.WalkAllTargetSeconds + MazeRules.WalkAllSlackSeconds;
+                bool visOk = pace.FullWalkSeconds >= lo - 0.05f && pace.FullWalkSeconds <= hi + 0.05f;
+                if (!altarOk || !visOk)
+                    allOk = false;
+                sb.Append(seeds[i]).Append(',').Append(maze.TemplateId).Append(',');
+                sb.Append(pace.AltarWalk.ToString("0.0")).Append(',');
+                sb.Append(pace.AltarWalkSeconds.ToString("0.0")).Append(',');
+                sb.Append(pace.FullWalk.ToString("0.0")).Append(',');
+                sb.Append(pace.FullWalkSeconds.ToString("0.0")).Append(',');
+                sb.Append(altarOk ? "PASS" : "FAIL").Append(',');
+                sb.Append(visOk ? "PASS" : "FAIL");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine();
+            Stage1Maze d = Stage1MazeGen.Generate(42);
+            MazePacing dp = Stage1MazeGen.MeasurePacing(d, MazeRules.PlayMoveSpeed);
+            sb.AppendLine("# seed 42 detail");
+            sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatGraph(d));
+            sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatQuota(d));
+            sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
+            sb.Append(" altar=").Append(dp.AltarWalk.ToString("0.0")).Append("u/");
+            sb.Append(dp.AltarWalkSeconds.ToString("0.0")).Append("s START→ALTAR");
+            sb.Append(" (=length/").Append(MazeRules.PlayMoveSpeed.ToString("0")).Append(")");
+            sb.Append(" full=").Append(dp.FullWalk.ToString("0.0")).Append("u/");
+            sb.Append(dp.FullWalkSeconds.ToString("0.0")).Append("s visit-all");
+            sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/");
+            sb.Append(MazeRules.PitchY.ToString("0"));
+            sb.AppendLine();
+            sb.Append("# ").Append(allOk ? "WALK PACING PASS" : "WALK PACING FAIL");
+            sb.AppendLine();
+            return sb.ToString();
         }
 
         public static string WriteTo(string path, int seed)
@@ -54,7 +134,16 @@ namespace RogueShooter.Maze
             sb.Append("u/").Append(pace.FullWalkSeconds.ToString("0.0")).Append("s");
             sb.Append(" waves=").Append(pace.FullWaves);
             sb.Append(" totalEst=").Append(pace.FullTotalEstimate.ToString("0"));
-            sb.Append("s (no clock lock, reachability first)");
+            sb.Append("s (walk-only clocks; combat est not in 60/240)");
+            sb.AppendLine();
+            sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
+            sb.Append(" altar=").Append(pace.AltarWalk.ToString("0.0")).Append("u/");
+            sb.Append(pace.AltarWalkSeconds.ToString("0.0")).Append("s START→ALTAR");
+            sb.Append(" (=length/").Append(MazeRules.PlayMoveSpeed.ToString("0")).Append(")");
+            sb.Append(" full=").Append(pace.FullWalk.ToString("0.0")).Append("u/");
+            sb.Append(pace.FullWalkSeconds.ToString("0.0")).Append("s visit-all");
+            sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/");
+            sb.Append(MazeRules.PitchY.ToString("0"));
             sb.AppendLine();
             sb.Append("[S1Maze] reachable=").Append(pace.AllReachable ? 1 : 0);
             sb.Append(" conn=").Append(pace.ConnectorReachable ? 1 : 0);

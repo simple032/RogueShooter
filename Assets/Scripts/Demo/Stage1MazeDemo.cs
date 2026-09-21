@@ -85,7 +85,15 @@ namespace RogueShooter.Demo
                       + "u/" + _pace.FullWalkSeconds.ToString("0.0") + "s"
                       + " waves=" + _pace.FullWaves
                       + " totalEst=" + _pace.FullTotalEstimate.ToString("0")
-                      + "s (no clock lock)");
+                      + "s (walk-only clocks; combat est not in 60/240)");
+            Debug.Log("[S1Maze] walkOnly move=" + MazeRules.PlayMoveSpeed.ToString("0")
+                      + " altar=" + _pace.AltarWalk.ToString("0.0") + "u/"
+                      + _pace.AltarWalkSeconds.ToString("0.0") + "s START→ALTAR"
+                      + " (=length/" + MazeRules.PlayMoveSpeed.ToString("0") + ")"
+                      + " full=" + _pace.FullWalk.ToString("0.0") + "u/"
+                      + _pace.FullWalkSeconds.ToString("0.0") + "s visit-all"
+                      + " pitch=" + MazeRules.PitchX.ToString("0") + "/"
+                      + MazeRules.PitchY.ToString("0"));
             BuildWorld();
             LogDryRun();
         }
@@ -728,7 +736,9 @@ namespace RogueShooter.Demo
         void WriteEvidence()
         {
             string path = Stage1MazeSampler.WriteTo(Stage1MazeSampler.DefaultPath(), seed);
+            string pacePath = Stage1MazeSampler.WritePacingTo(Stage1MazeSampler.PacingPath());
             Debug.Log("[S1Maze] evidence " + path);
+            Debug.Log("[S1Maze] pacing " + pacePath + "\n" + Stage1MazeSampler.PacingText());
             Flash("wrote " + path);
         }
 
@@ -870,9 +880,10 @@ namespace RogueShooter.Demo
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
             string pace = _maze != null
-                ? "shortest " + _pace.ShortestTotalEstimate.ToString("0") + "s est · full "
-                  + _pace.FullTotalEstimate.ToString("0") + "s est · move=" + PlaySpeed().ToString("0")
-                  + " ortho=" + orthographicSize.ToString("0") + " (no clock lock)"
+                ? "walkOnly altar " + _pace.AltarWalkSeconds.ToString("0") + "s (60-120) · visit-all "
+                  + _pace.FullWalkSeconds.ToString("0") + "s (240±30) · move=" + PlaySpeed().ToString("0")
+                  + " pitch=" + MazeRules.PitchX.ToString("0") + "/" + MazeRules.PitchY.ToString("0")
+                  + " rooms=" + MazeRules.CombatWidth.ToString("0") + "x" + MazeRules.CombatHeight.ToString("0")
                 : "";
             GUI.Label(new Rect(pad + 8, pad + 136, w - 16, 18), pace, style);
             string room = _active != null

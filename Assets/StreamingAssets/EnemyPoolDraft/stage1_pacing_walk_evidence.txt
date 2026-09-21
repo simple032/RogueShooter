@@ -1,0 +1,19 @@
+# Stage-1 walk-only pacing evidence (DRAFT)
+# seconds = graph path length / moveSpeed
+moveSpeed=6 pitch=130/115 rooms=40x32 hub=26x22 corridor=12.5
+target START→Altar=60-120s visit-all=240±30s (greedy all-nodes)
+quota Chest×1+Altar×1+Normal×2+START+CONN unchanged
+
+seed,tpl,altar_u,altar_s,visit_u,visit_s,altar_ok,visit_ok
+1,Z,590.0,98.3,1427.1,237.9,PASS,PASS
+2,C,575.0,95.8,1585.0,264.2,PASS,PASS
+17,C,590.0,98.3,1585.0,264.2,PASS,PASS
+42,I,590.0,98.3,1427.1,237.9,PASS,PASS
+99,I,590.0,98.3,1427.1,237.9,PASS,PASS
+2026,Z,590.0,98.3,1427.1,237.9,PASS,PASS
+
+# seed 42 detail
+[S1Maze] seed=42 tpl=I largeChest=0 rooms=START(START@0,0),N1(Normal@0,460),ALTAR(Altar@-130,460),N2(Normal@130,460),CHEST(Chest@0,575),CONN(Connector@130,690) edges=START--N1;N1--ALTAR;N1--N2;N1--CHEST;CHEST--CONN
+[S1Maze] quota Chest=1 Altar=1 Normal=2 Start=1 Connector=stub
+[S1Maze] walkOnly move=6 altar=590.0u/98.3s START→ALTAR (=length/6) full=1427.1u/237.9s visit-all pitch=130/115
+# WALK PACING PASS

@@ -1,0 +1,19 @@
+metric,current,target,pass,notes
+room_combat,40x32,40x32,PASS,制作人现口径
+pitch,130/115,≈130/115 (fold×2.5 on 52/46),PASS,Pitch>room; hub 26x22 corridor 12.5
+move_spd,6,6,PASS,walk-only clocks keep moveSpeed=6
+tpl_I_altar_s,76.7-98.3,60-120,PASS,START leg 4×PitchY; slot shuffle
+tpl_Z_altar_s,76.7-98.3,60-120,PASS,mirror of I
+tpl_C_altar_s,76.7-98.3,60-120,PASS,same START leg
+seed1_Z_altar_s,98.3,60-120,PASS,590u/6
+seed2_C_altar_s,95.8,60-120,PASS,575u/6
+seed17_C_altar_s,98.3,60-120,PASS,590u/6
+seed42_I_altar_s,98.3,60-120,PASS,590u/6
+seed99_I_altar_s,98.3,60-120,PASS,590u/6
+seed2026_Z_altar_s,98.3,60-120,PASS,590u/6
+tpl_I_full_greedy_s,237.9,~240±30,PASS,1427.1u/6
+tpl_Z_full_greedy_s,237.9,~240±30,PASS,1427.1u/6
+tpl_C_full_greedy_s,264.2,~240±30,PASS,1585.0u/6
+gap_x,90,—,PASS,PitchX-CombatW
+gap_y,83,—,PASS,PitchY-CombatH
+quota,Chest×1+Altar×1+Normal×2+START+CONN,unchanged,PASS,5 edges
