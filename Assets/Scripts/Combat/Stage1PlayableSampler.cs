@@ -72,10 +72,11 @@ namespace RogueShooter.Combat
         {
             var sb = new StringBuilder();
             sb.AppendLine("# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG / spawn land)");
-            sb.AppendLine("# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar PortalFx 1.0s");
+            sb.AppendLine("# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar");
+            sb.AppendLine("# Cadence: enter→PortalFx→1.0s→w1; two-wave clear-w1→PortalFx→2.0s(≤3)→w2 (table InterWavePortalHoldSeconds)");
             sb.AppendLine("# Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)");
             sb.AppendLine("# placeholders_p1: 132 numbered 64x64 jh_ PNG PPU32 pivot (0.5,0.15); same-name true art replaces");
-            sb.AppendLine("# Spawn: CombatRoomSpawn room-AABB random; bypass SpawnCluster.Offset r=0.85 even-ring");
+            sb.AppendLine("# Spawn land: CombatRoomSpawn room-AABB random; melee-near/ranged-far; min player; avoid chest/altar; bypass even-ring");
             sb.AppendLine("check,result,detail");
             string err = Stage1PlayableChecks.Run();
             CombatRoomSpawnStats land = CombatRoomSpawn.SampleSeed42();
@@ -142,7 +143,23 @@ namespace RogueShooter.Combat
                 && System.Math.Abs(MazeRules.PitchX - 82f) < 0.001f
                 && MazeRules.QuotaChest == 2
                 && !Stage1MazeGen.Generate(42).LargeChestUpgraded,
-                "52x40 pitch 82/70 Chestx2 noLargeChest PortalFx=" + MazeRules.PortalHoldSeconds.ToString("0.0") + "s");
+                "52x40 pitch 82/70 Chestx2 noLargeChest PortalFx w1="
+                + MazeRules.PortalHoldSeconds.ToString("0.0") + "s w2="
+                + MazeRules.PortalHoldForWave(2).ToString("0.0") + "s(≤"
+                + MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0") + ")");
+            string cadenceErr = Stage1PlayableChecks.CheckSpawnCadence();
+            Row(sb, "spawn_cadence_wave1",
+                cadenceErr == null
+                && System.Math.Abs(MazeRules.PortalHoldSeconds - 1.0f) < 0.001f
+                && PortalFxHook.FormatSpawn("N1", 1).IndexOf(" spawn after 1.0s") >= 0,
+                "enter→PortalFx→1.0s→wave1 visible");
+            Row(sb, "spawn_cadence_interwave",
+                cadenceErr == null
+                && MazeRules.InterWavePortalHoldSeconds <= MazeRules.InterWavePortalHoldMaxSeconds + 0.0001f
+                && System.Math.Abs(MazeRules.PortalHoldForWave(2) - MazeRules.InterWavePortalHoldSeconds) < 0.001f,
+                "clear-w1→PortalFx→" + MazeRules.PortalHoldForWave(2).ToString("0.0")
+                + "s(≤" + MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0")
+                + ")→wave2 table=InterWavePortalHoldSeconds");
             Row(sb, "spawn_land_room_random",
                 land.CenterSpread >= 3f && land.EvenRingHits <= land.MeleeN / 5,
                 "spread=" + land.CenterSpread.ToString("0.00")

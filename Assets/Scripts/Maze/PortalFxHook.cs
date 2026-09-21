@@ -2,7 +2,7 @@ namespace RogueShooter.Maze
 {
     /// <summary>
     /// Ground portal cadence: visible stub at spawn points, then wait
-    /// <see cref="MazeRules.PortalHoldSeconds"/>, then spawn. Art can replace the stub later.
+    /// <see cref="MazeRules.PortalHoldForWave"/>, then spawn. Art can replace the stub later.
     /// </summary>
     public static class PortalFxHook
     {
@@ -16,8 +16,13 @@ namespace RogueShooter.Maze
 
         public static string FormatSpawn(string roomId, int wave)
         {
+            return FormatSpawn(roomId, wave, MazeRules.PortalHoldForWave(wave));
+        }
+
+        public static string FormatSpawn(string roomId, int wave, float holdSeconds)
+        {
             return "[PortalFx] room=" + (roomId ?? "?") + " wave=" + wave
-                + " spawn after " + MazeRules.PortalHoldSeconds.ToString("0.0") + "s";
+                + " spawn after " + holdSeconds.ToString("0.0") + "s";
         }
 
         /// <summary>Back-compat alias for show.</summary>

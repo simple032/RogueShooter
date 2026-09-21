@@ -47,6 +47,7 @@ namespace RogueShooter.Demo
         bool _pass;
         bool _portalWaiting;
         bool _skipPortalWait;
+        float _portalHold;
         Coroutine _cadence;
         string _status = "loading…";
         string _flash = "";
@@ -537,9 +538,10 @@ namespace RogueShooter.Demo
 
             string show = PortalFxHook.PlayShow(session.RoomId, wave);
             Debug.Log(show);
-            Flash("PORTAL " + session.RoomId + " w" + wave + " " + MazeRules.PortalHoldSeconds.ToString("0.0") + "s");
+            float hold = MazeRules.PortalHoldForWave(wave);
+            _portalHold = hold;
+            Flash("PORTAL " + session.RoomId + " w" + wave + " " + hold.ToString("0.0") + "s");
 
-            float hold = MazeRules.PortalHoldSeconds;
             float t = 0f;
             while (t < hold && !_skipPortalWait)
             {
@@ -1034,7 +1036,7 @@ namespace RogueShooter.Demo
             GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 78),
                 "WASD · hold LMB/C charge (flying arrow) · Space/LShift dodge i-frame · F strike · E chest/altar\n" +
                 "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock doors (solid) → [PortalFx] 1.0s → spawn → clear → open  |  Chest/Altar 2 waves\n" +
+                "enter combat → lock → [PortalFx] 1.0s → wave1 → clear → open  |  Chest/Altar: clear w1 → [PortalFx] 2.0s (≤3) → wave2\n" +
                 "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
                 "dodge DRAFT DodgeRules dur=0.40s iframe=0.04–0.28s (len=0.24 未锁) cd=1.00s dist=6u cancel charge/recover · JianHai PNG · layers Player/Mob/Wall/Door/Projectile",
                 style);
@@ -1058,7 +1060,7 @@ namespace RogueShooter.Demo
                 ? "active " + _active.RoomId + " " + _active.Phase + " wave=" + _active.CurrentWave
                   + "/" + _active.WavesTotal + " doors=" + (_active.DoorsLocked ? "LOCKED" : "OPEN")
                   + " live=" + _live.Count
-                  + (_portalWaiting ? " PORTAL 1.0s" : "")
+                  + (_portalWaiting ? " PORTAL " + _portalHold.ToString("0.0") + "s" : "")
                   + "  " + dodgeLine
                 : "walk a combat room to lock + portal + spawn  " + dodgeLine;
             GUI.Label(new Rect(pad + 8, pad + 164, w - 16, 18), room, style);

@@ -1,11 +1,12 @@
 # Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG / spawn land)
-# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar PortalFx 1.0s
+# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar
+# Cadence: enter→PortalFx→1.0s→w1; two-wave clear-w1→PortalFx→2.0s(≤3)→w2 (table InterWavePortalHoldSeconds)
 # Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)
-# Spawn: CombatRoomSpawn room-AABB random; bypass SpawnCluster.Offset r=0.85 even-ring
+# placeholders_p1: 132 numbered 64x64 jh_ PNG PPU32 pivot (0.5,0.15); same-name true art replaces
+# Spawn land: CombatRoomSpawn room-AABB random; melee-near/ranged-far; min player; avoid chest/altar; bypass even-ring
 # replica=python Knuth System.Random matching CombatRoomSpawn.SampleSeed42
-# placeholders_p1=132 numbered 64x64 jh_ PNG PPU32 pivot (0.5,0.15) Characters/Enemies; same-name replaceable
 check,result,detail
-playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime placeholders_p1=132 PPU32 pivotS1=(0.5;0.15) layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_proj_arrow_fly speed=12 orb=jh_proj_orb_mage_fly dodge dur=0.40s iframe=0.04-0.28s cd=1.00s dist=6.00 cancel=charge+recover fireBlocked stamina=0 interact=chest+altar spawn=room-random melee-near/ranged-far meleeMean=14.54 rangedMean=32.50 gap=17.96 p50M=15.22 p50R=31.38 spread=17.22 minPlayer=2.00 avoidHits=0 evenRing=0
+playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime placeholders_p1=132 PPU32 pivotS1=(0.5;0.15) layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_proj_arrow_fly speed=12 orb=jh_proj_orb_mage_fly dodge dur=0.40s iframe=0.04-0.28s cd=1.00s dist=6.00 cancel=charge+recover fireBlocked stamina=0 interact=chest+altar cadence=enter-PortalFx-1.0s-w1 interwave-PortalFx-2.0s(≤3.0) spawn=room-random melee-near/ranged-far meleeMean=14.54 rangedMean=32.50 gap=17.96 p50M=15.22 p50R=31.38 spread=17.22 minPlayer=2.00 avoidHits=0 evenRing=0
 dodge_duration,PASS,dur=0.40s draft/ACTION_SPEC
 dodge_iframes,PASS,iframe=0.04-0.28s len=0.24s draft-unlocked
 dodge_cooldown,PASS,cd=1.00s
@@ -18,7 +19,9 @@ arrow_art,PASS,jh_proj_arrow_fly +X pivot=0.2,0.5
 orb_art,PASS,jh_proj_orb_mage_fly Assets/Art/JianHai/Projectiles/jh_proj_orb_mage_fly.png
 jianhai_png_runtime,PASS,disk LoadImage + Editor import; tiled floors/walls localScale=1 explicit hx/hy
 arrow_speed_reuses_orb,PASS,speed=12
-maze_v2e_geometry,PASS,52x40 pitch 82/70 Chestx2 noLargeChest PortalFx=1.0s
+maze_v2e_geometry,PASS,52x40 pitch 82/70 Chestx2 noLargeChest PortalFx w1=1.0s w2=2.0s(≤3.0)
+spawn_cadence_wave1,PASS,enter→PortalFx→1.0s→wave1 visible
+spawn_cadence_interwave,PASS,clear-w1→PortalFx→2.0s(≤3.0)→wave2 table=InterWavePortalHoldSeconds
 spawn_land_room_random,PASS,spread=17.22 evenRingHits=0 bypass=SpawnCluster.Offset r=0.85
 spawn_land_melee_near_ranged_far,PASS,meleeMean=14.54 rangedMean=32.50 gap=17.96 p10/p50/p90 melee=5.44/15.22/22.42 ranged=25.86/31.38/39.33
 spawn_land_min_player,PASS,min=2.00 meleeMin=2.68 rangedMin=24.43 hits=0

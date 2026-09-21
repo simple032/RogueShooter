@@ -29,6 +29,8 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckActionSpec();
             if (err != null) return err;
+            err = CheckSpawnCadence();
+            if (err != null) return err;
             err = CheckSpawnLand();
             if (err != null) return err;
             return null;
@@ -54,6 +56,9 @@ namespace RogueShooter.Combat
             sb.Append("s dist=").Append(DodgeRules.Distance.ToString("0.00"));
             sb.Append(" cancel=charge+recover fireBlocked stamina=0");
             sb.Append(" interact=chest+altar");
+            sb.Append(" cadence=enter-PortalFx-").Append(MazeRules.PortalHoldSeconds.ToString("0.0"));
+            sb.Append("s-w1 interwave-PortalFx-").Append(MazeRules.PortalHoldForWave(2).ToString("0.0"));
+            sb.Append("s(≤").Append(MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0")).Append(")");
             CombatRoomSpawnStats land = CombatRoomSpawn.SampleSeed42();
             sb.Append(" spawn=room-random melee-near/ranged-far");
             sb.Append(" meleeMean=").Append(land.MeleeMean.ToString("0.00"));
@@ -504,6 +509,31 @@ namespace RogueShooter.Combat
                 != EntityAnimCatalog.ResolveEnemyIdle(EnemyKindIds.Dog)
                 && !EntityAnimCatalog.Present("jh_enemy_dog_walk"))
                 return "missing dog walk falls back to dog/E1 idle";
+            return null;
+        }
+
+        public static string CheckSpawnCadence()
+        {
+            if (Math.Abs(MazeRules.PortalHoldSeconds - 1.0f) > 0.001f)
+                return "enter→PortalFx→wave1 must be 1.0s";
+            if (Math.Abs(MazeRules.InterWavePortalHoldMaxSeconds - 3.0f) > 0.001f)
+                return "inter-wave hard cap must be 3.0s";
+            if (MazeRules.InterWavePortalHoldSeconds > MazeRules.InterWavePortalHoldMaxSeconds + 0.0001f)
+                return "inter-wave hold must be ≤3.0s";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.0f) > 0.001f)
+                return "inter-wave default 2.0s (swappable table)";
+            if (Math.Abs(MazeRules.PortalHoldForWave(1) - 1.0f) > 0.001f)
+                return "wave 1 hold 1.0s";
+            if (Math.Abs(MazeRules.PortalHoldForWave(2) - MazeRules.InterWavePortalHoldSeconds) > 0.001f)
+                return "wave 2 hold follows inter-wave table";
+            string w1 = PortalFxHook.FormatSpawn("N1", 1);
+            if (w1 != "[PortalFx] room=N1 wave=1 spawn after 1.0s")
+                return "wave1 spawn log " + w1;
+            string w2 = PortalFxHook.FormatSpawn("ALTAR", 2);
+            string expect2 = "[PortalFx] room=ALTAR wave=2 spawn after "
+                + MazeRules.PortalHoldForWave(2).ToString("0.0") + "s";
+            if (w2 != expect2)
+                return "wave2 spawn log " + w2;
             return null;
         }
 
