@@ -25,12 +25,18 @@ namespace RogueShooter.Player
         float _recoverUntil;
         ChargeFxView _fx;
         GuaranteedCritActive _guaranteed;
+        IList<string> _ownedRewards;
 
         public bool IsCharging => _charging;
         public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
         public ChargeShotKind LastShot { get; private set; }
         public float LastDamage { get; private set; }
+
+        public void BindOwnedRewards(IList<string> owned)
+        {
+            _ownedRewards = owned;
+        }
 
         void Awake()
         {
@@ -207,7 +213,8 @@ namespace RogueShooter.Player
                         boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
                     if (FullChargeKnockback.Applies(kind, heldSeconds))
                     {
-                        float kb = FullChargeKnockback.HitDistance(null, false, true, bossWeak);
+                        float kb = FullChargeKnockback.HitDistance(
+                            null, false, true, bossWeak, _ownedRewards);
                         boss.ApplyKnockback(aim, kb);
                     }
                     Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
@@ -242,12 +249,14 @@ namespace RogueShooter.Player
                 }
                 else
                 {
-                    float kb = FullChargeKnockback.HitDistance(best.KindId, raised, false, weak);
+                    float kb = FullChargeKnockback.HitDistance(
+                        best.KindId, raised, false, weak, _ownedRewards);
                     best.ApplyKnockback(aim, kb);
                 }
             }
             Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
-                      $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s");
+                      $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s" +
+                      $" zhenshi×{KnockbackRewardDraft.DistPctProduct(_ownedRewards):0.00}");
         }
 
         Vector3 AimDirection()

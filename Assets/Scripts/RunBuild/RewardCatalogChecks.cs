@@ -27,6 +27,21 @@ namespace RogueShooter.Build
             if (!RewardCatalog.TryGet("R8H", out var r8) || Math.Abs(r8.Value - 0.60f) > 0.001f)
                 return "R8H crit_damage";
 
+            if (!RewardCatalog.TryGet("R15_C", out var r15c)
+                || Math.Abs(r15c.Value - 0.20f) > 0.001f
+                || r15c.Tier != RewardTier.Low
+                || r15c.BuildEquiv != 1
+                || r15c.Stat != "kb_dist_pct")
+                return "R15_C 震矢 +20% Build+1";
+            if (!RewardCatalog.TryGet("R15_R", out var r15r)
+                || Math.Abs(r15r.Value - 0.40f) > 0.001f
+                || r15r.Tier != RewardTier.Mid
+                || r15r.BuildEquiv != 2
+                || r15r.Stat != "kb_dist_pct")
+                return "R15_R 震矢 +40% Build+2";
+            if (RewardCatalog.TryGet("R15_H", out _))
+                return "震矢 must have no high tier";
+
             float dps0 = Crit2Dps.Dps0();
             if (dps0 < 160f || dps0 > 180f)
                 return "DPS0 expect~169 got " + dps0.ToString("0.#");

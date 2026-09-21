@@ -11,6 +11,7 @@ using RogueShooter.Maze;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
+using RogueShooter.Build;
 
 namespace RogueShooter.Demo
 {
@@ -47,6 +48,7 @@ namespace RogueShooter.Demo
         string _status = "loading…";
         string _flash = "";
         float _flashUntil;
+        RunBuildState _build;
 
         IEnumerator Start()
         {
@@ -103,6 +105,7 @@ namespace RogueShooter.Demo
             else
                 Debug.Log("[StagePool] loaded DRAFT from " + EnemyPoolDraft.Source);
             FullChargeKnockback.TryLoadFromDirectory(dir);
+            KnockbackRewardDraft.TryLoadFromDirectory(dir);
             Debug.Log("[Knockback] " + FullChargeKnockback.Source
                       + " full≥" + ChargeShotRules.RingFillSeconds.ToString("0.00")
                       + "s dog=" + FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false).ToString("0.00")
@@ -115,7 +118,8 @@ namespace RogueShooter.Demo
                       + " boss=" + FullChargeKnockback.MidDistance(null, false, true).ToString("0.00")
                       + "/" + FullChargeKnockback.HitDistance(null, false, true, true).ToString("0.00")
                       + " return=" + FullChargeKnockback.ReturnSeconds.ToString("0.0") + "s"
-                      + " " + FullChargeKnockback.FormulaNote);
+                      + " " + FullChargeKnockback.FormulaNote
+                      + " 震矢=" + KnockbackRewardDraft.Source);
         }
 
         void BuildWorld()
@@ -168,6 +172,10 @@ namespace RogueShooter.Demo
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
             player.AddComponent<PlayerCharge>();
             player.AddComponent<GuaranteedCritActive>();
+            EnsureBuild();
+            var charge = player.GetComponent<PlayerCharge>();
+            if (charge != null)
+                charge.BindOwnedRewards(_build.OwnedRewardIds);
             _player = player.transform;
             _lastGood = startPos;
             _world.Add(player);
@@ -337,6 +345,53 @@ namespace RogueShooter.Demo
                 WriteEvidence();
             if (Input.GetKeyDown(KeyCode.E))
                 TryInteract();
+            if (Input.GetKeyDown(KeyCode.F6))
+                GrantZhenShi(KnockbackRewardDraft.IdLow);
+            if (Input.GetKeyDown(KeyCode.F7))
+                GrantZhenShi(KnockbackRewardDraft.IdMid);
+            if (Input.GetKeyDown(KeyCode.F8))
+                ClearZhenShi();
+        }
+
+        void EnsureBuild()
+        {
+            if (_build == null)
+                _build = new RunBuildState(0.45f, 0.55f, 0);
+        }
+
+        void GrantZhenShi(string id)
+        {
+            EnsureBuild();
+            RewardRow row;
+            if (!RewardCatalog.TryGet(id, out row))
+            {
+                Flash("missing " + id);
+                return;
+            }
+
+            string rarity = row.Tier == RewardTier.Mid ? "R" : "C";
+            _build.GrantBuildPick(id, rarity, 0, row.BuildEquiv);
+            float p = KnockbackRewardDraft.DistPctProduct(_build.OwnedRewardIds);
+            float dog = FullChargeKnockback.HitDistance(EnemyKindIds.Dog, false, false, false, p);
+            float dogWs = FullChargeKnockback.HitDistance(EnemyKindIds.Dog, false, false, true, p);
+            float raised = FullChargeKnockback.HitDistance(EnemyKindIds.Shield, true, false, false, p);
+            Debug.Log("[Knockback] 震矢 grant " + id
+                      + " +" + (row.Value * 100f).ToString("0") + "%"
+                      + " product=" + p.ToString("0.00")
+                      + " dogFull=" + dog.ToString("0.00")
+                      + " dogWs=" + dogWs.ToString("0.00")
+                      + " shieldRaisedBody=" + raised.ToString("0.00")
+                      + " B=" + _build.BuildCount
+                      + " " + KnockbackRewardDraft.LockNote);
+            Flash("震矢 " + id + " ×" + p.ToString("0.00") + " B=" + _build.BuildCount);
+        }
+
+        void ClearZhenShi()
+        {
+            EnsureBuild();
+            _build.Reset(0);
+            Debug.Log("[Knockback] 震矢 clear product=1.00 " + KnockbackRewardDraft.LockNote);
+            Flash("震矢 clear");
         }
 
         void TryEnterRoom()
@@ -799,39 +854,40 @@ namespace RogueShooter.Demo
         {
             const int pad = 8;
             int w = 620;
-            int h = 268;
+            int h = 308;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             var title = new GUIStyle(style) { fontSize = 15, fontStyle = FontStyle.Bold };
             var rich = new GUIStyle(style) { richText = true };
             GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 22), "Stage-1 maze skeleton · Spec v0.5", title);
-            GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 54),
+            GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 70),
                 "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
                 "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
                 "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence\n" +
-                "full charge KB DRAFT · weak-spot ×1.5+stagger · shield-raised body root 0.5s · weak charge none",
+                "full charge KB DRAFT · weak-spot ×1.5+stagger · shield-raised body root 0.5s · weak charge none\n" +
+                "F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
-            GUI.Label(new Rect(pad + 8, pad + 84, w - 16, 36), graph, style);
+            GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
             string pace = _maze != null
                 ? "shortest " + _pace.ShortestTotalEstimate.ToString("0") + "s est · full "
                   + _pace.FullTotalEstimate.ToString("0") + "s est · move=" + PlaySpeed().ToString("0")
                   + " ortho=" + orthographicSize.ToString("0") + " (no clock lock)"
                 : "";
-            GUI.Label(new Rect(pad + 8, pad + 122, w - 16, 18), pace, style);
+            GUI.Label(new Rect(pad + 8, pad + 136, w - 16, 18), pace, style);
             string room = _active != null
                 ? "active " + _active.RoomId + " " + _active.Phase + " wave=" + _active.CurrentWave
                   + "/" + _active.WavesTotal + " doors=" + (_active.DoorsLocked ? "LOCKED" : "OPEN")
                   + " live=" + _live.Count
                   + (_portalWaiting ? " PORTAL 1.0s" : "")
                 : "walk a combat room to lock + portal + spawn";
-            GUI.Label(new Rect(pad + 8, pad + 142, w - 16, 18), room, style);
+            GUI.Label(new Rect(pad + 8, pad + 156, w - 16, 18), room, style);
             string status = _pass
                 ? "<color=#88ff88>" + _status + "</color>"
                 : "<color=#ffcc88>" + _status + "</color>";
-            GUI.Label(new Rect(pad + 8, pad + 164, w - 16, 48), status, rich);
+            GUI.Label(new Rect(pad + 8, pad + 176, w - 16, 48), status, rich);
             if (!string.IsNullOrEmpty(_flash) && Time.unscaledTime < _flashUntil)
-                GUI.Label(new Rect(pad + 8, pad + 214, w - 16, 18), _flash, style);
+                GUI.Label(new Rect(pad + 8, pad + 226, w - 16, 18), _flash, style);
         }
     }
 }

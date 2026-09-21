@@ -17,7 +17,7 @@ namespace RogueShooter.Player
     {
         public const string FileName = "balance_knockback_fullcharge_draft.csv";
         public const string LockNote = "DRAFT_NOT_LOCKED";
-        public const string FormulaNote = "kb=move*0.6; ws=kb_full*1.5";
+        public static string FormulaNote = "kb=move*0.6 *Π(1+kb_dist_pct) [*1.5 ws]";
         public const float BossSlideSpeedStub = 12f;
         public const float MinSlideSeconds = 0.08f;
 
@@ -111,23 +111,40 @@ namespace RogueShooter.Player
 
         public static float HitDistance(string kindId, bool shieldRaised, bool boss, bool weakSpot)
         {
+            return HitDistance(kindId, shieldRaised, boss, weakSpot, 1f);
+        }
+
+        /// <summary>
+        /// kb = species_full * distPctProduct [* weakSpotMul].
+        /// Shield-raised body stays 0 (震矢 does not convert root to knockback).
+        /// </summary>
+        public static float HitDistance(
+            string kindId, bool shieldRaised, bool boss, bool weakSpot, float distPctProduct)
+        {
             EnsureLoaded();
-            if (boss)
-                return weakSpot ? _bossWeakMid : _bossMid;
             if (string.Equals(kindId, EnemyKindIds.Shield, StringComparison.OrdinalIgnoreCase)
                 && shieldRaised && !weakSpot)
                 return 0f;
+            if (distPctProduct < 0.01f)
+                distPctProduct = 1f;
 
-            float full = BodyFull(kindId);
-            if (!weakSpot)
-                return full;
-            if (string.Equals(kindId, EnemyKindIds.Shield, StringComparison.OrdinalIgnoreCase)
-                && shieldRaised)
-                return _shieldRaisedWeakMid;
-            float w;
-            if (WeakMid.TryGetValue(NormalizedKind(kindId), out w))
-                return w;
-            return full * _weakSpotMul;
+            float kb;
+            if (boss)
+                kb = _bossMid;
+            else
+                kb = BodyFull(kindId);
+            kb *= distPctProduct;
+            if (weakSpot)
+                kb *= _weakSpotMul;
+            return kb;
+        }
+
+        public static float HitDistance(
+            string kindId, bool shieldRaised, bool boss, bool weakSpot, IList<string> ownedRewardIds)
+        {
+            return HitDistance(
+                kindId, shieldRaised, boss, weakSpot,
+                KnockbackRewardDraft.DistPctProduct(ownedRewardIds));
         }
 
         public static float SlideSeconds(float distance)

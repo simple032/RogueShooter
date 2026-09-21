@@ -4,6 +4,7 @@ using RogueShooter.Ai;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
+using RogueShooter.Build;
 
 namespace RogueShooter.Maze
 {
@@ -42,6 +43,7 @@ namespace RogueShooter.Maze
             sb.Append("ws=×1.5+stagger0.5 shieldShatter=1.0s ");
             sb.Append("return=0.6s formula=move×0.6(non-boss) ");
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
+            sb.Append("zhenshi=R15_C+20%/R15_R+40% mul-then-ws ");
             sb.Append("pacing=reachability-first no-clock-lock ");
             sb.Append("S2S3=not-built");
             return sb.ToString();
@@ -140,9 +142,63 @@ namespace RogueShooter.Maze
             float eWs = FullChargeKnockback.HitDistance(EnemyKindIds.Dog, false, false, true);
             if (!NearKb(eWs, 6.48f))
                 return "elite same species weak-spot knockback";
+            string zh = CheckZhenShiDraft();
+            if (zh != null)
+                return zh;
             if (FullChargeKnockback.Source == null
                 || FullChargeKnockback.Source.IndexOf("DRAFT_NOT_LOCKED", StringComparison.Ordinal) < 0)
                 return "knockback table must stay DRAFT_NOT_LOCKED";
+            return null;
+        }
+
+        static string CheckZhenShiDraft()
+        {
+            KnockbackRewardDraft.EnsureLoaded();
+            if (KnockbackRewardDraft.CatalogHasHighTier())
+                return "震矢 must have no high tier";
+            if (!RewardCatalog.TryGet(KnockbackRewardDraft.IdLow, out RewardRow c)
+                || !NearKb(c.Value, 0.20f) || c.BuildEquiv != 1 || c.Tier != RewardTier.Low)
+                return "R15_C catalog";
+            if (!RewardCatalog.TryGet(KnockbackRewardDraft.IdMid, out RewardRow r)
+                || !NearKb(r.Value, 0.40f) || r.BuildEquiv != 2 || r.Tier != RewardTier.Mid)
+                return "R15_R catalog";
+            var none = new string[0];
+            if (!NearKb(KnockbackRewardDraft.DistPctProduct(none), 1f))
+                return "震矢 empty product 1";
+            var low = new[] { KnockbackRewardDraft.IdLow };
+            var mid = new[] { KnockbackRewardDraft.IdMid };
+            var both = new[] { KnockbackRewardDraft.IdLow, KnockbackRewardDraft.IdMid };
+            if (!NearKb(KnockbackRewardDraft.DistPctProduct(low), 1.20f))
+                return "R15_C product 1.20";
+            if (!NearKb(KnockbackRewardDraft.DistPctProduct(mid), 1.40f))
+                return "R15_R product 1.40";
+            if (!NearKb(KnockbackRewardDraft.DistPctProduct(both), 1.20f * 1.40f))
+                return "震矢 stack mul 1.20*1.40";
+            float dogC = FullChargeKnockback.HitDistance(
+                EnemyKindIds.Dog, false, false, false, KnockbackRewardDraft.DistPctProduct(low));
+            if (!NearKb(dogC, 4.32f * 1.20f))
+                return "dog full +R15_C";
+            float dogR = FullChargeKnockback.HitDistance(
+                EnemyKindIds.Dog, false, false, false, KnockbackRewardDraft.DistPctProduct(mid));
+            if (!NearKb(dogR, 4.32f * 1.40f))
+                return "dog full +R15_R";
+            float dogRws = FullChargeKnockback.HitDistance(
+                EnemyKindIds.Dog, false, false, true, KnockbackRewardDraft.DistPctProduct(mid));
+            if (!NearKb(dogRws, 4.32f * 1.40f * 1.50f))
+                return "dog weak-spot after 震矢 then ×1.5";
+            float raisedC = FullChargeKnockback.HitDistance(
+                EnemyKindIds.Shield, true, false, false, KnockbackRewardDraft.DistPctProduct(mid));
+            if (!NearKb(raisedC, 0f) || !FullChargeKnockback.RootsOnBodyHit(EnemyKindIds.Shield, true, false))
+                return "震矢 must not convert shield-raised body to knockback";
+            float shieldWs = FullChargeKnockback.HitDistance(
+                EnemyKindIds.Shield, true, false, true, KnockbackRewardDraft.DistPctProduct(low));
+            if (!NearKb(shieldWs, 2.7f * 1.20f * 1.50f))
+                return "shield WS shatter then 震矢 then ×1.5";
+            if (FullChargeKnockback.Applies(ChargeShotKind.Weak, 0.30f))
+                return "weak charge still no KB with 震矢 table loaded";
+            if (KnockbackRewardDraft.Source == null
+                || KnockbackRewardDraft.Source.IndexOf("DRAFT_NOT_LOCKED", StringComparison.Ordinal) < 0)
+                return "震矢 table must stay DRAFT_NOT_LOCKED";
             return null;
         }
 

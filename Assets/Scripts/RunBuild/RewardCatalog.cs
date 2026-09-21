@@ -44,6 +44,8 @@ namespace RogueShooter.Build
             Row("R8H", "破甲猛击", "crit_damage", 0.60f, "percent", "暴击伤害+60%", RewardTier.High, 80, 4),
             Row("R9H", "隙矢追猎", "weak_damage", 0.50f, "percent", "弱点攻击伤害+50%", RewardTier.High, 80, 4),
             Row("R10", "止血", "heal", 0.40f, "percent_max_hp", "回复40%最大生命", RewardTier.Mid, 40, 2),
+            Row("R15_C", "震矢", "kb_dist_pct", 0.20f, "percent", "满蓄击退距离+20%", RewardTier.Low, 20, 1),
+            Row("R15_R", "震矢", "kb_dist_pct", 0.40f, "percent", "满蓄击退距离+40%", RewardTier.Mid, 40, 2),
         };
 
         static RewardRow Row(string id, string name, string stat, float value, string valueType, string desc, RewardTier tier, int price, int equiv)
