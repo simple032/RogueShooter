@@ -106,7 +106,8 @@ namespace RogueShooter.Spawning
 
         /// <summary>
         /// Enter combat room: draw one composition from the current stage pool.
-        /// Normal → tier=normal. Altar/chest → enhanced. LargeChest → enhanced +1～2.
+        /// Normal + ordinary Chest → tier=normal. Altar / LargeChest → enhanced.
+        /// LargeChest then +1～2 same-pool units.
         /// </summary>
         public static DrawnComposition DrawComposition(StageId stage, CombatRoomKind roomKind, Random rng)
         {

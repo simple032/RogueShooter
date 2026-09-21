@@ -24,11 +24,13 @@ namespace RogueShooter.Spawning
             }
         }
 
-        /// <summary>Altar / chest waves prefer enhanced. Normal rooms use normal comps.</summary>
+        /// <summary>
+        /// Altar and large/high chest only. Ordinary Chest and Normal combat rooms
+        /// draw the normal composition table.
+        /// </summary>
         public static bool PrefersEnhanced(CombatRoomKind kind)
         {
             return kind == CombatRoomKind.Altar
-                || kind == CombatRoomKind.Chest
                 || kind == CombatRoomKind.LargeChest;
         }
 

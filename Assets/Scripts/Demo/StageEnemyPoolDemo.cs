@@ -12,8 +12,10 @@ using RogueShooter.Vision;
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// Hotkeys: F5/F6/F7 stage, [ ] room kind, F8 spawn composition, F9 write Logs CSV.
+    /// Hotkeys: F5/F6/F7 stage, [ ] room kind (Normal / Altar / Chest=normal / LargeChest=enhanced),
+    /// F8 spawn composition, F9 write Logs CSV.
     /// Console contract: [StagePool] S? room=? comp=… kinds=…
+    /// Ordinary Chest never draws enhanced.
     /// </summary>
     public class StageEnemyPoolDemo : MonoBehaviour
     {
@@ -95,6 +97,10 @@ namespace RogueShooter.Demo
                       + " elite=" + _last.EliteCount
                       + " n=" + _last.UnitCount
                       + " DRAFT_NOT_LOCKED");
+            if (_room == CombatRoomKind.Chest)
+            {
+                Debug.Log("[StagePool] ordinary Chest → normal comps (not enhanced)");
+            }
             if (_stage == StageId.S2)
             {
                 Debug.Log("[StagePool] S2 cult mage=E3 same-as-S1 orb player×2=12 camW×0.7 " +
@@ -125,7 +131,7 @@ namespace RogueShooter.Demo
         {
             return "StagePool " + StageIdUtil.Label(_stage)
                 + " room=" + CombatRoomKindUtil.Label(_room)
-                + " F5/F6/F7 stage  [/] room  F8 spawn  F9 CSV  "
+                + " F5/F6/F7 stage  [/] room(N/Altar/Chest=N/Large=E)  F8 spawn  F9 CSV  "
                 + (_last.CompId ?? "");
         }
 

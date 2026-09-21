@@ -236,8 +236,20 @@ namespace RogueShooter.Spawning
                     return "Altar comp " + a.CompId;
 
                 DrawnComposition c = StageEnemyPool.DrawComposition(StageId.S1, CombatRoomKind.Chest, rng);
-                if (c.Tier != "enhanced" || c.ExtraAdded != 0)
-                    return "Chest waves prefer enhanced extra=0 got " + c.CompId;
+                if (c.Tier != "normal" || c.ExtraAdded != 0)
+                    return "ordinary Chest must draw normal extra=0 got " + c.CompId + " " + c.Tier;
+                if (c.CompId == null || c.CompId.IndexOf("-N", StringComparison.Ordinal) < 0)
+                    return "ordinary Chest comp id " + c.CompId;
+                DrawnComposition c2 = StageEnemyPool.DrawComposition(StageId.S2, CombatRoomKind.Chest, rng);
+                if (c2.Tier != "normal" || c2.ExtraAdded != 0
+                    || c2.CompId == null || c2.CompId.IndexOf("-N", StringComparison.Ordinal) < 0)
+                    return "S2 ordinary Chest must draw normal got " + c2.CompId + " " + c2.Tier;
+                if (CombatRoomKindUtil.PrefersEnhanced(CombatRoomKind.Chest)
+                    || CombatRoomKindUtil.PrefersEnhanced(CombatRoomKind.Normal))
+                    return "ordinary Chest/Normal must not PrefersEnhanced";
+                if (!CombatRoomKindUtil.PrefersEnhanced(CombatRoomKind.Altar)
+                    || !CombatRoomKindUtil.PrefersEnhanced(CombatRoomKind.LargeChest))
+                    return "Altar/LargeChest must PrefersEnhanced";
 
                 DrawnComposition b = StageEnemyPool.DrawComposition(StageId.S3, CombatRoomKind.LargeChest, rng);
                 if (b.Tier != "enhanced")
@@ -322,7 +334,7 @@ namespace RogueShooter.Spawning
             sb.Append("S1=").Append(StageEnemyPool.FormatKinds(StageId.S1));
             sb.Append(" S2=").Append(StageEnemyPool.FormatKinds(StageId.S2));
             sb.Append(" S3=").Append(StageEnemyPool.FormatKinds(StageId.S3));
-            sb.Append(" comps=5n+5e/stage room=Normal→N Altar/Chest→E LargeChest→E+1..2");
+            sb.Append(" comps=5n+5e/stage room=Normal/Chest→N Altar→E LargeChest→E+1..2");
             sb.Append(" enhance=<4:+1 ==4:elite×HP1.25/atk1.15");
             sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:52,GRAND:39");
             sb.Append(" draftAtk=E1:25,E2:15,E3:19,SHIELD:30,GRAND:25");
