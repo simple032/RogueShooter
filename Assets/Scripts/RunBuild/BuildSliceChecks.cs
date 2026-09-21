@@ -30,16 +30,21 @@ namespace RogueShooter.Build
                 return "shop buy must add Build +1";
             if (st.OwnedRewardIds.Count < 1)
                 return "shop buy must apply reward";
-            if (!st.TryShopBuy(40, ShopStock.BuildEquivFor(ShopSlotRole.High), "R1H") || st.BuildCount != 2)
+            if (!st.TryShopBuy(40, ShopStock.BuildEquivFor(ShopSlotRole.High), "R7H") || st.BuildCount != 2)
                 return "second shop buy must add +1 (high is not +4)";
 
             if (ShopStock.ShelfCount != 6)
                 return "shop must have 6 shelves";
             if (ShopStock.PriceBaseLow != 20
                 || ShopStock.PriceBaseMid != 40
-                || ShopStock.PriceBaseHigh != 80
+                || ShopStock.PriceBaseHigh != 60
                 || ShopStock.PriceBaseHeal != 40)
-                return "shop price bases expected 20/40/80/40";
+                return "shop price bases expected 20/40/60/40";
+            if (ShopStock.HighPriceMin != 54 || ShopStock.HighPriceMax != 66)
+                return "shop high band expected 54-66";
+            if (ShopStock.PriceBaseHigh < ShopStock.HighPriceMin
+                || ShopStock.PriceBaseHigh > ShopStock.HighPriceMax)
+                return "shop high mid must sit in 54-66";
             if (ShopStock.ElasticWLow != 56 || ShopStock.ElasticWMid != 32
                 || ShopStock.ElasticWHigh != 12 || ShopStock.ElasticWHeal != 0)
                 return "elastic weights expected 56/32/12/0";
@@ -57,9 +62,13 @@ namespace RogueShooter.Build
             if (shelves[1].Price != ShopStock.PriceBaseMid
                 || shelves[2].Price != ShopStock.PriceBaseHigh
                 || shelves[3].Price != ShopStock.PriceBaseHeal)
-                return "locked prices must be 20/40/80/40";
-            if (shelves[1].Price != low * 2 || shelves[2].Price != low * 4 || shelves[3].Price != low * 2)
-                return "price ratio must be 1:2:4 and heal=mid";
+                return "locked prices must be 20/40/60/40";
+            if (shelves[1].Price != low * 2 || shelves[2].Price != low * 3 || shelves[3].Price != low * 2)
+                return "price ratio must be 1:2:3 and heal=mid";
+            if (shelves[2].Price < ShopStock.HighPriceMin || shelves[2].Price > ShopStock.HighPriceMax)
+                return "rolled high price must sit in 54-66";
+            if (RewardCatalog.IsDeletedHighId(shelves[2].Id) || !RewardCatalog.IsHighPoolId(shelves[2].Id))
+                return "high shelf must be R3/R7H/R8H/R9H got " + shelves[2].Id;
             for (int i = 0; i < shelves.Length; i++)
             {
                 if (shelves[i].Sold)
@@ -169,7 +178,28 @@ namespace RogueShooter.Build
             {
                 if (picks[i].Tier == RewardTier.High)
                     return "small altar high weight is 0 — no High tier";
+                if (RewardCatalog.IsDeletedHighId(picks[i].Id))
+                    return "deleted H in small altar " + picks[i].Id;
             }
+
+            bool sawLockedHigh = false;
+            for (int seed = 0; seed < 120; seed++)
+            {
+                var largePicks = AltarRewardRoll.RollThree(AltarSize.Large, new Random(seed));
+                for (int i = 0; i < largePicks.Length; i++)
+                {
+                    if (RewardCatalog.IsDeletedHighId(largePicks[i].Id))
+                        return "deleted H in large altar " + largePicks[i].Id;
+                    if (largePicks[i].Tier != RewardTier.High)
+                        continue;
+                    sawLockedHigh = true;
+                    if (!RewardCatalog.IsHighPoolId(largePicks[i].Id))
+                        return "large altar high outside lock " + largePicks[i].Id;
+                }
+            }
+
+            if (!sawLockedHigh)
+                return "large altar should roll locked high in sample";
 
             return null;
         }
