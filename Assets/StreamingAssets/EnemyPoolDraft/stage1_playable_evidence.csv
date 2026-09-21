@@ -1,14 +1,16 @@
-# Stage-1 playable evidence (collision / projectiles / dodge i-frames)
+# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG)
 # Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar PortalFx 1.0s
+# Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)
 check,result,detail
-playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_fx_charge_arrow_tip speed=12 orb=jh_fx_mage_orb dodge dur=0.35s iframe=0.20s cd=0.90s dist=2.10 interact=chest+altar
+playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_fx_charge_arrow_tip speed=12 orb=jh_fx_mage_orb dodge dur=0.35s iframe=0.20s cd=0.90s dist=2.10 interact=chest+altar
 dodge_duration,PASS,dur=0.35s
 dodge_iframes,PASS,iframe=0.20s t=0.10 block t=0.21 apply
 dodge_cooldown,PASS,cd=0.90s
 dodge_distance_derived,PASS,dist=2.10=move6×dur (not a new table row)
 arrow_art,PASS,jh_fx_charge_arrow_tip
-orb_art,PASS,jh_fx_mage_orb placeholder (no PNG in Art/JianHai/FX)
+orb_art,PASS,jh_fx_mage_orb Assets/Art/JianHai/FX/jh_fx_mage_orb.png
+jianhai_png_runtime,PASS,disk LoadImage + Editor import; tiled floors/walls localScale=1 explicit hx/hy
 arrow_speed_reuses_orb,PASS,speed=12
 maze_v2e_geometry,PASS,52x40 pitch 82/70 Chestx2 noLargeChest PortalFx=1.0s
-art_gaps,NOTE,missing clips: player walk/dodge/charge/atk + dirs; enemy walk/atk (only jh_enemy_e1_skel_idle); no Animator; orb PNG absent (jh_fx_mage_orb placeholder); arrow flight reuses jh_fx_charge_arrow_tip (no dedicated projectile sprite)
+art_gaps,NOTE,missing clips: player walk/dodge/charge/atk + dirs (idle PNG present); enemy walk/atk (only jh_enemy_e1_skel_idle); no Animator; orb PNG present (jh_fx_mage_orb Provide-style 16px); arrow flight reuses jh_fx_charge_arrow_tip (no dedicated projectile sprite)
 # PLAYABLE PASS

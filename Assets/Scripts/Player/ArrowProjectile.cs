@@ -40,6 +40,8 @@ namespace RogueShooter.Player
             JianHaiBind.ApplyTo(go, JianHaiArtCatalog.ArrowFlight);
             go.transform.localScale = new Vector3(0.85f, 0.45f, 1f);
             CollisionVolume.Add(go, CollisionLayer.Projectile, false, ProjectileRules.ArrowHitRadius, ProjectileRules.ArrowHitRadius);
+            go.AddComponent<ProjectileTrail>().Configure(
+                JianHaiArtCatalog.FxTipIdle, 0.045f, 0.14f, 0.38f);
             var arrow = go.AddComponent<ArrowProjectile>();
             arrow.Launch(origin, direction, damage, kind, heldSeconds, ownedRewards, owner, maxRange);
             return arrow;

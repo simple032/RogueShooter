@@ -5,7 +5,13 @@ A_Shared,jh_prop_altar,prop,idle|active,same altar root
 Shop_01,jh_prop_shop_01,prop,,keep shop_01 spelling
 BOSS,jh_boss_lord,boss,idle,optional marker
 START,jh_char_archer,char,idle,player spawn uses jh_char_archer_idle
-arrow,jh_fx_charge_arrow_tip,fx,flight,no dedicated projectile PNG; charge tip reused
-orb,jh_fx_mage_orb,fx,flight,PNG missing — runtime placeholder
+arrow,jh_fx_charge_arrow_tip,fx,flight,no dedicated projectile PNG; charge tip reused; trail=jh_fx_charge_arrow_tip_idle
+orb,jh_fx_mage_orb,fx,flight,Provide-style 16px PNG under FX/; trail=same
+floor_start,jh_tile_floor_spawn,tile,tiled,Stage1 START room
+floor_combat,jh_tile_floor_corridor,tile,tiled,Normal combat + corridors
+floor_altar,jh_tile_floor_altar,tile,tiled,Altar room
+floor_chest,jh_tile_floor_hub,tile,tiled,Chest rooms
+wall,jh_wall_stone_s,tile,tiled,AABB center pivot; CollisionVolume explicit hx/hy
+door,jh_prop_gate_hub,prop,tiled,locked door volume; localScale=1
 player_anim,jh_char_archer,char,idle only,GAP walk/dodge/charge/atk/_dir/_frame not in repo
 enemy_anim,jh_enemy_e1_skel,enemy,idle only,GAP walk/atk not in repo; other kinds share E1 idle

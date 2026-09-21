@@ -38,7 +38,9 @@ Props (chest/altar/shop) = **Prop**. Player / E1 / BOSS = **Entity**.
 | `A_*` / `A_Shared` | `jh_prop_altar` | `jh_prop_altar_idle.png` / `_active.png` |
 | `Shop_01` | `jh_prop_shop_01` | `jh_prop_shop_01.png` |
 
-Runtime: `JianHaiArtCatalog` + `JianHaiSpriteSlot` on the HOOKS-named object. Play Mode uses imported sprites when Unity has imported them; otherwise a color-block placeholder with the same PPU/pivot/name.
+Runtime: `JianHaiArtCatalog` + `JianHaiSpriteSlot` on the HOOKS-named object. Play Mode / player builds load PNGs from `Assets/Art/JianHai/` (`File.ReadAllBytes` + `Texture2D.LoadImage`, PPU 32 Point, spec pivot). Editor still prefers the imported Sprite when Unity has it. Color-block placeholders are last-resort only.
+
+Stage-1 maze floors/walls/doors use `SpriteDrawMode.Tiled` at `localScale=1`; collision AABBs pass explicit half-extents so tiling does not inflate volumes.
 
 ## Folders
 

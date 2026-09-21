@@ -13,8 +13,8 @@ namespace RogueShooter.Combat
     }
 
     /// <summary>
-    /// Animation clip hooks. Repo currently ships idle-only JianHai PNGs;
-    /// missing actions fall back to idle. Swap when walk/atk/dodge frames land.
+    /// Animation clip hooks. Present() is file-based under Assets/Art/JianHai/.
+    /// Missing walk/atk/dodge PNGs fall back to idle — do not invent frames here.
     /// </summary>
     public static class EntityAnimCatalog
     {
@@ -64,19 +64,16 @@ namespace RogueShooter.Combat
 
         public static bool Present(string artId)
         {
-            return artId == JianHaiArtCatalog.PlayerIdle
-                || artId == JianHaiArtCatalog.EnemyE1Idle
-                || artId == JianHaiArtCatalog.BossIdle
-                || artId == JianHaiArtCatalog.FxTipWarm
-                || artId == JianHaiArtCatalog.FxTipIdle;
+            return JianHaiSprites.HasSourceFile(artId);
         }
 
         public static string GapNote()
         {
             var sb = new StringBuilder();
-            sb.Append("missing clips: player walk/dodge/charge/atk + dirs; ");
+            sb.Append("missing clips: player walk/dodge/charge/atk + dirs (idle PNG present); ");
             sb.Append("enemy walk/atk (only jh_enemy_e1_skel_idle); ");
-            sb.Append("no Animator; orb PNG absent (jh_fx_mage_orb placeholder); ");
+            sb.Append("no Animator; ");
+            sb.Append("orb PNG present (jh_fx_mage_orb Provide-style 16px); ");
             sb.Append("arrow flight reuses jh_fx_charge_arrow_tip (no dedicated projectile sprite)");
             return sb.ToString();
         }

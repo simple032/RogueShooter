@@ -42,8 +42,9 @@ namespace RogueShooter.Combat
         public static string Csv()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage-1 playable evidence (collision / projectiles / dodge i-frames)");
+            sb.AppendLine("# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG)");
             sb.AppendLine("# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar PortalFx 1.0s");
+            sb.AppendLine("# Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)");
             sb.AppendLine("check,result,detail");
             string err = Stage1PlayableChecks.Run();
             Row(sb, "playable_acceptance", err == null, err ?? Stage1PlayableChecks.FormatPass());
@@ -60,11 +61,17 @@ namespace RogueShooter.Combat
                 System.Math.Abs(DodgeRules.Distance - DodgeRules.MoveSpeedRef * DodgeRules.DurationSeconds) < 0.0001f,
                 "dist=" + DodgeRules.Distance.ToString("0.00") + "=move6×dur (not a new table row)");
             Row(sb, "arrow_art",
-                JianHaiArtCatalog.ArrowFlight == JianHaiArtCatalog.FxTipWarm,
+                JianHaiArtCatalog.ArrowFlight == JianHaiArtCatalog.FxTipWarm
+                && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight),
                 JianHaiArtCatalog.ArrowFlight);
             Row(sb, "orb_art",
-                JianHaiArtCatalog.FxMageOrb == "jh_fx_mage_orb",
-                JianHaiArtCatalog.FxMageOrb + " placeholder (no PNG in Art/JianHai/FX)");
+                JianHaiSprites.HasSourceFile(JianHaiArtCatalog.FxMageOrb),
+                JianHaiArtCatalog.FxMageOrb + " " + JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxMageOrb));
+            Row(sb, "jianhai_png_runtime",
+                JianHaiSprites.HasSourceFile(JianHaiArtCatalog.PlayerIdle)
+                && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.TileFloorCorridor)
+                && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.WallStone),
+                "disk LoadImage + Editor import; tiled floors/walls localScale=1 explicit hx/hy");
             Row(sb, "arrow_speed_reuses_orb",
                 System.Math.Abs(ProjectileRules.ArrowSpeed - ProjectileRules.OrbSpeed) < 0.0001f,
                 "speed=" + ProjectileRules.ArrowSpeed.ToString("0"));

@@ -19,6 +19,8 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckProjectiles();
             if (err != null) return err;
+            err = CheckJianHaiFiles();
+            if (err != null) return err;
             err = CheckArtHooks();
             if (err != null) return err;
             return null;
@@ -28,6 +30,7 @@ namespace RogueShooter.Combat
         {
             var sb = new StringBuilder();
             sb.Append("playable=collision+arrow+orb+dodge-iframes ");
+            sb.Append("art=JianHai-PNG-runtime ");
             sb.Append("layers=Player/Mob/Wall/Door/Projectile ");
             sb.Append("door=locked-blocks/open-pass ");
             sb.Append("arrow=jh_fx_charge_arrow_tip speed=").Append(ProjectileRules.ArrowSpeed.ToString("0"));
@@ -147,6 +150,11 @@ namespace RogueShooter.Combat
                 return "arrow visual uses charge tip art";
             if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.FxMageOrb) != "FX")
                 return "orb art folder";
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.FxMageOrb))
+                return "mage orb PNG missing under Art/JianHai/FX";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxMageOrb)
+                != "Assets/Art/JianHai/FX/jh_fx_mage_orb.png")
+                return "mage orb asset path";
 
             Stage1Maze maze = Stage1MazeGen.Generate(42);
             List<MazeSolid> solids = MazeCollisionBuilder.Build(maze);
@@ -191,6 +199,38 @@ namespace RogueShooter.Combat
                 ProjectileRules.ArrowHitRadius, CollisionLayer.Mob);
             if (!mobHit.Hit || mobHit.Layer != CollisionLayer.Mob)
                 return "arrow trajectory must hit mob volume";
+            return null;
+        }
+
+        static string CheckJianHaiFiles()
+        {
+            string[] must =
+            {
+                JianHaiArtCatalog.PlayerIdle,
+                JianHaiArtCatalog.EnemyE1Idle,
+                JianHaiArtCatalog.BossIdle,
+                JianHaiArtCatalog.ArrowFlight,
+                JianHaiArtCatalog.FxTipIdle,
+                JianHaiArtCatalog.FxMageOrb,
+                JianHaiArtCatalog.TileFloorSpawn,
+                JianHaiArtCatalog.TileFloorCorridor,
+                JianHaiArtCatalog.TileFloorAltar,
+                JianHaiArtCatalog.TileFloorHub,
+                JianHaiArtCatalog.WallStone,
+                JianHaiArtCatalog.PropGateHub,
+                JianHaiArtCatalog.SpriteNameForHook("Chest_01", "closed"),
+                JianHaiArtCatalog.SpriteNameForHook("A_Shared", "idle")
+            };
+            for (int i = 0; i < must.Length; i++)
+            {
+                if (!JianHaiSprites.HasSourceFile(must[i]))
+                    return "missing JianHai PNG " + must[i];
+            }
+
+            if (JianHaiSprites.HasSourceFile(EntityAnimCatalog.PlayerWalk))
+            { /* drop-in walk frames welcome */ }
+            else if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle)
+                return "missing walk must fall back to idle";
             return null;
         }
 

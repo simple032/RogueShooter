@@ -81,6 +81,20 @@ namespace RogueShooter.Art
                 return "mage orb fx folder";
             if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxMageOrb) != JianHaiArtCatalog.LayerFx)
                 return "mage orb fx layer";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxMageOrb)
+                != "Assets/Art/JianHai/FX/jh_fx_mage_orb.png")
+                return "mage orb path";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.TileFloorCorridor) != "Tiles")
+                return "floor tile folder";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.WallStone) != "Tiles")
+                return "wall folder";
+            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.TileFloorCorridor) != JianHaiArtCatalog.LayerGround)
+                return "floor sorting";
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.PlayerIdle)
+                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.FxMageOrb)
+                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.TileFloorCorridor)
+                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.WallStone))
+                return "Provide JianHai PNGs must exist on disk";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

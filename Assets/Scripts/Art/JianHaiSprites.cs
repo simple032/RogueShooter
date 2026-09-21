@@ -1,16 +1,19 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// Resolves jh_* sprites. Editor Play Mode loads imported PNGs when present;
-    /// otherwise a Point-filter PPU=32 placeholder with the spec pivot is generated.
-    /// Swap files in Assets/Art/JianHai/ — interact GameObject names stay HOOKS IDs.
+    /// Resolves jh_* sprites from Assets/Art/JianHai/ (Provide-sourced PNGs).
+    /// Order: cache → Editor AssetDatabase → runtime PNG bytes (LoadImage) →
+    /// Point-filter PPU=32 placeholder. Interact GameObject names stay HOOKS IDs.
     /// </summary>
     public static class JianHaiSprites
     {
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
+        static readonly Dictionary<string, Sprite> CenterCache = new Dictionary<string, Sprite>();
+        static readonly Dictionary<string, bool> FileCache = new Dictionary<string, bool>();
 
         public static Sprite Get(string artId)
         {
@@ -20,14 +23,84 @@ namespace RogueShooter.Art
             if (Cache.TryGetValue(artId, out sprite) && sprite != null)
                 return sprite;
 
-            sprite = LoadImported(artId) ?? Placeholder(artId);
+            sprite = LoadImported(artId) ?? LoadFromPngBytes(artId) ?? Placeholder(artId);
             Cache[artId] = sprite;
+            return sprite;
+        }
+
+        /// <summary>Center-pivot copy for SpriteDrawMode.Tiled volumes (AABB sits on transform.position).</summary>
+        public static Sprite GetCentered(string artId)
+        {
+            Sprite sprite;
+            if (CenterCache.TryGetValue(artId, out sprite) && sprite != null)
+                return sprite;
+            Sprite src = Get(artId);
+            if (src == null || src.texture == null)
+                return src;
+            sprite = Sprite.Create(
+                src.texture,
+                src.rect,
+                new Vector2(0.5f, 0.5f),
+                src.pixelsPerUnit,
+                0,
+                SpriteMeshType.FullRect);
+            sprite.name = artId + "_c";
+            CenterCache[artId] = sprite;
             return sprite;
         }
 
         public static bool UsedPlaceholder(string artId)
         {
-            return LoadImported(artId) == null;
+            return !HasSourceFile(artId);
+        }
+
+        public static bool HasSourceFile(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return false;
+            bool known;
+            if (FileCache.TryGetValue(artId, out known))
+                return known;
+            string disk = DiskPath(artId);
+            known = !string.IsNullOrEmpty(disk) && File.Exists(disk);
+            FileCache[artId] = known;
+            return known;
+        }
+
+        public static string DiskPath(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return "";
+            string folder = JianHaiArtCatalog.FolderForArtId(artId);
+            string file = artId + ".png";
+            try
+            {
+                if (!string.IsNullOrEmpty(Application.dataPath))
+                {
+                    string underAssets = Path.Combine(Application.dataPath, "Art", "JianHai", folder, file);
+                    if (File.Exists(underAssets))
+                        return underAssets;
+                }
+            }
+            catch
+            {
+                /* headless / tests fall through */
+            }
+
+            string relative = Path.Combine("Assets", "Art", "JianHai", folder, file);
+            if (File.Exists(relative))
+                return Path.GetFullPath(relative);
+            try
+            {
+                string cwd = Path.Combine(Directory.GetCurrentDirectory(), relative);
+                if (File.Exists(cwd))
+                    return cwd;
+            }
+            catch
+            {
+            }
+
+            return relative;
         }
 
         static Sprite LoadImported(string artId)
@@ -39,6 +112,45 @@ namespace RogueShooter.Art
                 return imported;
 #endif
             return null;
+        }
+
+        static Sprite LoadFromPngBytes(string artId)
+        {
+            string disk = DiskPath(artId);
+            if (string.IsNullOrEmpty(disk) || !File.Exists(disk))
+                return null;
+            byte[] bytes;
+            try
+            {
+                bytes = File.ReadAllBytes(disk);
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (bytes == null || bytes.Length < 24)
+                return null;
+            var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            tex.name = artId;
+            if (!tex.LoadImage(bytes))
+                return null;
+            tex.filterMode = FilterMode.Point;
+            bool tile = artId.StartsWith("jh_tile_", System.StringComparison.Ordinal)
+                || artId.StartsWith("jh_wall_", System.StringComparison.Ordinal);
+            tex.wrapMode = tile ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+            tex.Apply(false, false);
+
+            JianHaiArtCatalog.Vector2Like p = JianHaiArtCatalog.PivotForArtId(artId);
+            Sprite sprite = Sprite.Create(
+                tex,
+                new Rect(0f, 0f, tex.width, tex.height),
+                new Vector2(p.x, p.y),
+                JianHaiArtCatalog.Ppu,
+                0,
+                SpriteMeshType.FullRect);
+            sprite.name = artId;
+            return sprite;
         }
 
         public static Sprite Placeholder(string artId)
@@ -83,9 +195,23 @@ namespace RogueShooter.Art
             if (sr == null)
                 return;
             sr.sprite = Get(artId);
+            sr.drawMode = SpriteDrawMode.Simple;
             sr.sortingLayerName = JianHaiArtCatalog.SortingLayer(artId);
             sr.sortingOrder = 0;
             sr.color = Color.white;
+        }
+
+        public static void BindTiled(SpriteRenderer sr, string artId, Vector2 worldSize, int order, Color tint)
+        {
+            if (sr == null)
+                return;
+            sr.sprite = GetCentered(artId);
+            sr.drawMode = SpriteDrawMode.Tiled;
+            sr.tileMode = SpriteTileMode.Continuous;
+            sr.size = worldSize;
+            sr.color = tint.a <= 0.001f ? Color.white : tint;
+            sr.sortingLayerName = JianHaiArtCatalog.SortingLayer(artId);
+            sr.sortingOrder = order;
         }
 
         static Color FillColor(string artId)

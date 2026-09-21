@@ -19,7 +19,8 @@ namespace RogueShooter.Demo
 {
     /// <summary>
     /// Playable Stage-1 maze skeleton (Spec v0.5). Seeded rooms + lock/clear/open.
-    /// Placeholder art. Connector is a stub — S2/S3 mazes are not built.
+    /// Floors/walls/doors bind Provide-sourced JianHai PNGs under Assets/Art/JianHai/.
+    /// Connector is a stub — S2/S3 mazes are not built.
     /// </summary>
     [DefaultExecutionOrder(50)]
     public class Stage1MazeDemo : MonoBehaviour
@@ -138,7 +139,6 @@ namespace RogueShooter.Demo
         void BuildWorld()
         {
             Transform root = transform;
-            Color floor = new Color(0.165f, 0.188f, 0.220f);
             for (int i = 0; i < _maze.Edges.Length; i++)
             {
                 MazeEdge e = _maze.Edges[i];
@@ -150,12 +150,11 @@ namespace RogueShooter.Demo
 
                 for (int s = 0; s < pts.Length - 1; s++)
                 {
-                    GameObject cor = DemoPrimitives.Corridor(
+                    GameObject cor = JianHaiBind.SpawnCorridorTiled(
                         "Corridor_" + e.FromId + "_" + e.ToId + "_" + s,
                         new Vector3(pts[s].X, pts[s].Y, 0f),
                         new Vector3(pts[s + 1].X, pts[s + 1].Y, 0f),
-                        e.Width, floor, 1, root);
-                    JianHaiBind.SetLayer(cor, JianHaiArtCatalog.LayerGround, 1);
+                        e.Width, JianHaiArtCatalog.TileFloorCorridor, root, 1);
                     _world.Add(cor);
                 }
             }
@@ -163,13 +162,11 @@ namespace RogueShooter.Demo
             for (int i = 0; i < _maze.Nodes.Length; i++)
             {
                 MazeNode n = _maze.Nodes[i];
-                Color c = FloorColor(n.Kind);
-                GameObject go = DemoPrimitives.Quad(
+                GameObject go = JianHaiBind.SpawnTiled(
                     "Room_" + n.Id,
                     new Vector3(n.Center.X, n.Center.Y, 1.1f),
                     new Vector2(n.Width, n.Height),
-                    c, 0, root);
-                JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerGround, 0);
+                    FloorArt(n.Kind), root, 0, Quaternion.identity, FloorTint(n.Kind));
                 _roomFloors[n.Id] = go;
                 _world.Add(go);
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
@@ -245,16 +242,15 @@ namespace RogueShooter.Demo
             for (int i = 0; i < solids.Count; i++)
             {
                 MazeSolid s = solids[i];
-                Color color = s.Door
-                    ? new Color(0.72f, 0.16f, 0.16f)
-                    : new Color(0.07f, 0.08f, 0.09f);
+                string art = s.Door ? JianHaiArtCatalog.PropGateHub : JianHaiArtCatalog.WallStone;
+                Color tint = s.Door ? new Color(1f, 0.62f, 0.58f, 1f) : Color.white;
                 int order = s.Door ? 6 : 2;
-                GameObject go = DemoPrimitives.Quad(
+                GameObject go = JianHaiBind.SpawnTiled(
                     s.Name,
                     new Vector3(s.X, s.Y, s.Door ? 0f : 1f),
                     new Vector2(s.Width, s.Height),
-                    color, order, root);
-                CollisionVolume.Add(go, s.Layer, !s.Door);
+                    art, root, order, Quaternion.identity, tint);
+                CollisionVolume.Add(go, s.Layer, !s.Door, s.Width * 0.5f, s.Height * 0.5f);
                 if (s.Door)
                 {
                     go.SetActive(false);
@@ -675,7 +671,7 @@ namespace RogueShooter.Demo
                 MazeNode room = _maze.Find(roomId);
                 if (sr != null && room != null)
                 {
-                    Color baseC = FloorColor(room.Kind);
+                    Color baseC = FloorTint(room.Kind);
                     sr.color = locked
                         ? new Color(baseC.r * 0.55f, baseC.g * 0.35f, baseC.b * 0.35f, 1f)
                         : baseC;
@@ -896,16 +892,29 @@ namespace RogueShooter.Demo
             return moveSpeed > 0.0001f ? moveSpeed : MoveSpeeds.Player;
         }
 
-        static Color FloorColor(MazeNodeKind kind)
+        static string FloorArt(MazeNodeKind kind)
         {
             switch (kind)
             {
-                case MazeNodeKind.Start: return new Color(0.16f, 0.22f, 0.28f);
-                case MazeNodeKind.Altar: return new Color(0.22f, 0.14f, 0.26f);
-                case MazeNodeKind.Chest: return new Color(0.26f, 0.18f, 0.10f);
-                case MazeNodeKind.LargeChest: return new Color(0.32f, 0.24f, 0.08f);
-                case MazeNodeKind.Connector: return new Color(0.10f, 0.24f, 0.22f);
-                default: return new Color(0.102f, 0.114f, 0.141f);
+                case MazeNodeKind.Start: return JianHaiArtCatalog.TileFloorSpawn;
+                case MazeNodeKind.Altar: return JianHaiArtCatalog.TileFloorAltar;
+                case MazeNodeKind.Chest:
+                case MazeNodeKind.LargeChest: return JianHaiArtCatalog.TileFloorHub;
+                case MazeNodeKind.Connector: return JianHaiArtCatalog.TileFloorCorridor;
+                default: return JianHaiArtCatalog.TileFloorCorridor;
+            }
+        }
+
+        static Color FloorTint(MazeNodeKind kind)
+        {
+            switch (kind)
+            {
+                case MazeNodeKind.Start: return new Color(0.95f, 0.97f, 1f, 1f);
+                case MazeNodeKind.Altar: return new Color(1f, 0.92f, 1f, 1f);
+                case MazeNodeKind.Chest: return new Color(1f, 0.96f, 0.88f, 1f);
+                case MazeNodeKind.LargeChest: return new Color(1f, 0.94f, 0.80f, 1f);
+                case MazeNodeKind.Connector: return new Color(0.88f, 1f, 0.96f, 1f);
+                default: return Color.white;
             }
         }
 
@@ -940,7 +949,7 @@ namespace RogueShooter.Demo
                 "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
                 "enter combat → lock doors (solid) → [PortalFx] 1.0s → spawn → clear → open  |  Chest/Altar 2 waves\n" +
                 "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
-                "dodge STUB dur=0.35s iframe=0.20s cd=0.90s (DodgeRules) · layers Player/Mob/Wall/Door/Projectile",
+                "dodge STUB dur=0.35s iframe=0.20s cd=0.90s (DodgeRules) · JianHai PNG runtime · layers Player/Mob/Wall/Door/Projectile",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 108, w - 16, 36), graph, style);
