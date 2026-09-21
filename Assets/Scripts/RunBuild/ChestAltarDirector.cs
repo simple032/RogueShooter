@@ -108,7 +108,7 @@ namespace RogueShooter.Build
             for (int i = 0; i < _sites.Count; i++)
             {
                 SiteRuntime s = _sites[i];
-                if (s != null && s.Kind == SiteKind.Chest)
+                if (s != null && s.Kind == SiteKind.Chest && !s.ForcedPresent)
                     chestIds.Add(s.Id);
             }
 
@@ -122,12 +122,20 @@ namespace RogueShooter.Build
                     continue;
                 if (s.Kind == SiteKind.Chest)
                 {
-                    bool present;
-                    if (!_chestPresent.TryGetValue(s.Id, out present))
-                        present = false;
-                    s.SetPresent(present);
-                    if (!present)
-                        _emptyIds.Add(s.Id);
+                    if (s.ForcedPresent)
+                    {
+                        s.SetPresent(true);
+                        _chestPresent[s.Id] = true;
+                    }
+                    else
+                    {
+                        bool present;
+                        if (!_chestPresent.TryGetValue(s.Id, out present))
+                            present = false;
+                        s.SetPresent(present);
+                        if (!present)
+                            _emptyIds.Add(s.Id);
+                    }
                 }
                 else
                 {
@@ -500,6 +508,35 @@ namespace RogueShooter.Build
         public string FlashMessage()
         {
             return Time.unscaledTime <= _flashUntil ? _flash : "";
+        }
+
+        public void Notify(string msg)
+        {
+            Flash(msg);
+        }
+
+        /// <summary>DeadEnd ChestReveal: register a present chest on the existing Build offer path.</summary>
+        public void RegisterRevealedChest(SiteRuntime site)
+        {
+            if (site == null || site.Kind != SiteKind.Chest)
+                return;
+            site.SetForcedPresent(true);
+            site.SetPresent(true);
+            site.SetLargeChest(IsLargeChestId(site.Id));
+            if (!_sites.Contains(site))
+                _sites.Add(site);
+            _chestPresent[site.Id] = true;
+            _emptyIds.Remove(site.Id);
+            Debug.Log("[Chest] reveal " + site.Id + " present=true Build path ready B=" +
+                      (_build != null ? _build.BuildCount : 0));
+        }
+
+        public void UnregisterSite(SiteRuntime site)
+        {
+            if (site == null)
+                return;
+            _sites.Remove(site);
+            _chestPresent.Remove(site.Id);
         }
 
         public string EmptyLine()

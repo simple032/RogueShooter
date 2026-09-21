@@ -157,6 +157,87 @@ namespace RogueShooter.Spawning
             TryPlace(id, pos, _clock != null ? _clock.BandId : "Z1", phase);
         }
 
+        /// <summary>
+        /// One-shot 死路 MobWave. Existing kinds + SpawnStub four-state AI + existing HP scale.
+        /// Count clamped to 1–3 (design lock). Bypasses in-view skip. No new AI / TTK / CSV.
+        /// </summary>
+        public int SpawnEventWave(string id, Vector3 pos, string band)
+        {
+            return SpawnEventWave(id, pos, band, 1, 3);
+        }
+
+        public int SpawnEventWave(string id, Vector3 pos, string band, int countMin, int countMax)
+        {
+            if (countMin < 1)
+                countMin = 1;
+            if (countMax < countMin)
+                countMax = countMin;
+            if (string.IsNullOrEmpty(band))
+                band = _clock != null ? _clock.BandId : "Z2";
+            if (string.IsNullOrEmpty(band) || band == "Pre")
+                band = "Z2";
+
+            SpawnClassId cls = SpawnWaveCatalog.ResolveClass(band, _build);
+            SpawnGroupDef[] pool = SpawnWaveCatalog.GroupsFor(cls);
+            SpawnGroupDef group = pool != null && pool.Length > 0 ? pool[0] : default(SpawnGroupDef);
+            int want = SpawnWaveCatalog.TotalCount(group);
+            if (want <= 0)
+            {
+                SpawnGroupDef[] fallback = SpawnWaveCatalog.GroupsFor(SpawnClassId.S1Pre);
+                if (fallback != null && fallback.Length > 0)
+                {
+                    group = fallback[0];
+                    want = SpawnWaveCatalog.TotalCount(group);
+                    cls = SpawnClassId.S1Pre;
+                }
+            }
+
+            if (want > countMax)
+                want = countMax;
+            if (want < countMin)
+                want = countMin;
+
+            if (group.Members == null || group.Members.Length == 0 || _stubPrefab == null)
+            {
+                Debug.Log("[DeadEnd] MobWave " + id + " skip — no group/prefab");
+                return 0;
+            }
+
+            float t = _clock != null ? _clock.WallMinutes : 0f;
+            int build = _build != null ? _build.BuildCount : 0;
+            float tm = SpawnWaveCatalog.TimeMul(t);
+            float bm = SpawnWaveCatalog.BuildMul(build);
+            LastClass = cls;
+            LastGroupLine = SpawnWaveCatalog.FormatGroup(group);
+            Debug.Log("[DeadEnd] MobWave " + id + " " + SpawnWaveCatalog.ClassLabel(cls)
+                      + " → " + LastGroupLine + " n=" + want + " (1–3) Tm=" + tm.ToString("0.00")
+                      + " Bm=" + bm.ToString("0.00") + " ai=MobFourStateAi existing scale");
+
+            int spawned = 0;
+            for (int m = 0; m < group.Members.Length && spawned < want; m++)
+            {
+                SpawnMember mem = group.Members[m];
+                for (int k = 0; k < mem.Count && spawned < want; k++)
+                {
+                    Vector3 stubPos = SpawnCluster.Offset(pos, spawned, want);
+                    SpawnStub(id, stubPos, band, spawned, want, mem.KindId, tm, bm);
+                    spawned++;
+                }
+            }
+
+            while (spawned < want)
+            {
+                string kind = group.Members[0].KindId;
+                if (string.IsNullOrEmpty(kind))
+                    kind = "E1";
+                Vector3 stubPos = SpawnCluster.Offset(pos, spawned, want);
+                SpawnStub(id, stubPos, band, spawned, want, kind, tm, bm);
+                spawned++;
+            }
+
+            return spawned;
+        }
+
         void TrySpawnOne()
         {
             string band = _clock.BandId;

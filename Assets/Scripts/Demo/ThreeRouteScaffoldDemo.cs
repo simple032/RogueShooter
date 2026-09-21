@@ -8,6 +8,7 @@ using RogueShooter.Art;
 using RogueShooter.Balance;
 using RogueShooter.Boss;
 using RogueShooter.Build;
+using RogueShooter.DeadEnd;
 using RogueShooter.Layout;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
@@ -31,6 +32,7 @@ namespace RogueShooter.Demo
         SpawnBandClock _clock;
         SpawnBandDirector _director;
         ChestAltarDirector _buildDir;
+        DeadEndRunner _deadEnd;
         Transform _player;
         CameraViewService _view;
         readonly Dictionary<string, GameObject> _markers = new Dictionary<string, GameObject>();
@@ -86,6 +88,14 @@ namespace RogueShooter.Demo
                 TeleportTo("Shop_01");
             if (Input.GetKeyDown(KeyCode.F4))
                 TeleportToNearestMob();
+            if (Input.GetKeyDown(KeyCode.F5))
+                TeleportTo("DE01");
+            if (Input.GetKeyDown(KeyCode.F6))
+                TeleportTo("DE02");
+            if (Input.GetKeyDown(KeyCode.F7))
+                TeleportTo("DE03");
+            if (Input.GetKeyDown(KeyCode.F8))
+                TeleportTo("DE04");
         }
 
         void LogLock()
@@ -244,6 +254,9 @@ namespace RogueShooter.Demo
             _buildDir = gameObject.AddComponent<ChestAltarDirector>();
             _buildDir.Bind(_lock, _player, siteRuntimes, Environment.TickCount, _clock);
             _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab, _player, OnStubKilled, _buildDir.Build);
+
+            _deadEnd = gameObject.AddComponent<DeadEndRunner>();
+            _deadEnd.Bind(_player, _buildDir, _director, root, _markers);
 
             _demoAnchors = new[]
             {
@@ -461,13 +474,15 @@ namespace RogueShooter.Demo
 
             string artErr = JianHaiArtChecks.Run();
             bool artOk = artErr == null;
+            string deErr = DeadEndChecks.Run();
+            bool deOk = deErr == null;
             _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && offViewSpawn
                     && edgeSkip && capOk
-                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk;
+                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk && deOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} edgeSkip={edgeSkip} coreSkip={coreSkip} offViewSpawn={offViewSpawn} capOk={capOk} pad={SpawnViewGate.EffectivePad:0.00} z1Eff={z1Eff:0.00}");
-            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk}");
+            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk} deOk={deOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
             if (!buildOk)
@@ -476,6 +491,8 @@ namespace RogueShooter.Demo
                 sb.Append(" aiErr=" + aiErr);
             if (!artOk)
                 sb.Append(" artErr=" + artErr);
+            if (!deOk)
+                sb.Append(" deErr=" + deErr);
             _status = sb.ToString();
             if (_pass)
                 Debug.Log("[ThreeRouteScaffold] " + _status);
@@ -526,7 +543,7 @@ namespace RogueShooter.Demo
         {
             const int pad = 8;
             int w = 580;
-            int h = 360;
+            int h = 380;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             var title = new GUIStyle(style) { fontSize = 15, fontStyle = FontStyle.Bold };
@@ -561,8 +578,9 @@ namespace RogueShooter.Demo
 
             GUI.Label(new Rect(pad + 8, pad + 48, w - 16, 54),
                 $"WASD · E interact · F strike · N new run · F1 Chest_01 · F2 A_Shared · F3 Shop · F4 mob\n" +
-                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力射(≥0.15s)\n" +
-                $"band={band}  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
+                $"F5 DE01 ChestReveal · F6 DE02 MobWave · F7 DE03 EmptySoft · F8 DE04 StaticRoom\n" +
+                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力射(≥0.15s)  " +
+                $"band={band} ×{(_clock != null ? _clock.ClockScale : 0f):0} {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
                 $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  HP×{hp} DMG×{dmg}",
                 style);
 
@@ -591,8 +609,10 @@ namespace RogueShooter.Demo
                 ? "<color=#88ff88>" + _status + "</color>"
                 : "<color=#ffcc88>" + _status + "</color>";
             GUI.Label(new Rect(pad + 8, pad + 170, w - 16, 40), status, rich);
+            if (_deadEnd != null)
+                GUI.Label(new Rect(pad + 8, pad + 206, w - 16, 16), _deadEnd.HudLine, style);
             if (!string.IsNullOrEmpty(flash))
-                GUI.Label(new Rect(pad + 8, pad + 208, w - 16, 18), flash, style);
+                GUI.Label(new Rect(pad + 8, pad + 222, w - 16, 18), flash, style);
 
             if (_boss != null && _boss.Brain != null && _boss.FightStarted)
             {
@@ -661,6 +681,8 @@ namespace RogueShooter.Demo
                 "+ SpawnViewGate spawn-in-view\n" +
                 "Chests P_spawn=0.90 · Altars 100%\n" +
                 "Shop never increments B/RS\n" +
+                "DeadEnd preconfig once: DE01 Reveal / DE02 Wave 1–3\n" +
+                "  DE03 EmptySoft 0–0 / DE04 Static\n" +
                 "AI: Patrol→Alert→Chase→Disengage\n" +
                 "Art PPU32 Point: Chest_*→jh_prop_chest_*",
                 style);
