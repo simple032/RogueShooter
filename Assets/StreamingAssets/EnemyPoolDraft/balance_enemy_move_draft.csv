@@ -3,7 +3,7 @@ enemy,move_spd,vs_player_6,orb_spd,state,notes
 狗,7.2,1.20,,chase,制作人改
 邪法师,3.6,0.60,12,chase,球=6×2
 盾兵,4.5,0.75,,unshielded,制作人：普通=4.5
-盾兵,1.35,0.225,,shielded,4.5×0.30
+盾兵,2.25,0.375,,shielded,4.5×0.50
 大邪术师,3.3,0.55,12,chase,
 META,player_move_spd,6,,,,
 META,lock,0,草案不锁,,

@@ -53,6 +53,8 @@ namespace RogueShooter.Spawning
         public const float DraftDps0B = 13f;
         public const float DraftPlayerMove = 6f;
         public const float DraftOrbSpeed = 12f; // player_move × 2 (not mage walk × 2)
+        public const float DraftShieldMoveMul = 0.50f; // 4.5 → 2.25 (−50%)
+        public const float DraftShieldedMove = 2.25f;
         public const float EliteHpMul = 1.25f;
         public const float EliteAtkMul = 1.15f;
         public const int WaveCountMin = 3;
@@ -187,7 +189,7 @@ namespace RogueShooter.Spawning
 
         static float ShieldMoveMulFromTable()
         {
-            return 0.30f;
+            return DraftShieldMoveMul;
         }
 
         static float DraftFallbackMove(string kindId)

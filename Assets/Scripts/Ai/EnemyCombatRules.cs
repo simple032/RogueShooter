@@ -14,7 +14,7 @@ namespace RogueShooter.Ai
         public const float OrbSpeedWalkMul = 2f; // player_move × 2 → orb 12 (not mage walk × 2)
         public const float OrbRangeCameraWidthFrac = 0.7f;
         public const float ShieldRaiseDelaySeconds = 1f;
-        public const float ShieldMoveMul = 0.30f; // 4.5 → 1.35
+        public const float ShieldMoveMul = 0.50f; // 4.5 → 2.25 (−50%)
         public const float ShieldFrontDamageMul = 0.50f;
         public const float ShieldWeakSpotStaggerSeconds = 1.00f;
         public const float GrandOrbSpreadDegrees = 15f;
@@ -40,7 +40,7 @@ namespace RogueShooter.Ai
         public const float WalkDogStub = 7.20f;
         public const float WalkMageStub = 3.60f;
         public const float WalkShieldStub = 4.50f;
-        public const float WalkShieldedStub = 1.35f;
+        public const float WalkShieldedStub = 2.25f;
         public const float WalkGrandStub = 3.30f;
         public const float OrbSpeedAbsStub = 12.00f;
 

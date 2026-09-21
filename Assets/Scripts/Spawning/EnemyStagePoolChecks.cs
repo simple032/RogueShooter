@@ -91,8 +91,12 @@ namespace RogueShooter.Spawning
 
             if (Math.Abs(EnemyCombatRules.ShieldRaiseDelaySeconds - 1f) > 0.001f)
                 return "shield raise 1s";
-            if (Math.Abs(EnemyCombatRules.ShieldMoveMul - 0.30f) > 0.001f)
-                return "shield move −70%";
+            if (Math.Abs(EnemyCombatRules.ShieldMoveMul - 0.50f) > 0.001f
+                || Math.Abs(EnemyPoolDraft.DraftShieldMoveMul - 0.50f) > 0.001f)
+                return "shield move −50% (not −70%)";
+            if (Math.Abs(EnemyCombatRules.WalkShieldedStub - 2.25f) > 0.001f
+                || Math.Abs(EnemyPoolDraft.DraftShieldedMove - 2.25f) > 0.001f)
+                return "shielded walk 2.25 (4.5×0.50)";
             if (Math.Abs(EnemyCombatRules.IncomingDamageMul(true, true, false) - 0.50f) > 0.001f)
                 return "shield front dmg −50%";
             if (Math.Abs(EnemyCombatRules.IncomingDamageMul(true, true, true) - 1f) > 0.001f)
@@ -322,7 +326,7 @@ namespace RogueShooter.Spawning
             sb.Append(" enhance=<4:+1 ==4:elite×HP1.25/atk1.15");
             sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:52,GRAND:39");
             sb.Append(" draftAtk=E1:25,E2:15,E3:19,SHIELD:30,GRAND:25");
-            sb.Append(" draftMove=E1:4.5,E2:7.2,E3:3.6,SHIELD:4.5/1.35,GRAND:3.3");
+            sb.Append(" draftMove=E1:4.5,E2:7.2,E3:3.6,SHIELD:4.5/2.25,GRAND:3.3");
             sb.Append(" playerMove=6 orb=12=player×2 dps0b=13 thrust=[30,40]");
             sb.Append(" S2cultMage=E3 sameS1orb ttk≈2s");
             sb.Append(" baseAttrStageIndependent DRAFT_NOT_LOCKED");
@@ -361,15 +365,15 @@ namespace RogueShooter.Spawning
                 return "DRAFT move mage 3.6";
             if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Shield, false), 4.5f))
                 return "DRAFT move shield unshielded 4.5";
-            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Shield, true), 1.35f))
-                return "DRAFT move shield shielded 1.35";
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Shield, true), 2.25f))
+                return "DRAFT move shield shielded 2.25";
             if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.GrandMage, false), 3.3f))
                 return "DRAFT move grand 3.3";
 
             if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Dog, false), 7.2f))
                 return "WalkSpeed dog 7.2";
-            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 1.35f))
-                return "WalkSpeed shield raised 1.35";
+            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 2.25f))
+                return "WalkSpeed shield raised 2.25";
 
             if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.CultMage), 12f)
                 || !Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.GrandMage), 12f))
@@ -383,8 +387,12 @@ namespace RogueShooter.Spawning
                 return "mage CSV atk 19 move 3.6 orb 12";
             DraftEnemyStat shield = EnemyPoolDraft.Stat(EnemyKindIds.Shield);
             if (!Near(shield.Atk, 30f) || !Near(shield.MoveSpeed, 4.5f)
-                || !Near(shield.ShieldedMoveSpeed, 1.35f))
-                return "shield CSV atk 30 move 4.5 / 举盾 1.35";
+                || !Near(shield.ShieldedMoveSpeed, 2.25f))
+                return "shield CSV atk 30 move 4.5 / 举盾 2.25";
+            if (Near(shield.ShieldedMoveSpeed, 1.35f)
+                || Near(EnemyCombatRules.ShieldMoveMul, 0.30f)
+                || Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 1.35f))
+                return "stale shield −70% leftovers (0.30 / 1.35)";
             return null;
         }
 

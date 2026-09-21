@@ -95,7 +95,7 @@ namespace RogueShooter.Spawning
                 .Append(" player=").Append(EnemyPoolDraft.DraftPlayerMove.ToString("0"))
                 .Append(" orb=").Append(EnemyPoolDraft.DraftOrbSpeed.ToString("0"))
                 .Append(" atk=25/15/19/30/25")
-                .Append(" move=4.5/7.2/3.6/4.5/1.35/3.3")
+                .Append(" move=4.5/7.2/3.6/4.5/2.25/3.3")
                 .Append(" thrust=[").Append(EnemyPoolDraft.LungeDamageMinEasy)
                 .Append(',').Append(EnemyPoolDraft.LungeDamageMaxEasy).Append(']');
             sb.AppendLine();
