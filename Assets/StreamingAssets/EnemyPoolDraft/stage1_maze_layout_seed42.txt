@@ -1,4 +1,5 @@
 # Stage1MazeSampler layout seed=42 (DRAFT v2b)
+# final: rooms 36x28 (flexible, not 40x32 lock)  pitch 66/58  hub 26x22
 moveSpeed=6 rooms=36x28 pitch=66/58 hub=26x22 segMax=30u/5s
 [S1Maze] seed=42 tpl=I largeChest=0 rooms=START(START@0,0),N1(Normal@0,58),ALTAR(Altar@-66,58),N2(Normal@66,58),CHEST(Chest@0,116),CONN(Connector@66,116) edges=START--N1;N1--ALTAR;N1--N2;N1--CHEST;CHEST--CONN
 [S1Maze] quota Chest=1 Altar=1 Normal=2 Start=1 Connector=stub

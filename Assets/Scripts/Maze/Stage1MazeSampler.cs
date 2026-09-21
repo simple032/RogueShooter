@@ -50,7 +50,7 @@ namespace RogueShooter.Maze
             Stage1Maze maze = Stage1MazeGen.Generate(seed);
             MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (DRAFT v2b)");
+            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (DRAFT v2b; rooms 36x28 flex, pitch 66/58)");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
@@ -176,7 +176,7 @@ namespace RogueShooter.Maze
             int[] seeds = { 1, 2, 17, 42, 99, 2026 };
             var sb = new StringBuilder();
             sb.AppendLine("# Stage-1 walk-only pacing evidence (DRAFT)");
-            sb.AppendLine("# seconds = graph path length / moveSpeed");
+            sb.AppendLine("# seconds = graph path length / moveSpeed; rooms flexible (not 40x32 lock)");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/")
               .Append(MazeRules.PitchY.ToString("0"));

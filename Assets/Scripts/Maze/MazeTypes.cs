@@ -222,7 +222,7 @@ namespace RogueShooter.Maze
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        /// <summary>v2b short corridors. Pitch 130/115 is void. Net gap ≈ Pitch−room ≤30u (≤5s @ 6).</summary>
+        /// <summary>Chosen 36×28 / 66×58 for v2b clocks. Room size is not locked (not 40×32). Net gap ≤30u.</summary>
         public const float PitchX = 66f;
         public const float PitchY = 58f;
         public const float CombatWidth = 36f;

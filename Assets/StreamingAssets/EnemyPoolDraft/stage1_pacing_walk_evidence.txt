@@ -1,7 +1,7 @@
 # Stage-1 walk-only pacing evidence (DRAFT) — v2b
 # seconds = folded graph path length / moveSpeed
 # Pitch 130/115 void. Adjacent corridor = max straight fold segment ≤30u / 5s.
-moveSpeed=6 pitch=66/58 rooms=36x28 hub=26x22 corridor=10 segMax=30
+moveSpeed=6 pitch=66/58 rooms=36x28 (flex, not 40x32 lock) hub=26x22 corridor=10 segMax=30
 target START→Altar=60-120s visit-all=240±30s corridorSeg≤5s
 quota Chest×1+Altar×1+Normal×2+START+CONN unchanged
 folds I/Z stem≥12 branch≥5; C branch≥4 (no long straight pads)

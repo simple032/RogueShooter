@@ -1,5 +1,5 @@
 # S1 maze I/Z/C fold templates (v2b)
-# rooms 36x28  pitch 66/58  hub 26x22  move=6  corridor seg ≤30u / 5s
+# rooms 36x28 (flexible, not a 40x32 lock)  pitch 66/58  hub 26x22  move=6  corridor seg ≤30u / 5s
 # stem START–entry ≥12 folds (≥360u / 60s). I/Z branches ≥5. C branches ≥4.
 # No long straight pitch (130/115 void).
 

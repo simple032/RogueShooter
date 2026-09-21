@@ -38,7 +38,7 @@ namespace RogueShooter.Maze
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
-            sb.Append("rooms=36x28 hub=26x22 pitch=66/58 ");
+            sb.Append("rooms=36x28(flex) hub=26x22 pitch=66/58 ");
             sb.Append("corridorSeg≤5s folds=stem12/IZ5/C4 ");
             sb.Append("walkAltar=60-120s walkAll=240±30s ");
             sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
@@ -73,20 +73,17 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
-            if (MazeRules.CombatWidth < 35.5f || MazeRules.CombatHeight < 27.5f
-                || MazeRules.CombatWidth > 36.51f || MazeRules.CombatHeight > 28.51f)
-                return "S1 combat rooms must be 36x28";
+            // Room size is flexible (not locked 40×32). Floor keeps dodge space
+            // vs ortho 6 viewport (~21×12). Clocks win over exact WxH.
+            if (MazeRules.CombatWidth < 28f || MazeRules.CombatHeight < 22f)
+                return "combat rooms cramped vs dodge space";
             if (MazeRules.PitchX <= MazeRules.CombatWidth || MazeRules.PitchY <= MazeRules.CombatHeight)
                 return "pitch must exceed room size";
-            if (MazeRules.PitchX > 70.01f || MazeRules.PitchY > 62.01f)
-                return "pitch 130/115 void; max ~70/62 for ≤5s corridors";
-            if (Math.Abs(MazeRules.PitchX - 66f) > 1.01f || Math.Abs(MazeRules.PitchY - 58f) > 1.01f)
-                return "pitch ~66/58 v2b";
             if (MazeRules.PitchX - MazeRules.CombatWidth > 30.51f
                 || MazeRules.PitchY - MazeRules.CombatHeight > 30.51f)
-                return "net gap Pitch-room must be ≤30u";
-            if (Math.Abs(MazeRules.HubWidth - 26f) > 0.51f || Math.Abs(MazeRules.HubHeight - 22f) > 0.51f)
-                return "hub ~26x22";
+                return "net gap Pitch-room must be ≤30u (corridor ≤5s)";
+            if (MazeRules.HubWidth >= MazeRules.CombatWidth || MazeRules.HubHeight >= MazeRules.CombatHeight)
+                return "hub must stay smaller than combat rooms";
             if (MazeRules.CorridorSegMax > 30.01f
                 || MazeRules.CorridorSegMaxSeconds > 5.01f)
                 return "corridor segment max 30u / 5s";
