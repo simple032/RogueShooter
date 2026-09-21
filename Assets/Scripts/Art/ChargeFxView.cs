@@ -4,33 +4,45 @@ using RogueShooter.Vision;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// A-primary (string glow / bow edge / warm tip) + B-weak reticle open/close.
-    /// No charge bar, no crit-window HUD. Pulse×2 fits Spec §7.5 green (72–84% of 0.90s).
-    /// Reticle follows mouse via ScreenToWorldPoint; ChargeFx is not a player-child offset.
+    /// Charge aim: fig1 diamond+ticks+clockwise ring (the reticle IS the charge).
+    /// A string-glow / bow / tip stay weak secondary. No progress-bar HUD.
+    /// Reticle follows mouse via ScreenToWorldPoint; not parented under the player.
     /// </summary>
     public class ChargeFxView : MonoBehaviour
     {
-        const float ReticleAlpha = 0.6f;
-        const float ColdAlpha = 0.55f;
-        const float ReticleClosed = 0.82f;
+        const float ColdAlpha = 0.28f;
+        const float GlowAlpha = 0.38f;
         const float CritSeconds = 2f / 30f;
-        const float ReticleWorldOpen = 0.72f;
-        const float ReticleNativeWorld = 48f / 32f;
 
         Transform _body;
-        Transform _reticleRoot;
+        ChargeReticle _reticle;
         SpriteRenderer _string;
         SpriteRenderer _pulse;
         SpriteRenderer _bow;
         SpriteRenderer _tip;
         SpriteRenderer _crit;
-        SpriteRenderer _reticle;
 
         int _pulsesLeft;
         float _pulsePhase;
         bool _pulseShow;
         float _critUntil;
-        bool _reticleOpen;
+        float _chargeProgress;
+        bool _green;
+        bool _charging;
+
+        public void SetChargeProgress(float progress01, bool greenWindow)
+        {
+            EnsureSlots();
+            _charging = true;
+            _chargeProgress = Mathf.Clamp01(progress01);
+            _green = greenWindow;
+            if (_reticle != null)
+            {
+                _reticle.SetCoreVisible(true);
+                _reticle.SetRingVisible(true);
+                _reticle.SetProgress(_chargeProgress, _green);
+            }
+        }
 
         void OnEnable()
         {
@@ -54,8 +66,8 @@ namespace RogueShooter.Art
         {
             if (_body != null)
                 Destroy(_body.gameObject);
-            if (_reticleRoot != null)
-                Destroy(_reticleRoot.gameObject);
+            if (_reticle != null)
+                Destroy(_reticle.gameObject);
         }
 
         void Awake()
@@ -85,7 +97,7 @@ namespace RogueShooter.Art
                     else if (_pulsesLeft > 0)
                     {
                         _pulseShow = true;
-                        Show(_pulse, JianHaiArtCatalog.FxStringPulse, 30, Color.white);
+                        Show(_pulse, JianHaiArtCatalog.FxStringPulse, 30, new Color(1f, 1f, 1f, 0.22f));
                     }
                 }
             }
@@ -98,9 +110,7 @@ namespace RogueShooter.Art
         {
             EnsureSlots();
             Show(_string, JianHaiArtCatalog.FxStringCold, 29, new Color(1f, 1f, 1f, ColdAlpha));
-            Show(_tip, JianHaiArtCatalog.FxTipIdle, 30, Color.white);
-            Show(_reticle, JianHaiArtCatalog.ReticleChargeIdle, 0, new Color(1f, 1f, 1f, ReticleAlpha));
-            SetReticleOpen(false);
+            Show(_tip, JianHaiArtCatalog.FxTipIdle, 30, new Color(1f, 1f, 1f, GlowAlpha));
             SetActive(_pulse, false);
             SetActive(_bow, false);
             SetActive(_crit, false);
@@ -110,15 +120,16 @@ namespace RogueShooter.Art
         void OnChargeEnterGreen()
         {
             EnsureSlots();
-            Show(_string, JianHaiArtCatalog.FxStringGlow, 30, Color.white);
-            Show(_bow, JianHaiArtCatalog.FxBowEdge, 30, Color.white);
-            Show(_tip, JianHaiArtCatalog.FxTipWarm, 30, Color.white);
-            Show(_reticle, JianHaiArtCatalog.ReticleChargeGreen, 0, new Color(1f, 1f, 1f, ReticleAlpha));
-            SetReticleOpen(true);
+            Show(_string, JianHaiArtCatalog.FxStringGlow, 30, new Color(1f, 1f, 1f, GlowAlpha));
+            Show(_bow, JianHaiArtCatalog.FxBowEdge, 30, new Color(1f, 1f, 1f, 0.32f));
+            Show(_tip, JianHaiArtCatalog.FxTipWarm, 30, new Color(1f, 1f, 1f, GlowAlpha));
             _pulsesLeft = 2;
             _pulsePhase = 0f;
             _pulseShow = true;
-            Show(_pulse, JianHaiArtCatalog.FxStringPulse, 30, Color.white);
+            Show(_pulse, JianHaiArtCatalog.FxStringPulse, 30, new Color(1f, 1f, 1f, 0.22f));
+            _green = true;
+            if (_reticle != null && _charging)
+                _reticle.SetProgress(_chargeProgress, true);
         }
 
         void OnChargeExitGreen()
@@ -129,8 +140,9 @@ namespace RogueShooter.Art
             SetActive(_bow, false);
             SetActive(_tip, false);
             _pulsesLeft = 0;
-            Show(_reticle, JianHaiArtCatalog.ReticleChargeIdle, 0, new Color(1f, 1f, 1f, ReticleAlpha));
-            SetReticleOpen(false);
+            _green = false;
+            if (_reticle != null && _charging)
+                _reticle.SetProgress(_chargeProgress, false);
         }
 
         void OnCritConfirm()
@@ -142,8 +154,16 @@ namespace RogueShooter.Art
             SetActive(_pulse, false);
             SetActive(_bow, false);
             SetActive(_tip, false);
-            SetActive(_reticle, false);
             _pulsesLeft = 0;
+            _charging = false;
+            _chargeProgress = 0f;
+            _green = false;
+            if (_reticle != null)
+            {
+                _reticle.SetRingVisible(false);
+                _reticle.SetProgress(0f, false);
+                _reticle.SetCoreVisible(true);
+            }
         }
 
         public void HideAll()
@@ -153,8 +173,16 @@ namespace RogueShooter.Art
             SetActive(_bow, false);
             SetActive(_tip, false);
             SetActive(_crit, false);
-            SetActive(_reticle, false);
             _pulsesLeft = 0;
+            _charging = false;
+            _chargeProgress = 0f;
+            _green = false;
+            if (_reticle != null)
+            {
+                _reticle.SetRingVisible(false);
+                _reticle.SetProgress(0f, false);
+                _reticle.SetCoreVisible(true);
+            }
         }
 
         void EnsureSlots()
@@ -177,9 +205,7 @@ namespace RogueShooter.Art
             if (_reticle == null)
             {
                 var reticleGo = new GameObject("ChargeReticle");
-                _reticleRoot = reticleGo.transform;
-                _reticleRoot.localScale = Vector3.one;
-                _reticle = MakeSlot(_reticleRoot, "Reticle", new Vector3(0f, 0f, -0.05f));
+                _reticle = reticleGo.AddComponent<ChargeReticle>();
             }
 
             FollowPlayerBody();
@@ -214,30 +240,6 @@ namespace RogueShooter.Art
             sr.gameObject.SetActive(on);
         }
 
-        void SetReticleOpen(bool open)
-        {
-            _reticleOpen = open;
-            ApplyReticleScale();
-        }
-
-        void ApplyReticleScale()
-        {
-            if (_reticle == null)
-                return;
-            float world = _reticleOpen ? ReticleWorldOpen : ReticleWorldOpen * ReticleClosed;
-            float native = ReticleNativeWorld;
-            if (_reticle.sprite != null)
-            {
-                Vector3 size = _reticle.sprite.bounds.size;
-                native = Mathf.Max(size.x, size.y);
-            }
-
-            if (native < 0.01f)
-                native = ReticleNativeWorld;
-            float s = world / native;
-            _reticle.transform.localScale = new Vector3(s, s, 1f);
-        }
-
         void FollowPlayerBody()
         {
             if (_body == null)
@@ -249,15 +251,14 @@ namespace RogueShooter.Art
 
         void FollowMouseReticle()
         {
-            if (_reticleRoot == null)
+            if (_reticle == null)
                 return;
             Camera cam = Camera.main;
             if (cam == null)
                 return;
             Vector3 world = CameraViewMath.ScreenToWorldOnPlayPlane(cam, Input.mousePosition);
             world.z = -0.05f;
-            _reticleRoot.position = world;
-            ApplyReticleScale();
+            _reticle.transform.position = world;
         }
 
         static float PulseSlice()

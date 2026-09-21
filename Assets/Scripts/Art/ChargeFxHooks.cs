@@ -3,8 +3,8 @@ using System;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// P0 charge-crit FX hooks. Spec §7.5 numbers. Visuals only — no progress bar.
-    /// A = string glow / bow edge / warm tip; B = weak reticle open/close.
+    /// P0 charge-crit FX hooks. Spec §7.5 numbers. Visuals only — no progress-bar HUD.
+    /// Aim reticle ring fill is the charge (fig1). A string-glow is weak secondary.
     /// </summary>
     public static class ChargeFxHooks
     {

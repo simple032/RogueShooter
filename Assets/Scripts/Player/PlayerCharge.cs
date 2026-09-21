@@ -62,6 +62,8 @@ namespace RogueShooter.Player
 
             _held += Time.deltaTime;
             float p = Mathf.Clamp01(ChargeShotRules.Progress(_held));
+            if (_fx != null)
+                _fx.SetChargeProgress(p, _green);
             if (!_mid && p >= ChargeFxHooks.MidAt)
             {
                 _mid = true;
@@ -94,6 +96,8 @@ namespace RogueShooter.Player
             _exited = false;
             LastShot = ChargeShotKind.None;
             LastDamage = 0f;
+            if (_fx != null)
+                _fx.SetChargeProgress(0f, false);
         }
 
         void ReleaseCharge()

@@ -61,6 +61,8 @@ namespace RogueShooter.Art
                 return "fx path";
             if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ReticleChargeIdle) != "UI")
                 return "reticle folder";
+            if (ChargeReticle.OuterRadius > 0.36f || ChargeReticle.OuterRadius * 2f > 0.72f + 0.001f)
+                return "charge reticle must stay ≤ ~0.72u (fig2 / half-head)";
             if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
                 return "fx layer";
             if (ChargeFxHooks.ChargeSeconds != 1.00f)
