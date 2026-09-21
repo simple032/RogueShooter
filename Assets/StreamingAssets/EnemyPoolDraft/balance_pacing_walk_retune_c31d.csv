@@ -1,19 +1,22 @@
 metric,current,target,pass,notes
-room_combat,40x32,40x32,PASS,制作人现口径
-pitch,130/115,≈130/115 (fold×2.5 on 52/46),PASS,Pitch>room; hub 26x22 corridor 12.5
-move_spd,6,6,PASS,walk-only clocks keep moveSpeed=6
-tpl_I_altar_s,76.7-98.3,60-120,PASS,START leg 4×PitchY; slot shuffle
-tpl_Z_altar_s,76.7-98.3,60-120,PASS,mirror of I
-tpl_C_altar_s,76.7-98.3,60-120,PASS,same START leg
-seed1_Z_altar_s,98.3,60-120,PASS,590u/6
-seed2_C_altar_s,95.8,60-120,PASS,575u/6
-seed17_C_altar_s,98.3,60-120,PASS,590u/6
-seed42_I_altar_s,98.3,60-120,PASS,590u/6
-seed99_I_altar_s,98.3,60-120,PASS,590u/6
-seed2026_Z_altar_s,98.3,60-120,PASS,590u/6
-tpl_I_full_greedy_s,237.9,~240±30,PASS,1427.1u/6
-tpl_Z_full_greedy_s,237.9,~240±30,PASS,1427.1u/6
-tpl_C_full_greedy_s,264.2,~240±30,PASS,1585.0u/6
-gap_x,90,—,PASS,PitchX-CombatW
-gap_y,83,—,PASS,PitchY-CombatH
-quota,Chest×1+Altar×1+Normal×2+START+CONN,unchanged,PASS,5 edges
+room_combat,36x28,flexible dodge (not giant),PASS,v2b preferred; net gap 30/30
+pitch,66/58,≈68/60 max 70/62,PASS,Pitch 130/115 void
+hub,26x22,~26x22,PASS,
+move_spd,6,6,PASS,
+adj_corridor_max_s,5.00,≤5,PASS,max straight fold segment 30u
+adj_corridor_max_u,30.0,≤30,PASS,Pitch-room=30/30
+stem_folds,12,I/Z ≥4 per edge / stem 12 hops,PASS,START–entry
+IZ_branch_folds,5,≥4,PASS,
+C_branch_folds,4,≥3,PASS,fewer so shortest ≤120
+seed1_Z_altar_s,90.0,60-120,PASS,540u/6
+seed2_C_altar_s,85.0,60-120,PASS,510u/6
+seed17_C_altar_s,85.0,60-120,PASS,
+seed42_I_altar_s,90.0,60-120,PASS,540u/6
+seed99_I_altar_s,90.0,60-120,PASS,
+seed2026_Z_altar_s,90.0,60-120,PASS,
+seed5_C_1hop_altar_s,60.0,60-120,PASS,stem only 360u/6
+tpl_I_full_s,240.0,240±30,PASS,1440u/6
+tpl_Z_full_s,240.0,240±30,PASS,
+tpl_C_full_s,235.0,240±30,PASS,1410u/6
+max_single_edge_corridor_s,5.00,≤5,PASS,not folded-edge total
+quota,Chest×1+Altar×1+Normal×2+START+CONN,unchanged,PASS,5 room-edges

@@ -1,0 +1,10 @@
+key,value,notes
+move_spd,6.0,
+room,40x32,制作人
+adj_corridor_max_s,5.0,相邻相连廊纯走上限
+adj_corridor_max_u,30.0,@移速6
+pitch_130_115,废止,制作人作废
+pitch_x_max,70.0,房40时 gapX≤30 → PitchX≤70
+pitch_y_max,62.0,gapY≤30 → PitchY≤62
+pitch_recommend,68.0/60.0,间隙28/28；短廊
+straight_I_shortest_s,31.3,无折线时I最短（仍不够）

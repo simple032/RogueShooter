@@ -30,7 +30,134 @@ namespace RogueShooter.Maze
         public static string WriteDefault()
         {
             WritePacingTo(PacingPath());
+            WriteLayoutTo(Path.Combine(DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
             return WriteTo(DefaultPath(), 42);
+        }
+
+        public static string WriteLayoutTo(string path, int seed)
+        {
+            if (string.IsNullOrEmpty(path))
+                path = Path.Combine(DefaultDirectory(), "stage1_maze_layout_seed42.txt");
+            string dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(path, LayoutText(seed), new UTF8Encoding(false));
+            return path;
+        }
+
+        public static string LayoutText(int seed)
+        {
+            Stage1Maze maze = Stage1MazeGen.Generate(seed);
+            MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
+            var sb = new StringBuilder();
+            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (DRAFT v2b)");
+            sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
+            sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
+              .Append(MazeRules.CombatHeight.ToString("0"));
+            sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/")
+              .Append(MazeRules.PitchY.ToString("0"));
+            sb.Append(" hub=").Append(MazeRules.HubWidth.ToString("0")).Append("x")
+              .Append(MazeRules.HubHeight.ToString("0"));
+            sb.Append(" segMax=").Append(MazeRules.CorridorSegMax.ToString("0")).Append("u/")
+              .Append(MazeRules.CorridorSegMaxSeconds.ToString("0")).Append("s");
+            sb.AppendLine();
+            sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatGraph(maze));
+            sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatQuota(maze));
+            sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
+            sb.Append(" altar=").Append(pace.AltarWalk.ToString("0.0")).Append("u/");
+            sb.Append(pace.AltarWalkSeconds.ToString("0.0")).Append("s START→ALTAR");
+            sb.Append(" full=").Append(pace.FullWalk.ToString("0.0")).Append("u/");
+            sb.Append(pace.FullWalkSeconds.ToString("0.0")).Append("s visit-all");
+            sb.Append(" maxSeg=").Append(pace.MaxCorridorSeg.ToString("0.0")).Append("u/");
+            sb.Append(pace.MaxCorridorSegSeconds.ToString("0.00")).Append("s");
+            sb.AppendLine();
+            sb.Append("[S1Maze] reachable=").Append(pace.AllReachable ? 1 : 0);
+            sb.Append(" conn=").Append(pace.ConnectorReachable ? 1 : 0);
+            sb.Append(" tpl=").Append(maze.TemplateId);
+            sb.AppendLine();
+            sb.AppendLine("# rooms");
+            if (maze.Nodes != null)
+            {
+                for (int i = 0; i < maze.Nodes.Length; i++)
+                {
+                    MazeNode n = maze.Nodes[i];
+                    sb.Append("room ").Append(n.Id);
+                    sb.Append(" kind=").Append(MazeRules.Label(n.Kind));
+                    sb.Append(" center=").Append(n.Center);
+                    sb.Append(" size=").Append(n.Width.ToString("0")).Append("x").Append(n.Height.ToString("0"));
+                    sb.Append(" spawn=").Append(n.SpawnsEnemies ? 1 : 0);
+                    sb.AppendLine();
+                }
+            }
+
+            sb.AppendLine("# folded edges (door polyline; each seg ≤30u)");
+            if (maze.Edges != null)
+            {
+                for (int i = 0; i < maze.Edges.Length; i++)
+                {
+                    MazeEdge e = maze.Edges[i];
+                    sb.Append("edge ").Append(e.FromId).Append("--").Append(e.ToId);
+                    sb.Append(" folds=").Append(e.FoldCount);
+                    sb.Append(" len=").Append(e.Length.ToString("0.0")).Append("u/");
+                    sb.Append((e.Length / MazeRules.PlayMoveSpeed).ToString("0.0")).Append("s");
+                    sb.Append(" maxSeg=").Append(e.MaxSegment.ToString("0.0")).Append("u/");
+                    sb.Append((e.MaxSegment / MazeRules.PlayMoveSpeed).ToString("0.00")).Append("s");
+                    sb.Append(" pts=");
+                    if (e.Points != null)
+                    {
+                        for (int p = 0; p < e.Points.Length; p++)
+                        {
+                            if (p > 0) sb.Append(" ");
+                            sb.Append(e.Points[p]);
+                        }
+                    }
+
+                    sb.AppendLine();
+                }
+            }
+
+            sb.AppendLine("# ASCII topology (col,row) Pitch 66/58");
+            sb.AppendLine(AsciiTopology(maze.TemplateId));
+            return sb.ToString();
+        }
+
+        public static string AsciiTopology(string templateId)
+        {
+            if (templateId == "Z")
+            {
+                return string.Join("\n", new[]
+                {
+                    "Z  CONN(0,2) -- N(1,2)",
+                    "              |",
+                    "    W(0,1) -- entry(1,1) -- E(2,1)",
+                    "              |",
+                    "           START(1,0)",
+                    "    stem≥12 folds  branches≥5  CONN via N"
+                });
+            }
+
+            if (templateId == "C")
+            {
+                return string.Join("\n", new[]
+                {
+                    "C                N(1,2)",
+                    "                   |",
+                    "    W(0,1) -- entry(1,1) -- E(2,1) -- CONN(3,1)",
+                    "                   |",
+                    "                START(1,0)",
+                    "    stem≥12 folds  branches≥4  CONN via E (fewer folds)"
+                });
+            }
+
+            return string.Join("\n", new[]
+            {
+                "I              N(1,2) -- CONN(2,2)",
+                "                 |",
+                "    W(0,1) -- entry(1,1) -- E(2,1)",
+                "                 |",
+                "              START(1,0)",
+                "    stem≥12 folds  branches≥5  CONN via N"
+            });
         }
 
         public static string WritePacingTo(string path)
@@ -58,11 +185,12 @@ namespace RogueShooter.Maze
             sb.Append(" hub=").Append(MazeRules.HubWidth.ToString("0")).Append("x")
               .Append(MazeRules.HubHeight.ToString("0"));
             sb.Append(" corridor=").Append(MazeRules.CorridorWidth.ToString("0.#"));
+            sb.Append(" segMax=").Append(MazeRules.CorridorSegMax.ToString("0"));
             sb.AppendLine();
-            sb.AppendLine("target START→Altar=60-120s visit-all=240±30s (greedy all-nodes)");
+            sb.AppendLine("target START→Altar=60-120s visit-all=240±30s corridorSeg≤5s");
             sb.AppendLine("quota Chest×1+Altar×1+Normal×2+START+CONN unchanged");
             sb.AppendLine();
-            sb.AppendLine("seed,tpl,altar_u,altar_s,visit_u,visit_s,altar_ok,visit_ok");
+            sb.AppendLine("seed,tpl,altar_u,altar_s,visit_u,visit_s,max_seg_u,max_seg_s,altar_ok,visit_ok,corr_ok");
             bool allOk = true;
             for (int i = 0; i < seeds.Length; i++)
             {
@@ -73,15 +201,19 @@ namespace RogueShooter.Maze
                 float lo = MazeRules.WalkAllTargetSeconds - MazeRules.WalkAllSlackSeconds;
                 float hi = MazeRules.WalkAllTargetSeconds + MazeRules.WalkAllSlackSeconds;
                 bool visOk = pace.FullWalkSeconds >= lo - 0.05f && pace.FullWalkSeconds <= hi + 0.05f;
-                if (!altarOk || !visOk)
+                bool corrOk = pace.MaxCorridorSegSeconds <= MazeRules.CorridorSegMaxSeconds + 0.05f;
+                if (!altarOk || !visOk || !corrOk)
                     allOk = false;
                 sb.Append(seeds[i]).Append(',').Append(maze.TemplateId).Append(',');
                 sb.Append(pace.AltarWalk.ToString("0.0")).Append(',');
                 sb.Append(pace.AltarWalkSeconds.ToString("0.0")).Append(',');
                 sb.Append(pace.FullWalk.ToString("0.0")).Append(',');
                 sb.Append(pace.FullWalkSeconds.ToString("0.0")).Append(',');
+                sb.Append(pace.MaxCorridorSeg.ToString("0.0")).Append(',');
+                sb.Append(pace.MaxCorridorSegSeconds.ToString("0.00")).Append(',');
                 sb.Append(altarOk ? "PASS" : "FAIL").Append(',');
-                sb.Append(visOk ? "PASS" : "FAIL");
+                sb.Append(visOk ? "PASS" : "FAIL").Append(',');
+                sb.Append(corrOk ? "PASS" : "FAIL");
                 sb.AppendLine();
             }
 
@@ -97,8 +229,12 @@ namespace RogueShooter.Maze
             sb.Append(" (=length/").Append(MazeRules.PlayMoveSpeed.ToString("0")).Append(")");
             sb.Append(" full=").Append(dp.FullWalk.ToString("0.0")).Append("u/");
             sb.Append(dp.FullWalkSeconds.ToString("0.0")).Append("s visit-all");
+            sb.Append(" maxSeg=").Append(dp.MaxCorridorSeg.ToString("0.0")).Append("u/");
+            sb.Append(dp.MaxCorridorSegSeconds.ToString("0.00")).Append("s");
             sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/");
             sb.Append(MazeRules.PitchY.ToString("0"));
+            sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
+              .Append(MazeRules.CombatHeight.ToString("0"));
             sb.AppendLine();
             sb.Append("# ").Append(allOk ? "WALK PACING PASS" : "WALK PACING FAIL");
             sb.AppendLine();
@@ -142,6 +278,8 @@ namespace RogueShooter.Maze
             sb.Append(" (=length/").Append(MazeRules.PlayMoveSpeed.ToString("0")).Append(")");
             sb.Append(" full=").Append(pace.FullWalk.ToString("0.0")).Append("u/");
             sb.Append(pace.FullWalkSeconds.ToString("0.0")).Append("s visit-all");
+            sb.Append(" maxSeg=").Append(pace.MaxCorridorSeg.ToString("0.0")).Append("u/");
+            sb.Append(pace.MaxCorridorSegSeconds.ToString("0.00")).Append("s");
             sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/");
             sb.Append(MazeRules.PitchY.ToString("0"));
             sb.AppendLine();

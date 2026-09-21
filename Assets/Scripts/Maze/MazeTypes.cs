@@ -91,6 +91,9 @@ namespace RogueShooter.Maze
         public MazeVec2 To;
         public float Width;
         public float Length;
+        public float MaxSegment;
+        public int FoldCount;
+        public MazeVec2[] Points;
 
         public bool Connects(string a, string b)
         {
@@ -99,10 +102,22 @@ namespace RogueShooter.Maze
 
         public bool Contains(float x, float y, float pad)
         {
-            float ax = From.X;
-            float ay = From.Y;
-            float bx = To.X;
-            float by = To.Y;
+            if (Points != null && Points.Length >= 2)
+            {
+                for (int i = 0; i < Points.Length - 1; i++)
+                {
+                    if (SegContains(Points[i].X, Points[i].Y, Points[i + 1].X, Points[i + 1].Y, x, y, pad))
+                        return true;
+                }
+
+                return false;
+            }
+
+            return SegContains(From.X, From.Y, To.X, To.Y, x, y, pad);
+        }
+
+        bool SegContains(float ax, float ay, float bx, float by, float x, float y, float pad)
+        {
             float dx = bx - ax;
             float dy = by - ay;
             float len2 = dx * dx + dy * dy;
@@ -196,23 +211,33 @@ namespace RogueShooter.Maze
         public int FullWaves;
         public float FullCombatEstimate;
         public float FullTotalEstimate;
+        public float MaxCorridorSeg;
+        public float MaxCorridorSegSeconds;
         public bool ConnectorReachable;
         public bool AllReachable;
     }
 
-    /// <summary>Spec v0.5 S1 maze constants. Walk-only START→Altar / visit-all are checked; combat estimates are not a clock lock.</summary>
+    /// <summary>Spec v0.5 S1 maze. Walk-only clocks: short folded corridors ≤5s/seg, START→Altar 60–120s, visit-all 240±30s. Combat estimates are not a clock lock.</summary>
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        /// <summary>Walk-only fold ≈×2.5 on prior 52/46 so START→Altar 60–120s at move=6.</summary>
-        public const float PitchX = 130f;
-        public const float PitchY = 115f;
-        public const float CombatWidth = 40f;
-        public const float CombatHeight = 32f;
+        /// <summary>v2b short corridors. Pitch 130/115 is void. Net gap ≈ Pitch−room ≤30u (≤5s @ 6).</summary>
+        public const float PitchX = 66f;
+        public const float PitchY = 58f;
+        public const float CombatWidth = 36f;
+        public const float CombatHeight = 28f;
         public const float HubWidth = 26f;
         public const float HubHeight = 22f;
-        public const float CorridorWidth = 12.5f;
+        public const float CorridorWidth = 10f;
+        public const float CorridorSegMax = 30f;
+        public const float CorridorSegMaxSeconds = 5f;
+        public const int FoldStem = 12;
+        public const int FoldBranchIZ = 5;
+        public const int FoldBranchC = 4;
+        public const float FoldStemMinLen = 360f;
+        public const float FoldBranchIZMinLen = 180f;
+        public const float FoldBranchCMinLen = 150f;
         public const float WalkAltarMinSeconds = 60f;
         public const float WalkAltarMaxSeconds = 120f;
         public const float WalkAllTargetSeconds = 240f;

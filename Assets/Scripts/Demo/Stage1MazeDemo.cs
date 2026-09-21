@@ -92,6 +92,8 @@ namespace RogueShooter.Demo
                       + " (=length/" + MazeRules.PlayMoveSpeed.ToString("0") + ")"
                       + " full=" + _pace.FullWalk.ToString("0.0") + "u/"
                       + _pace.FullWalkSeconds.ToString("0.0") + "s visit-all"
+                      + " maxSeg=" + _pace.MaxCorridorSeg.ToString("0.0") + "u/"
+                      + _pace.MaxCorridorSegSeconds.ToString("0.00") + "s"
                       + " pitch=" + MazeRules.PitchX.ToString("0") + "/"
                       + MazeRules.PitchY.ToString("0"));
             BuildWorld();
@@ -137,13 +139,22 @@ namespace RogueShooter.Demo
             for (int i = 0; i < _maze.Edges.Length; i++)
             {
                 MazeEdge e = _maze.Edges[i];
-                GameObject cor = DemoPrimitives.Corridor(
-                    "Corridor_" + e.FromId + "_" + e.ToId,
-                    new Vector3(e.From.X, e.From.Y, 0f),
-                    new Vector3(e.To.X, e.To.Y, 0f),
-                    e.Width, floor, 1, root);
-                JianHaiBind.SetLayer(cor, JianHaiArtCatalog.LayerGround, 1);
-                _world.Add(cor);
+                MazeVec2[] pts = e.Points;
+                if (pts == null || pts.Length < 2)
+                {
+                    pts = new[] { e.From, e.To };
+                }
+
+                for (int s = 0; s < pts.Length - 1; s++)
+                {
+                    GameObject cor = DemoPrimitives.Corridor(
+                        "Corridor_" + e.FromId + "_" + e.ToId + "_" + s,
+                        new Vector3(pts[s].X, pts[s].Y, 0f),
+                        new Vector3(pts[s + 1].X, pts[s + 1].Y, 0f),
+                        e.Width, floor, 1, root);
+                    JianHaiBind.SetLayer(cor, JianHaiArtCatalog.LayerGround, 1);
+                    _world.Add(cor);
+                }
             }
 
             for (int i = 0; i < _maze.Nodes.Length; i++)
@@ -737,8 +748,11 @@ namespace RogueShooter.Demo
         {
             string path = Stage1MazeSampler.WriteTo(Stage1MazeSampler.DefaultPath(), seed);
             string pacePath = Stage1MazeSampler.WritePacingTo(Stage1MazeSampler.PacingPath());
+            string layoutPath = Stage1MazeSampler.WriteLayoutTo(
+                Path.Combine(Stage1MazeSampler.DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
             Debug.Log("[S1Maze] evidence " + path);
             Debug.Log("[S1Maze] pacing " + pacePath + "\n" + Stage1MazeSampler.PacingText());
+            Debug.Log("[S1Maze] layout " + layoutPath);
             Flash("wrote " + path);
         }
 
@@ -881,7 +895,8 @@ namespace RogueShooter.Demo
             GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
             string pace = _maze != null
                 ? "walkOnly altar " + _pace.AltarWalkSeconds.ToString("0") + "s (60-120) · visit-all "
-                  + _pace.FullWalkSeconds.ToString("0") + "s (240±30) · move=" + PlaySpeed().ToString("0")
+                  + _pace.FullWalkSeconds.ToString("0") + "s (240±30) · maxSeg "
+                  + _pace.MaxCorridorSegSeconds.ToString("0.0") + "s (≤5) · move=" + PlaySpeed().ToString("0")
                   + " pitch=" + MazeRules.PitchX.ToString("0") + "/" + MazeRules.PitchY.ToString("0")
                   + " rooms=" + MazeRules.CombatWidth.ToString("0") + "x" + MazeRules.CombatHeight.ToString("0")
                 : "";

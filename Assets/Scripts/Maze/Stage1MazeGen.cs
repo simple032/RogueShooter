@@ -26,6 +26,8 @@ namespace RogueShooter.Maze
             public Slot[] Slots;
             public int[] EdgeA;
             public int[] EdgeB;
+            public int BranchFolds;
+            public float BranchMinLen;
         }
 
         static readonly Tpl[] Templates = BuildTemplates();
@@ -108,14 +110,26 @@ namespace RogueShooter.Maze
             {
                 MazeNode a = nodes[tpl.EdgeA[e]];
                 MazeNode b = nodes[tpl.EdgeB[e]];
+                MazeVec2 doorA = DoorToward(a, b);
+                MazeVec2 doorB = DoorToward(b, a);
+                bool stem = a.Kind == MazeNodeKind.Start || b.Kind == MazeNodeKind.Start;
+                int folds = stem ? MazeRules.FoldStem : tpl.BranchFolds;
+                float minLen = stem ? MazeRules.FoldStemMinLen : tpl.BranchMinLen;
+                MazeVec2[] pts = BuildFold(doorA, doorB, folds, minLen, MazeRules.CorridorSegMax);
+                float len;
+                float maxSeg;
+                MeasurePoly(pts, out len, out maxSeg);
                 edges[e] = new MazeEdge
                 {
                     FromId = a.Id,
                     ToId = b.Id,
-                    From = a.Center,
-                    To = b.Center,
+                    From = doorA,
+                    To = doorB,
                     Width = MazeRules.CorridorWidth,
-                    Length = a.Center.Dist(b.Center)
+                    Length = len,
+                    MaxSegment = maxSeg,
+                    FoldCount = pts.Length - 1,
+                    Points = pts
                 };
             }
 
@@ -206,6 +220,18 @@ namespace RogueShooter.Maze
             pace.FullWaves = maze.FullClearWaveCount();
             pace.FullCombatEstimate = pace.FullWaves * MazeRules.WavePacingEstimateSeconds;
             pace.FullTotalEstimate = pace.FullWalkSeconds + pace.FullCombatEstimate;
+            float mx = 0f;
+            if (maze.Edges != null)
+            {
+                for (int i = 0; i < maze.Edges.Length; i++)
+                {
+                    if (maze.Edges[i].MaxSegment > mx)
+                        mx = maze.Edges[i].MaxSegment;
+                }
+            }
+
+            pace.MaxCorridorSeg = mx;
+            pace.MaxCorridorSegSeconds = mx / moveSpeed;
             return pace;
         }
 
@@ -386,7 +412,7 @@ namespace RogueShooter.Maze
                     int v = IndexOf(maze, nb[k]);
                     if (v < 0)
                         continue;
-                    float w = maze.Nodes[u].Center.Dist(maze.Nodes[v].Center);
+                    float w = EdgeWalk(maze, u, v);
                     if (dist[u] + w < dist[v])
                     {
                         dist[v] = dist[u] + w;
@@ -484,9 +510,9 @@ namespace RogueShooter.Maze
 
         static Tpl[] BuildTemplates()
         {
-            // Long START approach (4×PitchY) + compact combat cluster so
-            // walk-only START→Altar is 60–120s and visit-all is ~240s at move=6.
-            // Quota/shuffle unchanged: 4 combat slots + START + CONN stub.
+            // Compact adjacent rooms (Pitch 66/58). Time comes from folded
+            // short corridors (≤30u / 5s per segment), not long straight pitch.
+            // I/Z: stem ≥12 folds, branches ≥5; C: branches ≥3 (use 4).
             return new[]
             {
                 new Tpl
@@ -495,14 +521,16 @@ namespace RogueShooter.Maze
                     Slots = new[]
                     {
                         S(1, 0, true, false, false),
-                        S(1, 4, false, true, false),
-                        S(0, 4, false, true, false),
-                        S(2, 4, false, true, false),
-                        S(1, 5, false, true, false),
-                        S(2, 6, false, false, true)
+                        S(1, 1, false, true, false),
+                        S(0, 1, false, true, false),
+                        S(2, 1, false, true, false),
+                        S(1, 2, false, true, false),
+                        S(2, 2, false, false, true)
                     },
                     EdgeA = new[] { 0, 1, 1, 1, 4 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5 }
+                    EdgeB = new[] { 1, 2, 3, 4, 5 },
+                    BranchFolds = MazeRules.FoldBranchIZ,
+                    BranchMinLen = MazeRules.FoldBranchIZMinLen
                 },
                 new Tpl
                 {
@@ -510,14 +538,16 @@ namespace RogueShooter.Maze
                     Slots = new[]
                     {
                         S(1, 0, true, false, false),
-                        S(1, 4, false, true, false),
-                        S(2, 4, false, true, false),
-                        S(0, 4, false, true, false),
-                        S(1, 5, false, true, false),
-                        S(0, 6, false, false, true)
+                        S(1, 1, false, true, false),
+                        S(2, 1, false, true, false),
+                        S(0, 1, false, true, false),
+                        S(1, 2, false, true, false),
+                        S(0, 2, false, false, true)
                     },
                     EdgeA = new[] { 0, 1, 1, 1, 4 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5 }
+                    EdgeB = new[] { 1, 2, 3, 4, 5 },
+                    BranchFolds = MazeRules.FoldBranchIZ,
+                    BranchMinLen = MazeRules.FoldBranchIZMinLen
                 },
                 new Tpl
                 {
@@ -525,14 +555,16 @@ namespace RogueShooter.Maze
                     Slots = new[]
                     {
                         S(1, 0, true, false, false),
-                        S(1, 4, false, true, false),
-                        S(0, 4, false, true, false),
-                        S(2, 4, false, true, false),
-                        S(1, 5, false, true, false),
-                        S(3, 5, false, false, true)
+                        S(1, 1, false, true, false),
+                        S(0, 1, false, true, false),
+                        S(2, 1, false, true, false),
+                        S(1, 2, false, true, false),
+                        S(3, 1, false, false, true)
                     },
-                    EdgeA = new[] { 0, 1, 1, 1, 4 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5 }
+                    EdgeA = new[] { 0, 1, 1, 1, 3 },
+                    EdgeB = new[] { 1, 2, 3, 4, 5 },
+                    BranchFolds = MazeRules.FoldBranchC,
+                    BranchMinLen = MazeRules.FoldBranchCMinLen
                 }
             };
         }
@@ -540,6 +572,163 @@ namespace RogueShooter.Maze
         static Slot S(int col, int row, bool start, bool combat, bool connector)
         {
             return new Slot { Col = col, Row = row, Start = start, Combat = combat, Connector = connector };
+        }
+
+        static float EdgeWalk(Stage1Maze maze, int u, int v)
+        {
+            string a = maze.Nodes[u].Id;
+            string b = maze.Nodes[v].Id;
+            for (int i = 0; i < maze.Edges.Length; i++)
+            {
+                if (maze.Edges[i].Connects(a, b))
+                    return maze.Edges[i].Length;
+            }
+
+            return maze.Nodes[u].Center.Dist(maze.Nodes[v].Center);
+        }
+
+        static MazeVec2 DoorToward(MazeNode self, MazeNode other)
+        {
+            float dx = other.Center.X - self.Center.X;
+            float dy = other.Center.Y - self.Center.Y;
+            if (Math.Abs(dx) >= Math.Abs(dy))
+            {
+                float sx = dx >= 0f ? 1f : -1f;
+                return new MazeVec2(self.Center.X + sx * self.Width * 0.5f, self.Center.Y);
+            }
+
+            float sy = dy >= 0f ? 1f : -1f;
+            return new MazeVec2(self.Center.X, self.Center.Y + sy * self.Height * 0.5f);
+        }
+
+        static MazeVec2[] BuildFold(MazeVec2 a, MazeVec2 b, int minFolds, float minLen, float segMax)
+        {
+            var pts = new List<MazeVec2>();
+            pts.Add(a);
+            pts.Add(b);
+            SplitLong(pts, segMax);
+            float sign = 1f;
+            int guard = 0;
+            while (pts.Count - 1 < minFolds && guard < 80)
+            {
+                guard++;
+                int best = 0;
+                float bestD = -1f;
+                for (int i = 0; i < pts.Count - 1; i++)
+                {
+                    float d = pts[i].Dist(pts[i + 1]);
+                    if (d > bestD)
+                    {
+                        bestD = d;
+                        best = i;
+                    }
+                }
+
+                InsertSquare(pts, best, segMax, sign);
+                sign = -sign;
+                SplitLong(pts, segMax);
+            }
+
+            guard = 0;
+            while (PolyLen(pts) + 0.05f < minLen && guard < 40)
+            {
+                guard++;
+                float need = minLen - PolyLen(pts);
+                float spur = Math.Min(segMax, Math.Max(8f, need * 0.5f));
+                int i = Math.Min(1, pts.Count - 2);
+                MazeVec2 p = pts[i];
+                MazeVec2 q = pts[i + 1];
+                float dx = q.X - p.X;
+                float dy = q.Y - p.Y;
+                float d = (float)Math.Sqrt(dx * dx + dy * dy);
+                if (d < 0.001f)
+                    d = 1f;
+                var mid = new MazeVec2(p.X + (-dy / d) * spur, p.Y + (dx / d) * spur);
+                pts.Insert(i + 1, p);
+                pts.Insert(i + 1, mid);
+                SplitLong(pts, segMax);
+            }
+
+            SplitLong(pts, segMax);
+            return pts.ToArray();
+        }
+
+        static void SplitLong(List<MazeVec2> pts, float segMax)
+        {
+            int i = 0;
+            float sign = 1f;
+            while (i < pts.Count - 1)
+            {
+                if (pts[i].Dist(pts[i + 1]) > segMax + 0.05f)
+                {
+                    InsertSquare(pts, i, segMax, sign);
+                    sign = -sign;
+                    continue;
+                }
+
+                i++;
+            }
+        }
+
+        static void InsertSquare(List<MazeVec2> pts, int i, float L, float sign)
+        {
+            MazeVec2 p0 = pts[i];
+            MazeVec2 p1 = pts[i + 1];
+            float dx = p1.X - p0.X;
+            float dy = p1.Y - p0.Y;
+            float d = (float)Math.Sqrt(dx * dx + dy * dy);
+            float ux = 0f;
+            float uy = 1f;
+            if (d >= 0.000001f)
+            {
+                ux = dx / d;
+                uy = dy / d;
+            }
+
+            float px = -uy * sign;
+            float py = ux * sign;
+            float adv = Math.Min(L, d);
+            var a = new MazeVec2(p0.X + px * L, p0.Y + py * L);
+            var b = new MazeVec2(a.X + ux * adv, a.Y + uy * adv);
+            var c = new MazeVec2(p0.X + ux * adv, p0.Y + uy * adv);
+            var ins = new List<MazeVec2>();
+            if (p0.Dist(a) > 0.05f)
+                ins.Add(a);
+            MazeVec2 prev = ins.Count > 0 ? ins[ins.Count - 1] : p0;
+            if (prev.Dist(b) > 0.05f && b.Dist(p1) > 0.05f)
+                ins.Add(b);
+            if (c.Dist(p1) > 0.05f && c.Dist(b) > 0.05f)
+            {
+                MazeVec2 last = ins.Count > 0 ? ins[ins.Count - 1] : p0;
+                if (last.Dist(c) > 0.05f)
+                    ins.Add(c);
+            }
+
+            for (int k = 0; k < ins.Count; k++)
+                pts.Insert(i + 1 + k, ins[k]);
+        }
+
+        static float PolyLen(List<MazeVec2> pts)
+        {
+            float t = 0f;
+            for (int i = 0; i < pts.Count - 1; i++)
+                t += pts[i].Dist(pts[i + 1]);
+            return t;
+        }
+
+        static void MeasurePoly(MazeVec2[] pts, out float len, out float maxSeg)
+        {
+            len = 0f;
+            maxSeg = 0f;
+            if (pts == null)
+                return;
+            for (int i = 0; i < pts.Length - 1; i++)
+            {
+                float d = pts[i].Dist(pts[i + 1]);
+                len += d;
+                if (d > maxSeg)
+                    maxSeg = d;
+            }
         }
     }
 }

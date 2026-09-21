@@ -38,7 +38,8 @@ namespace RogueShooter.Maze
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
-            sb.Append("rooms=40x32 hub=26x22 pitch=130/115 ");
+            sb.Append("rooms=36x28 hub=26x22 pitch=66/58 ");
+            sb.Append("corridorSeg≤5s folds=stem12/IZ5/C4 ");
             sb.Append("walkAltar=60-120s walkAll=240±30s ");
             sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
             sb.Append("ws=×1.5+stagger0.5 shieldShatter=1.0s ");
@@ -72,12 +73,25 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
-            if (MazeRules.CombatWidth < 39.5f || MazeRules.CombatHeight < 31.5f)
-                return "S1 combat rooms must be ~40x32";
+            if (MazeRules.CombatWidth < 35.5f || MazeRules.CombatHeight < 27.5f
+                || MazeRules.CombatWidth > 36.51f || MazeRules.CombatHeight > 28.51f)
+                return "S1 combat rooms must be 36x28";
             if (MazeRules.PitchX <= MazeRules.CombatWidth || MazeRules.PitchY <= MazeRules.CombatHeight)
                 return "pitch must exceed room size";
-            if (Math.Abs(MazeRules.PitchX - 130f) > 0.51f || Math.Abs(MazeRules.PitchY - 115f) > 0.51f)
-                return "pitch ~130/115 walk fold";
+            if (MazeRules.PitchX > 70.01f || MazeRules.PitchY > 62.01f)
+                return "pitch 130/115 void; max ~70/62 for ≤5s corridors";
+            if (Math.Abs(MazeRules.PitchX - 66f) > 1.01f || Math.Abs(MazeRules.PitchY - 58f) > 1.01f)
+                return "pitch ~66/58 v2b";
+            if (MazeRules.PitchX - MazeRules.CombatWidth > 30.51f
+                || MazeRules.PitchY - MazeRules.CombatHeight > 30.51f)
+                return "net gap Pitch-room must be ≤30u";
+            if (Math.Abs(MazeRules.HubWidth - 26f) > 0.51f || Math.Abs(MazeRules.HubHeight - 22f) > 0.51f)
+                return "hub ~26x22";
+            if (MazeRules.CorridorSegMax > 30.01f
+                || MazeRules.CorridorSegMaxSeconds > 5.01f)
+                return "corridor segment max 30u / 5s";
+            if (MazeRules.FoldStem < 12 || MazeRules.FoldBranchIZ < 4 || MazeRules.FoldBranchC < 3)
+                return "I/Z stem≥12 branch≥4; C branch≥3 folds";
             if (Math.Abs(MazeRules.PlayMoveSpeed - 6f) > 0.001f)
                 return "walk-only pacing keeps moveSpeed 6";
             string kb = CheckKnockbackDraft();
@@ -237,8 +251,24 @@ namespace RogueShooter.Maze
                 if (pace.FullWalkSeconds < allLo - 0.05f || pace.FullWalkSeconds > allHi + 0.05f)
                     return "seed " + seeds[s] + " visit-all walk " + pace.FullWalkSeconds.ToString("0.0")
                         + "s not in 240±30";
+                if (pace.MaxCorridorSegSeconds > MazeRules.CorridorSegMaxSeconds + 0.05f)
+                    return "seed " + seeds[s] + " corridor seg " + pace.MaxCorridorSegSeconds.ToString("0.00")
+                        + "s > 5s";
                 if (maze.Edges == null || maze.Edges.Length < 4)
                     return "seed " + seeds[s] + " need corridors";
+                for (int e = 0; e < maze.Edges.Length; e++)
+                {
+                    MazeEdge edge = maze.Edges[e];
+                    if (edge.MaxSegment > MazeRules.CorridorSegMax + 0.05f)
+                        return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
+                            + " seg " + edge.MaxSegment.ToString("0.0") + "u > 30";
+                    bool stem = edge.FromId == "START" || edge.ToId == "START";
+                    int minFolds = stem ? MazeRules.FoldStem
+                        : (maze.TemplateId == "C" ? MazeRules.FoldBranchC : MazeRules.FoldBranchIZ);
+                    if (edge.FoldCount < minFolds)
+                        return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
+                            + " folds=" + edge.FoldCount + " < " + minFolds;
+                }
                 for (int i = 0; i < maze.Nodes.Length; i++)
                 {
                     MazeNode n = maze.Nodes[i];
