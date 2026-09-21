@@ -74,6 +74,7 @@ namespace RogueShooter.Combat
             sb.AppendLine("# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG / spawn land)");
             sb.AppendLine("# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar PortalFx 1.0s");
             sb.AppendLine("# Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)");
+            sb.AppendLine("# placeholders_p1: 132 numbered 64x64 jh_ PNG PPU32 pivot (0.5,0.15); same-name true art replaces");
             sb.AppendLine("# Spawn: CombatRoomSpawn room-AABB random; bypass SpawnCluster.Offset r=0.85 even-ring");
             sb.AppendLine("check,result,detail");
             string err = Stage1PlayableChecks.Run();
@@ -116,6 +117,11 @@ namespace RogueShooter.Combat
                 && JianHaiArtCatalog.ArrowFlight == "jh_proj_arrow_fly"
                 && JianHaiSprites.HasClip(EntityAnimCatalog.PlayerRoll),
                 "PPU32 pivotS1=(0.5;0.15) arrow=+X orb=32c roll=jh_char_archer_roll_*");
+            string packErr = Stage1PlayableChecks.CheckPlaceholderPack();
+            Row(sb, "placeholders_p1",
+                packErr == null,
+                packErr ?? ("count=" + JianHaiArtCatalog.PlaceholderP1Count
+                    + " 64x64 PPU32 pivot=(0.5;0.15) Characters/Enemies same-name replaceable"));
             Row(sb, "arrow_art",
                 JianHaiArtCatalog.ArrowFlight == "jh_proj_arrow_fly"
                 && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight),

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using RogueShooter.Ai;
 using RogueShooter.Art;
@@ -24,6 +25,8 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckArtHooks();
             if (err != null) return err;
+            err = CheckPlaceholderPack();
+            if (err != null) return err;
             err = CheckActionSpec();
             if (err != null) return err;
             err = CheckSpawnLand();
@@ -35,7 +38,11 @@ namespace RogueShooter.Combat
         {
             var sb = new StringBuilder();
             sb.Append("playable=collision+arrow+orb+dodge-iframes ");
-            sb.Append("art=JianHai-PNG-runtime ");
+            sb.Append("art=JianHai-PNG-runtime placeholders_p1=");
+            sb.Append(JianHaiArtCatalog.PlaceholderP1Count);
+            sb.Append(" PPU").Append(JianHaiArtCatalog.Ppu);
+            sb.Append(" pivotS1=(").Append(JianHaiArtCatalog.PivotS1.x.ToString("0.0"));
+            sb.Append(";").Append(JianHaiArtCatalog.PivotS1.y.ToString("0.00")).Append(") ");
             sb.Append("layers=Player/Mob/Wall/Door/Projectile ");
             sb.Append("door=locked-blocks/open-pass ");
             sb.Append("arrow=jh_proj_arrow_fly speed=").Append(ProjectileRules.ArrowSpeed.ToString("0"));
@@ -288,7 +295,7 @@ namespace RogueShooter.Combat
             else if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle)
                 return "missing walk must fall back to idle";
             if (!JianHaiSprites.HasClip(EntityAnimCatalog.PlayerRoll))
-                return "roll stub jh_char_archer_roll_* missing";
+                return "roll clip jh_char_archer_roll_* missing";
             return null;
         }
 
@@ -298,8 +305,12 @@ namespace RogueShooter.Combat
                 return "player idle hook";
             if (EntityAnimCatalog.EnemyIdle != JianHaiArtCatalog.EnemyE1Idle)
                 return "enemy idle hook";
-            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle
-                && !EntityAnimCatalog.Present(EntityAnimCatalog.PlayerWalk))
+            if (EntityAnimCatalog.Present(EntityAnimCatalog.PlayerWalk))
+            {
+                if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != EntityAnimCatalog.PlayerWalk)
+                    return "player walk present must resolve";
+            }
+            else if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != JianHaiArtCatalog.PlayerIdle)
                 return "missing walk must fall back to idle";
             if (EntityAnimCatalog.Present(EntityAnimCatalog.PlayerRoll))
             {
@@ -308,12 +319,149 @@ namespace RogueShooter.Combat
             }
             else if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Dodge) != JianHaiArtCatalog.PlayerIdle)
                 return "missing roll clip must fall back to idle";
-            if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk) != JianHaiArtCatalog.EnemyE1Idle)
+            string e1Walk = ActionSpecP1.EnemyWalk(EnemyKindIds.Normal).Root;
+            if (EntityAnimCatalog.Present(e1Walk))
+            {
+                if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk) != e1Walk)
+                    return "present enemy walk must resolve";
+            }
+            else if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk) != JianHaiArtCatalog.EnemyE1Idle)
                 return "missing enemy walk must fall back to idle";
             string gaps = EntityAnimCatalog.GapNote();
-            if (string.IsNullOrEmpty(gaps) || gaps.IndexOf("walk", StringComparison.Ordinal) < 0)
-                return "art gap note must list missing walk";
+            if (string.IsNullOrEmpty(gaps) || gaps.IndexOf("placeholders_p1", StringComparison.Ordinal) < 0)
+                return "art gap note must name placeholders_p1";
+            if (gaps.IndexOf("n/e/w", StringComparison.Ordinal) < 0)
+                return "art gap note must list missing walk n/e/w";
             return null;
+        }
+
+        public static string CheckPlaceholderPack()
+        {
+            int n = CountNumberedJhPngs("Characters") + CountNumberedJhPngs("Enemies");
+            if (n != JianHaiArtCatalog.PlaceholderP1Count)
+                return "placeholders_p1 must be " + JianHaiArtCatalog.PlaceholderP1Count
+                    + " numbered 64x64 PNG, have " + n;
+            string dimErr = CheckNumberedPngSize("Characters", 64, 64);
+            if (dimErr != null) return dimErr;
+            dimErr = CheckNumberedPngSize("Enemies", 64, 64);
+            if (dimErr != null) return dimErr;
+            if (Math.Abs(JianHaiArtCatalog.PivotS1.x - 0.5f) > 0.001f
+                || Math.Abs(JianHaiArtCatalog.PivotS1.y - 0.15f) > 0.001f
+                || JianHaiArtCatalog.Ppu != 32)
+                return "placeholders_p1 PPU32 pivot (0.5,0.15)";
+            if (!File.Exists(Path.Combine("Assets", "Art", "JianHai", "_Spec", "PLACEHOLDERS_P1_INDEX.md")))
+                return "missing PLACEHOLDERS_P1_INDEX.md";
+            if (!File.Exists(ActionSpecP1.SpecFile))
+                return "missing ACTION_SPEC_P1_v01.md";
+
+            string[] roots = EntityAnimCatalog.PlaceholderClipRoots;
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (!EntityAnimCatalog.Present(roots[i]))
+                    return "placeholders_p1 missing clip " + roots[i];
+            }
+
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Walk) != EntityAnimCatalog.PlayerWalk)
+                return "player walk pack must resolve walk (not idle)";
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Charge) != EntityAnimCatalog.PlayerCharge)
+                return "player charge pack must resolve";
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Attack) != EntityAnimCatalog.PlayerAtk)
+                return "player atk pack must resolve";
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Dodge) != EntityAnimCatalog.PlayerRoll)
+                return "player roll pack must resolve";
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Hurt) != EntityAnimCatalog.PlayerHurt)
+                return "player hurt pack must resolve";
+            if (EntityAnimCatalog.ResolvePlayer(EntityAnimState.Death) != EntityAnimCatalog.PlayerDie)
+                return "player die pack must resolve";
+
+            if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk, EnemyKindIds.Normal)
+                != ActionSpecP1.EnemyWalk(EnemyKindIds.Normal).Root)
+                return "e1 walk pack must resolve";
+            if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk, EnemyKindIds.Dog)
+                != ActionSpecP1.EnemyWalk(EnemyKindIds.Dog).Root)
+                return "dog walk pack must resolve";
+            if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Attack, EnemyKindIds.CultMage)
+                != ActionSpecP1.EnemyAttack(EnemyKindIds.CultMage).Root)
+                return "mage cast pack must resolve";
+            if (ActionSpecP1.EnemyChase(EnemyKindIds.CultMage).Root
+                != ActionSpecP1.EnemyWalk(EnemyKindIds.CultMage).Root)
+                return "mage chase must reuse walk per ACTION_SPEC";
+            return null;
+        }
+
+        static int CountNumberedJhPngs(string folder)
+        {
+            string dir = Path.Combine("Assets", "Art", "JianHai", folder);
+            if (!Directory.Exists(dir))
+                return 0;
+            int n = 0;
+            string[] files = Directory.GetFiles(dir, "jh_*.png");
+            for (int i = 0; i < files.Length; i++)
+            {
+                if (IsNumberedJhName(Path.GetFileNameWithoutExtension(files[i])))
+                    n++;
+            }
+
+            return n;
+        }
+
+        static string CheckNumberedPngSize(string folder, int width, int height)
+        {
+            string dir = Path.Combine("Assets", "Art", "JianHai", folder);
+            if (!Directory.Exists(dir))
+                return "missing JianHai folder " + folder;
+            string[] files = Directory.GetFiles(dir, "jh_*.png");
+            for (int i = 0; i < files.Length; i++)
+            {
+                if (!IsNumberedJhName(Path.GetFileNameWithoutExtension(files[i])))
+                    continue;
+                int w, h;
+                if (!TryReadPngSize(files[i], out w, out h))
+                    return "bad PNG header " + Path.GetFileName(files[i]);
+                if (w != width || h != height)
+                    return Path.GetFileName(files[i]) + " must be " + width + "x" + height
+                        + " have " + w + "x" + h;
+            }
+
+            return null;
+        }
+
+        static bool IsNumberedJhName(string stem)
+        {
+            if (string.IsNullOrEmpty(stem) || stem.Length < 3)
+                return false;
+            return stem[stem.Length - 3] == '_'
+                && char.IsDigit(stem[stem.Length - 2])
+                && char.IsDigit(stem[stem.Length - 1]);
+        }
+
+        static bool TryReadPngSize(string path, out int width, out int height)
+        {
+            width = 0;
+            height = 0;
+            FileStream fs = null;
+            try
+            {
+                fs = File.OpenRead(path);
+                byte[] hdr = new byte[24];
+                int got = fs.Read(hdr, 0, 24);
+                if (got < 24)
+                    return false;
+                if (hdr[0] != 0x89 || hdr[1] != 0x50 || hdr[2] != 0x4e || hdr[3] != 0x47)
+                    return false;
+                width = (hdr[16] << 24) | (hdr[17] << 16) | (hdr[18] << 8) | hdr[19];
+                height = (hdr[20] << 24) | (hdr[21] << 16) | (hdr[22] << 8) | hdr[23];
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                if (fs != null)
+                    fs.Dispose();
+            }
         }
 
         static string CheckActionSpec()

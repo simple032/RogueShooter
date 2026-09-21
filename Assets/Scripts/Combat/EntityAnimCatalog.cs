@@ -21,10 +21,42 @@ namespace RogueShooter.Combat
     /// <summary>
     /// ACTION_SPEC_P1 clip hooks. Present() is file-based under Assets/Art/JianHai/.
     /// Missing walk/atk PNGs fall back to idle — do not invent frames.
-    /// Roll uses jh_char_archer_roll_* when present.
+    /// placeholders_p1 (132×64) drop in as numbered jh_*_##; same-name true art replaces.
     /// </summary>
     public static class EntityAnimCatalog
     {
+        /// <summary>INDEX clip roots (mage chase is on disk but ACTION Chase reuses walk).</summary>
+        public static readonly string[] PlaceholderClipRoots =
+        {
+            "jh_char_archer_idle",
+            "jh_char_archer_walk",
+            "jh_char_archer_charge",
+            "jh_char_archer_atk",
+            "jh_char_archer_roll",
+            "jh_char_archer_hurt",
+            "jh_char_archer_die",
+            "jh_enemy_e1_skel_idle",
+            "jh_enemy_e1_skel_walk",
+            "jh_enemy_e1_skel_alert",
+            "jh_enemy_e1_skel_chase",
+            "jh_enemy_e1_skel_atk",
+            "jh_enemy_e1_skel_hurt",
+            "jh_enemy_e1_skel_die",
+            "jh_enemy_dog_idle",
+            "jh_enemy_dog_walk",
+            "jh_enemy_dog_alert",
+            "jh_enemy_dog_chase",
+            "jh_enemy_dog_atk",
+            "jh_enemy_dog_hurt",
+            "jh_enemy_dog_die",
+            "jh_enemy_mage_idle",
+            "jh_enemy_mage_walk",
+            "jh_enemy_mage_alert",
+            "jh_enemy_mage_cast",
+            "jh_enemy_mage_hurt",
+            "jh_enemy_mage_die"
+        };
+
         public static string PlayerIdle => JianHaiArtCatalog.PlayerIdle;
         public static string EnemyIdle => JianHaiArtCatalog.EnemyE1Idle;
 
@@ -130,11 +162,11 @@ namespace RogueShooter.Combat
         public static string GapNote()
         {
             var sb = new StringBuilder();
-            sb.Append("ACTION_SPEC_P1 + PHASE1_PLAYABLE wired; missing PNGs fall back to idle. ");
-            sb.Append("player: have idle + roll_## stubs; need walk_{snew}_## charge_## atk_## hurt_## die_##. ");
-            sb.Append("S1: e1_skel/dog/mage idle/walk/alert/chase|cast/atk/hurt/die; ");
-            sb.Append("have jh_enemy_e1_skel_idle only. ");
-            sb.Append("no Animator; arrow=jh_proj_arrow_fly; orb=jh_proj_orb_mage_fly");
+            sb.Append("ACTION_SPEC_P1 + PHASE1_PLAYABLE + placeholders_p1 wired; missing PNGs fall back to idle. ");
+            sb.Append("player: idle/walk_s/charge/atk/roll/hurt/die present; missing walk n/e/w (s only; flipX mirrors). ");
+            sb.Append("S1 e1_skel/dog/mage idle/walk/alert/chase|cast/atk/hurt/die present. ");
+            sb.Append("mage chase_00 unused (ACTION Chase reuses walk). ");
+            sb.Append("same-name PNG replaces; no Animator; arrow=jh_proj_arrow_fly; orb=jh_proj_orb_mage_fly");
             return sb.ToString();
         }
     }

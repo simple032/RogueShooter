@@ -24,7 +24,9 @@ Drop PNG here. **Interact GameObject names stay HOOKS IDs** (`Chest_01`, `A_Shar
 | Tiles | 32×32 | **(0.5, 0.5)** center |
 | Walls | 32×64 | **(0.5, 0.0)** bottom |
 
-`.meta` on the P0 placeholders already pin PPU / Point / these pivots. Overwrite the PNG, keep the `.meta`.
+`.meta` pins PPU 32 / Point / these pivots. Overwrite the PNG, keep the `.meta` — true art is a same-name drop-in.
+
+**placeholders_p1**: 132 numbered 64×64 `jh_` frames in `Characters/` + `Enemies/` (INDEX `_Spec/PLACEHOLDERS_P1_INDEX.md`). Player walk is `walk_s` only; missing `n/e/w` mirror via `flipX`. Unnumbered `jh_char_archer_idle.png` / `jh_enemy_e1_skel_idle.png` stay as aliases.
 
 ## Sorting layers
 

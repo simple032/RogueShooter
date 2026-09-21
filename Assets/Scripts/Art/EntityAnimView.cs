@@ -88,12 +88,12 @@ namespace RogueShooter.Art
             BindClip(_state, frame, _dir);
             if (_sr != null)
             {
-                bool directional = _bound != null
+                // Only skip flip when east/west frames exist. walk_s (and missing n/e/w)
+                // falls back to south art — ACTION 缺向先镜像.
+                bool bakedSide = _bound != null
                     && (_bound.IndexOf("_e_", System.StringComparison.Ordinal) >= 0
-                        || _bound.IndexOf("_w_", System.StringComparison.Ordinal) >= 0
-                        || _bound.IndexOf("_n_", System.StringComparison.Ordinal) >= 0
-                        || _bound.IndexOf("_s_", System.StringComparison.Ordinal) >= 0);
-                _sr.flipX = !directional && _facing < 0f;
+                        || _bound.IndexOf("_w_", System.StringComparison.Ordinal) >= 0);
+                _sr.flipX = !bakedSide && _facing < 0f;
             }
         }
 

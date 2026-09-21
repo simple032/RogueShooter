@@ -13,5 +13,5 @@ floor_altar,jh_tile_floor_altar,tile,tiled,Altar room
 floor_chest,jh_tile_floor_hub,tile,tiled,Chest rooms
 wall,jh_wall_stone_s,tile,tiled,AABB center pivot; CollisionVolume explicit hx/hy
 door,jh_prop_gate_hub,prop,tiled,locked door volume; localScale=1
-player_anim,jh_char_archer,char,idle+roll_## stubs,PHASE1 roll_00..07; GAP walk/charge/atk/hurt/die/_dir
-enemy_anim,jh_enemy_e1_skel,enemy,idle only,GAP walk/atk not in repo; other kinds share E1 idle
+player_anim,jh_char_archer,char,idle|walk_s|charge|atk|roll|hurt|die,placeholders_p1; GAP walk n/e/w (s+flipX); same-name replace
+enemy_anim,jh_enemy_e1_skel|dog|mage,enemy,idle|walk|alert|chase|cast|atk|hurt|die,placeholders_p1; mage chase_00 unused (ACTION Chase=walk)

@@ -3,7 +3,8 @@ namespace RogueShooter.Player
     /// <summary>
     /// Dodge / roll table. Producer draft — not locked. Swap this one file.
     /// Clip timing follows ACTION_SPEC_P1 (8 frames, OnFire stays on atk).
-    /// I-frame window is the draft row, not the spec's 0.08–0.32 suggestion.
+        /// I-frame window is the producer draft row (0.04–0.28).
+        /// ACTION_SPEC_P1_v01.1 suggestion matches; still unlocked.
     /// </summary>
     public static class DodgeRules
     {

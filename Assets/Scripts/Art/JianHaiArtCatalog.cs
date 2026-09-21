@@ -13,6 +13,8 @@ namespace RogueShooter.Art
         public const string Filter = "Point";
         public const string RootFolder = "Assets/Art/JianHai/";
         public const string Naming = "jh_<cat>_<name>[_action][_dir][_frame]";
+        /// <summary>placeholders_p1 numbered 64×64 jh_ PNGs (Characters + Enemies). Unnumbered idle.png aliases are extra.</summary>
+        public const int PlaceholderP1Count = 132;
 
         /// <summary>
         /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
