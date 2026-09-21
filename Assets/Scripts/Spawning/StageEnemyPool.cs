@@ -48,10 +48,13 @@ namespace RogueShooter.Spawning
     /// <summary>
     /// Spec v0.5 §6 stage enemy pools. Draws one named composition from the
     /// current stage's normal or enhanced table. DRAFT numbers — not lock CSV.
+    /// S2 pool (addendum): lunge normals + paired dogs + shield + cult mage
+    /// (邪法师, same S1 linear-orb rules).
     /// </summary>
     public static class StageEnemyPool
     {
         static readonly string[] S1Kinds = { EnemyKindIds.Normal, EnemyKindIds.Dog, EnemyKindIds.CultMage };
+        // Spec addendum: S2 includes Cult Mage (E3) with S1 orb behavior.
         static readonly string[] S2Kinds =
         {
             EnemyKindIds.Normal, EnemyKindIds.Dog, EnemyKindIds.CultMage, EnemyKindIds.Shield

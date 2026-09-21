@@ -106,6 +106,7 @@ namespace RogueShooter.Ai
 
         public static bool UsesOrbs(string kindId)
         {
+            // Cult mage (S1/S2/S3) and grand mage. Orb rules are kind-based, not stage-scaled.
             return kindId == EnemyKindIds.CultMage || kindId == EnemyKindIds.GrandMage;
         }
 

@@ -28,8 +28,12 @@ namespace RogueShooter.Spawning
                 || StageEnemyPool.HasKind(StageId.S1, EnemyKindIds.GrandMage))
                 return "S1 must not include SHIELD/GRAND";
             if (!StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.CultMage)
-                || !StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.Shield))
+                || !StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.Shield)
+                || !StageIdUtil.IncludesCultMage(StageId.S2))
                 return "S2 pool is lunge-normal + paired dogs + shield + cult mage";
+            string s2Mage = CheckS2CultMage();
+            if (s2Mage != null)
+                return s2Mage;
             if (!StageEnemyPool.HasKind(StageId.S3, EnemyKindIds.GrandMage)
                 || !StageEnemyPool.HasKind(StageId.S3, EnemyKindIds.CultMage))
                 return "S3 must include GRAND + earlier kinds";
@@ -57,6 +61,10 @@ namespace RogueShooter.Spawning
                 return "S2/S3 normal must lunge";
             if (EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S2))
                 return "only normal melee lunges";
+
+            if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S1))
+                return "cult mage must not lunge (S1 or S2)";
 
             if (EnemyCombatRules.OrbCount(EnemyKindIds.CultMage) != 1)
                 return "cult mage single orb";
@@ -249,6 +257,49 @@ namespace RogueShooter.Spawning
             return n;
         }
 
+        /// <summary>
+        /// Spec addendum: S2 pool includes 邪法师 with the same linear-orb rules as S1.
+        /// </summary>
+        static string CheckS2CultMage()
+        {
+            if (!StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.CultMage))
+                return "S2 pool must include cult mage (E3)";
+            if (!CompsContainKind(StageEnemyPool.NormalComps(StageId.S2), EnemyKindIds.CultMage))
+                return "S2 normal comps must include at least one 邪法师";
+            if (!CompsContainKind(StageEnemyPool.EnhancedComps(StageId.S2), EnemyKindIds.CultMage))
+                return "S2 enhanced comps must include at least one 邪法师";
+
+            if (EnemyCombatRules.OrbCount(EnemyKindIds.CultMage) != 1)
+                return "S2 cult mage same as S1: single linear orb";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedWalkMul - 2f) > 0.001f
+                || Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
+                return "S2 cult mage orb walk×2 / camWidth×0.7 (same as S1)";
+            if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2))
+                return "S2 cult mage must not lunge";
+
+            DraftEnemyStat s1 = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
+            if (Math.Abs(s1.Ttk0B - 2.0f) > 0.001f || s1.HpMid != 26 || Math.Abs(s1.Atk - 14f) > 0.001f)
+                return "cult mage 0B TTK≈2s HP mid 26 atk 14 (stage-independent)";
+            if (EnemyKindCatalog.StubHp(EnemyKindIds.CultMage) != 26)
+                return "S2 cult mage HP must match S1 (no stage inflate)";
+            if (EnemyKindCatalog.ForKind(EnemyKindIds.CultMage).RangedOrb != true)
+                return "cult mage ranged orb profile";
+            return null;
+        }
+
+        static bool CompsContainKind(DraftCompositionRow[] rows, string kind)
+        {
+            if (rows == null)
+                return false;
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (CountKind(rows[i].Members, kind) > 0)
+                    return true;
+            }
+
+            return false;
+        }
+
         public static string FormatPass()
         {
             var sb = new StringBuilder();
@@ -259,6 +310,7 @@ namespace RogueShooter.Spawning
             sb.Append(" comps=5n+5e/stage room=Normal→N Altar/Chest→E LargeChest→E+1..2");
             sb.Append(" enhance=<4:+1 ==4:elite×HP1.25/atk1.15");
             sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:52,GRAND:39 dps0b=13 thrust=[30,40]");
+            sb.Append(" S2cultMage=E3 sameS1orb ttk≈2s");
             sb.Append(" baseAttrStageIndependent DRAFT_NOT_LOCKED");
             return sb.ToString();
         }

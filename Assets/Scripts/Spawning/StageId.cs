@@ -38,5 +38,11 @@ namespace RogueShooter.Spawning
         {
             return id == StageId.S2 || id == StageId.S3;
         }
+
+        /// <summary>Spec addendum: cult mage is in S1, S2, and S3 (S2+ same S1 orb rules).</summary>
+        public static bool IncludesCultMage(StageId id)
+        {
+            return id == StageId.S1 || id == StageId.S2 || id == StageId.S3;
+        }
     }
 }
