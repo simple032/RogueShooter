@@ -5,46 +5,49 @@ namespace RogueShooter.Player
         None,
         Weak,
         Full,
-        Crit // crit2: talent weak-spot window (命中弱点), not lucky-crit naming
+        Crit // talent weak-spot window (命中弱点)
     }
 
     /// <summary>
-    /// crit2 charge bow: full 1.0s, weak-spot window 76–84%, min 0.3s, normal 0.6s.
-    /// Muls: weak ×0.50 / full ×1.00 / weak-spot ×2.00 / crit ×2.00.
+    /// Charge bow (制作人 retune): ring full at 0.70s; recover 0.2s after fire.
+    /// Fire if held over 0.2s; weak if held under 0.4s (x0.50); weak-spot 0.68-0.72s.
     /// </summary>
     public static class ChargeShotRules
     {
-        public const float ChargeSeconds = 1.00f;
-        public const float MinChargeSeconds = 0.30f;
-        public const float NormalDamageMinSeconds = 0.60f;
-        public const float GreenEnter = 0.76f;
-        public const float GreenExit = 0.84f;
+        public const float RingFillSeconds = 0.70f;
+        public const float ChargeSeconds = RingFillSeconds;
+        public const float MinChargeSeconds = 0.20f;
+        public const float WeakMaxSeconds = 0.40f;
+        public const float GreenEnterSeconds = 0.68f;
+        public const float GreenExitSeconds = 0.72f;
+        public const float GreenEnter = GreenEnterSeconds;
+        public const float GreenExit = GreenExitSeconds;
         public const float BaseDamage = 10f;
         public const float WeakMul = 0.50f;
         public const float FullMul = 1.00f;
-        public const float CritMul = 2.00f; // weak-spot / normal crit
+        public const float CritMul = 2.00f;
         public const float RecoverSeconds = 0.20f;
+        public const float WeakSpotStaggerSeconds = 0.50f;
 
         public static float Progress(float heldSeconds)
         {
             if (heldSeconds <= 0f)
                 return 0f;
-            return heldSeconds / ChargeSeconds;
+            float p = heldSeconds / RingFillSeconds;
+            if (p > 1f)
+                return 1f;
+            return p;
         }
 
         public static ChargeShotKind Resolve(float heldSeconds)
         {
-            if (heldSeconds < MinChargeSeconds)
+            if (heldSeconds <= MinChargeSeconds)
                 return ChargeShotKind.None;
-
-            float p = Progress(heldSeconds);
-            if (p >= GreenEnter && p < GreenExit)
-                return ChargeShotKind.Crit; // 命中弱点窗
-            if (heldSeconds < NormalDamageMinSeconds)
+            if (heldSeconds >= GreenEnterSeconds && heldSeconds <= GreenExitSeconds)
+                return ChargeShotKind.Crit;
+            if (heldSeconds < WeakMaxSeconds)
                 return ChargeShotKind.Weak;
-            if (p >= GreenExit)
-                return ChargeShotKind.Full;
-            return ChargeShotKind.Weak;
+            return ChargeShotKind.Full;
         }
 
         public static float Damage(ChargeShotKind kind)

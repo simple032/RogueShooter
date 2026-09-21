@@ -32,11 +32,14 @@ namespace RogueShooter.Ai
         float _cooldownLeft;
         bool _inWindup;
         float _lastDealt;
+        float _staggerUntil;
+        bool _wasStaggered;
 
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
+        public bool IsStaggered => Time.time < _staggerUntil;
 
         /// <summary>Proof helper: deal one recommend hit immediately (same path as Attack windup end).</summary>
         public bool ForceDealHitForProof()
@@ -116,6 +119,21 @@ namespace RogueShooter.Ai
                 _lastKnown = _player.position;
         }
 
+        /// <summary>Spec §4 弱点命中硬直: interrupt attack and freeze movement.</summary>
+        public void ApplyWeakSpotStagger(float seconds)
+        {
+            float dur = seconds > 0.01f ? seconds : ChargeShotRules.WeakSpotStaggerSeconds;
+            _staggerUntil = Time.time + dur;
+            _inWindup = false;
+            _windupLeft = 0f;
+            NotifyDamaged();
+            if (_sr != null)
+                _sr.color = new Color(0.92f, 0.92f, 0.88f);
+            if (_label != null)
+                _label.text = "STAGGER";
+            Debug.Log($"[MobAI] {name} weak-spot stagger {dur:0.00}s");
+        }
+
         void OnEnable()
         {
             if (!Live.Contains(this))
@@ -140,6 +158,18 @@ namespace RogueShooter.Ai
         {
             if (RunPause.IsPaused || _player == null)
                 return;
+
+            if (IsStaggered)
+            {
+                _wasStaggered = true;
+                return;
+            }
+
+            if (_wasStaggered)
+            {
+                _wasStaggered = false;
+                ApplyVisual();
+            }
 
             if (_pressure == null)
                 _pressure = GetComponent<EnemyPressureState>();

@@ -1,5 +1,7 @@
 using System;
 using RogueShooter.Layout;
+using RogueShooter.Player;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Art
 {
@@ -10,7 +12,9 @@ namespace RogueShooter.Art
             if (JianHaiArtCatalog.Ppu != 32)
                 return "PPU must be 32";
             if (JianHaiArtCatalog.EntityStubWorldScale != 0.62f)
-                return "entity stub world scale must stay 0.62 (ortho stays 2.5)";
+                return "entity stub world scale must stay 0.62 (play ortho 6)";
+            if (Math.Abs(CameraViewService.PlayOrthoSize - 6f) > 0.001f)
+                return "play ortho must stay 6 (producer retune)";
             if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
                 != JianHaiArtCatalog.EntityStubWorldScale)
                 return "player stub scale";
@@ -58,12 +62,19 @@ namespace RogueShooter.Art
                 return "fx path";
             if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ReticleChargeIdle) != "UI")
                 return "reticle folder";
+            if (ChargeReticle.OuterRadius > 0.36f || ChargeReticle.OuterRadius * 2f > 0.72f + 0.001f)
+                return "charge reticle must stay ≤ ~0.72u (fig2 / half-head)";
             if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
                 return "fx layer";
-            if (ChargeFxHooks.ChargeSeconds != 1.00f)
-                return "crit2 charge 1.00s";
-            if (ChargeFxHooks.GreenEnter != 0.76f || ChargeFxHooks.GreenExit != 0.84f)
-                return "crit2 weak-spot window 76–84%";
+            if (Math.Abs(ChargeFxHooks.ChargeSeconds - 0.70f) > 0.001f)
+                return "ring fill must be 0.70s";
+            if (Math.Abs(ChargeFxHooks.GreenEnter - 0.68f) > 0.001f
+                || Math.Abs(ChargeFxHooks.GreenExit - 0.72f) > 0.001f)
+                return "weak-spot window 0.68–0.72s";
+            if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
+                return "shoot recovery must be 0.20s";
+            if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
+                return "weak-spot stagger must be 0.50s";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

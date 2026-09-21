@@ -4,12 +4,14 @@ using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Boss;
 using RogueShooter.Demo;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Hold-to-charge bow. Spec: 0.90s full, green 72–84% crit, min 0.15s or no shot,
-    /// weak ×0.60, late full ×1.0. Movement ×0.5 while charging (PlayerMotor2D).
+    /// Hold-to-charge bow. Ring full at 0.70s; fire if held over 0.2s;
+    /// weak under 0.4s x0.50; weak-spot 0.68-0.72s. After a shot, 0.2s recovery.
+    /// Movement x0.5 while charging.
     /// </summary>
     public class PlayerCharge : MonoBehaviour
     {
@@ -20,10 +22,12 @@ namespace RogueShooter.Player
         bool _mid;
         bool _green;
         bool _exited;
+        float _recoverUntil;
         ChargeFxView _fx;
         GuaranteedCritActive _guaranteed;
 
         public bool IsCharging => _charging;
+        public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
         public ChargeShotKind LastShot { get; private set; }
         public float LastDamage { get; private set; }
@@ -48,7 +52,7 @@ namespace RogueShooter.Player
             bool hold = Input.GetMouseButton(0) || Input.GetKey(KeyCode.C);
             if (!_charging)
             {
-                if (hold)
+                if (hold && Time.time >= _recoverUntil)
                     BeginCharge();
                 return;
             }
@@ -60,22 +64,24 @@ namespace RogueShooter.Player
             }
 
             _held += Time.deltaTime;
-            float p = Mathf.Clamp01(ChargeShotRules.Progress(_held));
-            if (!_mid && p >= ChargeFxHooks.MidAt)
+            float p = ChargeShotRules.Progress(_held);
+            if (_fx != null)
+                _fx.SetChargeProgress(p, _green);
+            if (!_mid && _held >= ChargeFxHooks.MidAt)
             {
                 _mid = true;
                 ChargeFxHooks.ChargeMid();
                 Debug.Log("[ChargeFx] OnChargeMid");
             }
 
-            if (!_green && p >= ChargeShotRules.GreenEnter)
+            if (!_green && _held >= ChargeShotRules.GreenEnterSeconds)
             {
                 _green = true;
                 ChargeFxHooks.ChargeEnterGreen();
                 Debug.Log("[ChargeFx] OnChargeEnterGreen");
             }
 
-            if (_green && !_exited && p >= ChargeShotRules.GreenExit)
+            if (_green && !_exited && _held > ChargeShotRules.GreenExitSeconds)
             {
                 _exited = true;
                 _green = false;
@@ -93,6 +99,8 @@ namespace RogueShooter.Player
             _exited = false;
             LastShot = ChargeShotKind.None;
             LastDamage = 0f;
+            if (_fx != null)
+                _fx.SetChargeProgress(0f, false);
         }
 
         void ReleaseCharge()
@@ -146,7 +154,9 @@ namespace RogueShooter.Player
             else if (_fx != null)
                 _fx.HideAll();
 
+            _recoverUntil = Time.time + ChargeShotRules.RecoverSeconds;
             Debug.Log($"[ChargeShot] {kind} dmg={dmg:0.0} held={heldSeconds:0.000}s p={p:0.00} " +
+                      $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
 
             ApplyHit(dmg, kind);
@@ -192,6 +202,8 @@ namespace RogueShooter.Player
                 if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
                 {
                     boss.DealDamage(damage);
+                    if (kind == ChargeShotKind.Crit)
+                        boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
                     Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
                               $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
                     return;
@@ -209,6 +221,8 @@ namespace RogueShooter.Player
                 stub.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(damage)));
             else
                 best.NotifyDamaged();
+            if (kind == ChargeShotKind.Crit)
+                best.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
             Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={damage:0.0} dist={bestD:0.00}");
         }
 
@@ -217,9 +231,7 @@ namespace RogueShooter.Player
             Camera cam = Camera.main;
             if (cam != null)
             {
-                Vector3 mouse = Input.mousePosition;
-                mouse.z = Mathf.Abs(cam.transform.position.z);
-                Vector3 world = cam.ScreenToWorldPoint(mouse);
+                Vector3 world = CameraViewMath.ScreenToWorldOnPlayPlane(cam, Input.mousePosition);
                 Vector3 dir = world - transform.position;
                 dir.z = 0f;
                 if (dir.sqrMagnitude > 0.01f)

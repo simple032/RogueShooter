@@ -162,6 +162,16 @@ namespace RogueShooter.Boss
                 EnterPhase2();
         }
 
+        /// <summary>Spec §4 弱点命中硬直: drop current windup/active/recovery.</summary>
+        public void InterruptCurrentMove()
+        {
+            if (Phase == BossPhase.Defeated || Phase == BossPhase.IdleOutside)
+                return;
+            CurrentMove = BossMoveId.None;
+            MoveStep = BossMoveStep.Idle;
+            ClearTiming();
+        }
+
         public BossPhase Tick(float dt)
         {
             if (dt < 0f)

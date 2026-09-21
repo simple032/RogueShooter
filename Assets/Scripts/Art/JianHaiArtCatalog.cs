@@ -16,9 +16,8 @@ namespace RogueShooter.Art
 
         /// <summary>
         /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
-        /// Shrinks player/E1/BOSS on-screen occupancy at locked ortho 2.5.
-        /// 0.62 is slightly larger than the Enter the Gungeon reference share, still lots of room visible.
-        /// Do not raise CameraViewService ortho (2.7–3.5) to fake this.
+        /// Shrinks player/E1/BOSS occupancy at play ortho 6. Keep this shrink;
+        /// do not raise ortho further to fake occupancy.
         /// </summary>
         public const float EntityStubWorldScale = 0.62f;
 
