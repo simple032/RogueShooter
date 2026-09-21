@@ -54,6 +54,7 @@ namespace RogueShooter.Ai
         Vector3 _knockDir;
         float _knockLeft;
         float _knockSpeed;
+        float _rootUntil;
 
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
@@ -66,6 +67,7 @@ namespace RogueShooter.Ai
         public Vector3 Facing => _facing;
         public string KindId => CurrentKindId();
         public bool IsKnocking => _knockLeft > 0.001f;
+        public bool IsRooted => Time.time < _rootUntil;
 
         public static IReadOnlyList<MobFourStateAi> All => Live;
 
@@ -138,6 +140,7 @@ namespace RogueShooter.Ai
             _lunging = false;
             _lungeCd = 0f;
             _knockLeft = 0f;
+            _rootUntil = 0f;
             _orbs.Clear();
             EnsureLabel();
             _bang = GetComponent<MobBangMarker>();
@@ -206,6 +209,7 @@ namespace RogueShooter.Ai
 
         /// <summary>
         /// Full-charge knockback along shot_away. DRAFT mid from CSV. Elite uses same species.
+        /// Weak-spot uses ×1.5 distance and stacks with stagger (TickKnockback still runs).
         /// </summary>
         public void ApplyKnockback(Vector3 shotAway, float distance)
         {
@@ -221,6 +225,7 @@ namespace RogueShooter.Ai
             float dur = FullChargeKnockback.SlideSeconds(distance);
             _knockLeft = dur;
             _knockSpeed = dur > 0.001f ? distance / dur : 0f;
+            _rootUntil = 0f;
             _lunging = false;
             NotifyDamaged();
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
@@ -232,11 +237,28 @@ namespace RogueShooter.Ai
                       + " (same-species)");
         }
 
+        /// <summary>Shield-raised full-charge body hit: 0 knockback, no-move root.</summary>
+        public void ApplyRoot(float seconds)
+        {
+            float dur = seconds > 0.01f ? seconds : FullChargeKnockback.ShieldRaisedRootSeconds;
+            _rootUntil = Time.time + dur;
+            _knockLeft = 0f;
+            _lunging = false;
+            NotifyDamaged();
+            if (_label != null)
+                _label.text = "ROOT";
+            Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
+                      + " root=" + dur.ToString("0.00") + "s kb=0 shield=1 elite="
+                      + (_elite ? 1 : 0) + " (same-species)");
+        }
+
         /// <summary>Shield front −50%; weak-spot unchanged. Returns applied damage.</summary>
         public int ModifyIncomingShot(Vector3 origin, bool weakSpot, int amount, out float staggerSeconds)
         {
             string kind = CurrentKindId();
-            staggerSeconds = EnemyCombatRules.WeakSpotStaggerSeconds(kind);
+            staggerSeconds = ChargeShotRules.WeakSpotStaggerSeconds;
+            if (_shieldRaised && kind == EnemyKindIds.Shield)
+                staggerSeconds = EnemyCombatRules.ShieldWeakSpotStaggerSeconds;
             if (!_shieldRaised)
                 return amount < 1 ? 1 : amount;
             bool front = EnemyCombatRules.HitFromFront(
@@ -346,6 +368,15 @@ namespace RogueShooter.Ai
 
             if (IsKnocking)
                 return;
+
+            if (IsRooted)
+            {
+                if (_label != null)
+                    _label.text = "ROOT";
+                if (_brain.State == MobAiState.Attack)
+                    TickAttack(Time.deltaTime);
+                return;
+            }
 
             if (_lunging)
             {
@@ -681,7 +712,9 @@ namespace RogueShooter.Ai
         {
             if (_label != null)
             {
-                if (_shieldRaised)
+                if (IsRooted)
+                    _label.text = "ROOT";
+                else if (_shieldRaised)
                     _label.text = "SHIELD";
                 else if (_elite)
                     _label.text = "ELITE " + _brain.State.ToString().ToUpperInvariant();

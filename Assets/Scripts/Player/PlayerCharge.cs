@@ -202,11 +202,12 @@ namespace RogueShooter.Player
                 if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
                 {
                     boss.DealDamage(damage);
-                    if (kind == ChargeShotKind.Crit)
+                    bool bossWeak = kind == ChargeShotKind.Crit;
+                    if (bossWeak)
                         boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
                     if (FullChargeKnockback.Applies(kind, heldSeconds))
                     {
-                        float kb = FullChargeKnockback.MidDistance(null, false, true);
+                        float kb = FullChargeKnockback.HitDistance(null, false, true, bossWeak);
                         boss.ApplyKnockback(aim, kb);
                     }
                     Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
@@ -222,6 +223,7 @@ namespace RogueShooter.Player
             }
 
             bool weak = kind == ChargeShotKind.Crit;
+            bool raised = best.ShieldRaised;
             int amount = Mathf.Max(1, Mathf.RoundToInt(damage));
             float stagger = ChargeShotRules.WeakSpotStaggerSeconds;
             amount = best.ModifyIncomingShot(origin, weak, amount, out stagger);
@@ -234,8 +236,15 @@ namespace RogueShooter.Player
                 best.ApplyWeakSpotStagger(stagger);
             if (FullChargeKnockback.Applies(kind, heldSeconds))
             {
-                float kb = FullChargeKnockback.MidDistance(best.KindId, best.ShieldRaised, false);
-                best.ApplyKnockback(aim, kb);
+                if (FullChargeKnockback.RootsOnBodyHit(best.KindId, raised, weak))
+                {
+                    best.ApplyRoot(FullChargeKnockback.ShieldRaisedRootSeconds);
+                }
+                else
+                {
+                    float kb = FullChargeKnockback.HitDistance(best.KindId, raised, false, weak);
+                    best.ApplyKnockback(aim, kb);
+                }
             }
             Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
                       $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s");

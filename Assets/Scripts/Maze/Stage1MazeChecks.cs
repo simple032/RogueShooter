@@ -38,7 +38,8 @@ namespace RogueShooter.Maze
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
             sb.Append("rooms=20x16 hub=13x11 pitch=52/46 ");
-            sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|1.35/boss0.30 ");
+            sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
+            sb.Append("ws=×1.5+stagger0.5 shieldShatter=1.0s ");
             sb.Append("return=0.6s formula=move×0.6(non-boss) ");
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("pacing=reachability-first no-clock-lock ");
@@ -87,10 +88,9 @@ namespace RogueShooter.Maze
                 return "weak/partial charge must not knockback";
             if (!FullChargeKnockback.Applies(ChargeShotKind.Full, 0.70f)
                 || !FullChargeKnockback.Applies(ChargeShotKind.Full, 0.80f)
-                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.70f))
-                return "full charge held≥0.70 must knockback (not crit-only)";
-            if (FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.68f))
-                return "crit below ring-full 0.70 must not knockback";
+                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.70f)
+                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.68f))
+                return "full charge held≥0.70 or weak-spot window must CC";
             if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false), 4.32f))
                 return "kb dog mid 4.32";
             if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false), 2.16f))
@@ -101,10 +101,32 @@ namespace RogueShooter.Maze
                 return "kb grand mid 1.98";
             if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false), 2.7f))
                 return "kb shield open 2.7";
-            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true), 1.35f))
-                return "kb shield raised 1.35";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true), 0f))
+                return "kb shield raised body 0";
             if (!NearKb(FullChargeKnockback.MidDistance(null, false, true), 0.30f))
                 return "kb boss 0.30";
+            if (!NearKb(FullChargeKnockback.WeakSpotMul, 1.5f))
+                return "kb weak-spot mul 1.5";
+            if (!NearKb(FullChargeKnockback.HitDistance(EnemyKindIds.Dog, false, false, true), 6.48f))
+                return "kb dog weak-spot 6.48";
+            if (!NearKb(FullChargeKnockback.HitDistance(EnemyKindIds.Normal, false, false, true), 4.05f))
+                return "kb normal weak-spot 4.05";
+            if (!NearKb(FullChargeKnockback.HitDistance(EnemyKindIds.Shield, true, false, true), 4.05f))
+                return "kb shield raised weak-spot uses unshielded×1.5";
+            if (!NearKb(FullChargeKnockback.HitDistance(null, false, true, true), 0.45f))
+                return "kb boss weak-spot 0.45";
+            if (!FullChargeKnockback.RootsOnBodyHit(EnemyKindIds.Shield, true, false))
+                return "shield raised body must root";
+            if (FullChargeKnockback.RootsOnBodyHit(EnemyKindIds.Shield, true, true)
+                || FullChargeKnockback.RootsOnBodyHit(EnemyKindIds.Shield, false, false)
+                || FullChargeKnockback.RootsOnBodyHit(EnemyKindIds.Dog, true, false))
+                return "root only shield-raised non-weak-spot";
+            if (!NearKb(FullChargeKnockback.ShieldRaisedRootSeconds, 0.5f))
+                return "shield raised root 0.5s";
+            if (Math.Abs(EnemyCombatRules.ShieldWeakSpotStaggerSeconds - 1.00f) > 0.001f)
+                return "shield shatter stagger 1.0s";
+            if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
+                return "normal weak-spot stagger 0.5s";
             if (!NearKb(FullChargeKnockback.ReturnSeconds, 0.6f))
                 return "kb t_return 0.6s";
             if (!NearKb(FullChargeKnockback.SlideSeconds(4.32f, false), 0.6f))
@@ -115,6 +137,9 @@ namespace RogueShooter.Maze
             float e = FullChargeKnockback.MidDistanceEliteSame(EnemyKindIds.Dog, false, true);
             if (!NearKb(e, FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false)))
                 return "elite same species knockback";
+            float eWs = FullChargeKnockback.HitDistance(EnemyKindIds.Dog, false, false, true);
+            if (!NearKb(eWs, 6.48f))
+                return "elite same species weak-spot knockback";
             if (FullChargeKnockback.Source == null
                 || FullChargeKnockback.Source.IndexOf("DRAFT_NOT_LOCKED", StringComparison.Ordinal) < 0)
                 return "knockback table must stay DRAFT_NOT_LOCKED";
