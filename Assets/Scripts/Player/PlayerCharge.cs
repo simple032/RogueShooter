@@ -159,11 +159,11 @@ namespace RogueShooter.Player
                       $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
 
-            ApplyHit(dmg, kind);
+            ApplyHit(dmg, kind, heldSeconds);
             return kind;
         }
 
-        void ApplyHit(float damage, ChargeShotKind kind)
+        void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds)
         {
             Vector3 origin = transform.position;
             Vector3 aim = AimDirection();
@@ -204,6 +204,11 @@ namespace RogueShooter.Player
                     boss.DealDamage(damage);
                     if (kind == ChargeShotKind.Crit)
                         boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
+                    if (FullChargeKnockback.Applies(kind, heldSeconds))
+                    {
+                        float kb = FullChargeKnockback.MidDistance(null, false, true);
+                        boss.ApplyKnockback(aim, kb);
+                    }
                     Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
                               $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
                     return;
@@ -227,8 +232,13 @@ namespace RogueShooter.Player
                 best.NotifyDamaged();
             if (weak)
                 best.ApplyWeakSpotStagger(stagger);
+            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            {
+                float kb = FullChargeKnockback.MidDistance(best.KindId, best.ShieldRaised, false);
+                best.ApplyKnockback(aim, kb);
+            }
             Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
-                      $"shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s");
+                      $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s");
         }
 
         Vector3 AimDirection()

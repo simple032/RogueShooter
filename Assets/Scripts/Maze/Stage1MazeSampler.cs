@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using RogueShooter.Player;
 using RogueShooter.Spawning;
 
 namespace RogueShooter.Maze
@@ -60,6 +61,20 @@ namespace RogueShooter.Maze
             sb.Append(" move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" ortho=").Append(MazeRules.PlayOrtho.ToString("0"));
             sb.Append(" portalHold=").Append(MazeRules.PortalHoldSeconds.ToString("0.0")).Append("s");
+            sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
+              .Append(MazeRules.CombatHeight.ToString("0"));
+            sb.AppendLine();
+            FullChargeKnockback.EnsureLoaded();
+            sb.Append("[Knockback] ").Append(FullChargeKnockback.LockNote);
+            sb.Append(" full≥").Append(ChargeShotRules.RingFillSeconds.ToString("0.00")).Append("s");
+            sb.Append(" dog=").Append(FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false).ToString("0.00"));
+            sb.Append(" mage=").Append(FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false).ToString("0.00"));
+            sb.Append(" normal=").Append(FullChargeKnockback.MidDistance(EnemyKindIds.Normal, false).ToString("0.00"));
+            sb.Append(" grand=").Append(FullChargeKnockback.MidDistance(EnemyKindIds.GrandMage, false).ToString("0.00"));
+            sb.Append(" shield=").Append(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false).ToString("0.00"));
+            sb.Append("/").Append(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true).ToString("0.00"));
+            sb.Append(" boss=").Append(FullChargeKnockback.MidDistance(null, false, true).ToString("0.00"));
+            sb.Append(" elite=same-species");
             sb.AppendLine();
 
             if (maze.Nodes != null)

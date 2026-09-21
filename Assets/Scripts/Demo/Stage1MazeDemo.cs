@@ -102,6 +102,16 @@ namespace RogueShooter.Demo
                 Debug.LogError("[S1Maze] draft load FAIL " + err);
             else
                 Debug.Log("[StagePool] loaded DRAFT from " + EnemyPoolDraft.Source);
+            FullChargeKnockback.TryLoadFromDirectory(dir);
+            Debug.Log("[Knockback] " + FullChargeKnockback.Source
+                      + " full≥" + ChargeShotRules.RingFillSeconds.ToString("0.00")
+                      + "s dog=" + FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false).ToString("0.00")
+                      + " mage=" + FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false).ToString("0.00")
+                      + " normal=" + FullChargeKnockback.MidDistance(EnemyKindIds.Normal, false).ToString("0.00")
+                      + " grand=" + FullChargeKnockback.MidDistance(EnemyKindIds.GrandMage, false).ToString("0.00")
+                      + " shield=" + FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false).ToString("0.00")
+                      + "/" + FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true).ToString("0.00")
+                      + " boss=" + FullChargeKnockback.MidDistance(null, false, true).ToString("0.00"));
         }
 
         void BuildWorld()
@@ -785,7 +795,7 @@ namespace RogueShooter.Demo
         {
             const int pad = 8;
             int w = 620;
-            int h = 250;
+            int h = 268;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             var title = new GUIStyle(style) { fontSize = 15, fontStyle = FontStyle.Bold };
@@ -794,7 +804,8 @@ namespace RogueShooter.Demo
             GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 54),
                 "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
                 "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence",
+                "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence\n" +
+                "full charge (≥0.70s) knockback DRAFT mid  ·  weak charge no KB",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 84, w - 16, 36), graph, style);

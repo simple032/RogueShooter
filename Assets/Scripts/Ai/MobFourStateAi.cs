@@ -51,6 +51,9 @@ namespace RogueShooter.Ai
         float _lungeLeft;
         float _lungeCd;
         Vector3 _lungeDir;
+        Vector3 _knockDir;
+        float _knockLeft;
+        float _knockSpeed;
 
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
@@ -61,6 +64,8 @@ namespace RogueShooter.Ai
         public bool ShieldRaised => _shieldRaised;
         public bool Elite => _elite;
         public Vector3 Facing => _facing;
+        public string KindId => CurrentKindId();
+        public bool IsKnocking => _knockLeft > 0.001f;
 
         public static IReadOnlyList<MobFourStateAi> All => Live;
 
@@ -132,6 +137,7 @@ namespace RogueShooter.Ai
             _shieldRaiseAt = -1f;
             _lunging = false;
             _lungeCd = 0f;
+            _knockLeft = 0f;
             _orbs.Clear();
             EnsureLabel();
             _bang = GetComponent<MobBangMarker>();
@@ -198,6 +204,33 @@ namespace RogueShooter.Ai
             Debug.Log($"[MobAI] {name} weak-spot stagger {dur:0.00}s");
         }
 
+        /// <summary>
+        /// Full-charge knockback along shot_away. DRAFT mid from CSV. Elite uses same species.
+        /// </summary>
+        public void ApplyKnockback(Vector3 shotAway, float distance)
+        {
+            if (distance < 0.01f)
+                return;
+            shotAway.z = 0f;
+            if (shotAway.sqrMagnitude < 0.0001f)
+                shotAway = transform.position - (_player != null ? _player.position : transform.position);
+            shotAway.z = 0f;
+            if (shotAway.sqrMagnitude < 0.0001f)
+                shotAway = _facing.sqrMagnitude > 0.0001f ? -_facing : Vector3.right;
+            _knockDir = shotAway.normalized;
+            float dur = FullChargeKnockback.SlideSeconds(distance);
+            _knockLeft = dur;
+            _knockSpeed = dur > 0.001f ? distance / dur : 0f;
+            _lunging = false;
+            NotifyDamaged();
+            Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
+                      + " dist=" + distance.ToString("0.00")
+                      + " t=" + dur.ToString("0.00")
+                      + "s shield=" + (_shieldRaised ? 1 : 0)
+                      + " elite=" + (_elite ? 1 : 0)
+                      + " (same-species)");
+        }
+
         /// <summary>Shield front −50%; weak-spot unchanged. Returns applied damage.</summary>
         public int ModifyIncomingShot(Vector3 origin, bool weakSpot, int amount, out float staggerSeconds)
         {
@@ -255,6 +288,8 @@ namespace RogueShooter.Ai
             if (_lungeCd > 0f)
                 _lungeCd -= Time.deltaTime;
 
+            TickKnockback(Time.deltaTime);
+
             if (IsStaggered)
             {
                 _wasStaggered = true;
@@ -307,6 +342,9 @@ namespace RogueShooter.Ai
                 if (_brain.State == MobAiState.Patrol || _brain.State == MobAiState.Disengage)
                     ResetShieldCycle();
             }
+
+            if (IsKnocking)
+                return;
 
             if (_lunging)
             {
@@ -504,6 +542,20 @@ namespace RogueShooter.Ai
             }
 
             return n;
+        }
+
+        void TickKnockback(float dt)
+        {
+            if (_knockLeft <= 0f)
+                return;
+            float step = _knockSpeed * dt;
+            float max = _knockSpeed * _knockLeft;
+            if (step > max)
+                step = max;
+            transform.position += _knockDir * step;
+            _knockLeft -= dt;
+            if (_knockLeft < 0f)
+                _knockLeft = 0f;
         }
 
         void BeginLunge(Vector3 toPlayer)

@@ -203,13 +203,13 @@ namespace RogueShooter.Maze
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        public const float PitchX = 44f;
-        public const float PitchY = 38f;
-        public const float CombatWidth = 16f;
-        public const float CombatHeight = 12f;
-        public const float HubWidth = 10f;
-        public const float HubHeight = 8f;
-        public const float CorridorWidth = 4.2f;
+        public const float PitchX = 52f;
+        public const float PitchY = 46f;
+        public const float CombatWidth = 20f;
+        public const float CombatHeight = 16f;
+        public const float HubWidth = 13f;
+        public const float HubHeight = 11f;
+        public const float CorridorWidth = 5.0f;
         public const float LargeChestChance = 0.25f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>

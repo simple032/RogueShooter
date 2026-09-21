@@ -37,6 +37,9 @@ namespace RogueShooter.Maze
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
+            sb.Append("rooms=20x16 hub=13x11 pitch=52/46 ");
+            sb.Append("knockback=draftMid dog2.1/mage1.6/normal1.4/grand1.0/shield0.75|0.30/boss0.30 ");
+            sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("pacing=reachability-first no-clock-lock ");
             sb.Append("S2S3=not-built");
             return sb.ToString();
@@ -64,7 +67,55 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
+            if (MazeRules.CombatWidth < 19.5f || MazeRules.CombatHeight < 15.5f)
+                return "S1 combat rooms must be one step larger than 16x12";
+            if (MazeRules.PitchX <= MazeRules.CombatWidth || MazeRules.PitchY <= MazeRules.CombatHeight)
+                return "pitch must exceed room size";
+            string kb = CheckKnockbackDraft();
+            if (kb != null)
+                return kb;
             return null;
+        }
+
+        static string CheckKnockbackDraft()
+        {
+            FullChargeKnockback.EnsureLoaded();
+            if (FullChargeKnockback.Applies(ChargeShotKind.Weak, 0.30f)
+                || FullChargeKnockback.Applies(ChargeShotKind.Full, 0.50f)
+                || FullChargeKnockback.Applies(ChargeShotKind.None, 0.80f))
+                return "weak/partial charge must not knockback";
+            if (!FullChargeKnockback.Applies(ChargeShotKind.Full, 0.70f)
+                || !FullChargeKnockback.Applies(ChargeShotKind.Full, 0.80f)
+                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.70f))
+                return "full charge held≥0.70 must knockback (not crit-only)";
+            if (FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.68f))
+                return "crit below ring-full 0.70 must not knockback";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false), 2.1f))
+                return "kb dog mid 2.1";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false), 1.6f))
+                return "kb mage mid 1.6";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Normal, false), 1.4f))
+                return "kb normal mid 1.4";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.GrandMage, false), 1.0f))
+                return "kb grand mid 1.0";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, false), 0.75f))
+                return "kb shield open 0.75";
+            if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Shield, true), 0.30f))
+                return "kb shield raised 0.30";
+            if (!NearKb(FullChargeKnockback.MidDistance(null, false, true), 0.30f))
+                return "kb boss 0.30";
+            float e = FullChargeKnockback.MidDistanceEliteSame(EnemyKindIds.Dog, false, true);
+            if (!NearKb(e, FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false)))
+                return "elite same species knockback";
+            if (FullChargeKnockback.Source == null
+                || FullChargeKnockback.Source.IndexOf("DRAFT_NOT_LOCKED", StringComparison.Ordinal) < 0)
+                return "knockback table must stay DRAFT_NOT_LOCKED";
+            return null;
+        }
+
+        static bool NearKb(float a, float b)
+        {
+            return Math.Abs(a - b) < 0.001f;
         }
 
         static string CheckQuotaAndReach()
