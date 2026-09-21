@@ -37,7 +37,7 @@ namespace RogueShooter.Maze
             sb.Append("seeded=1 corridors=noSpawn ");
             sb.Append("combat=enter→lock→PortalFx→1.0s→w1→clear→open ");
             sb.Append("everyWave=PortalFx-visible ");
-            sb.Append("chestAltar=2waves clear-w1→PortalFx→2.0s(≤3)→w2 ");
+            sb.Append("chestAltar=2waves clear-w1→PortalFx→2.5s(>2 ≤3)→w2 ");
             sb.Append("normal=1wave+[PortalFx]1.0s ");
             sb.Append("pool=S1 Normal/Chest→N Altar→E ");
             sb.Append("ortho=6 move=6 ");
@@ -73,14 +73,18 @@ namespace RogueShooter.Maze
                 return "first-wave portal hold 1.0s (enter→PortalFx→wave1)";
             if (Math.Abs(MazeRules.InterWavePortalHoldMaxSeconds - 3.0f) > 0.001f)
                 return "inter-wave portal hold hard cap 3.0s";
+            if (MazeRules.InterWavePortalHoldSeconds <= MazeRules.InterWavePortalHoldMinSeconds + 0.0001f)
+                return "inter-wave portal hold must be >2.0s (not 1.0s or 2.0s)";
             if (MazeRules.InterWavePortalHoldSeconds > MazeRules.InterWavePortalHoldMaxSeconds + 0.0001f)
                 return "inter-wave portal hold must be ≤3.0s";
-            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.0f) > 0.001f)
-                return "inter-wave portal hold default 2.0s (swappable table)";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.5f) > 0.001f)
+                return "inter-wave portal hold must be 2.5s (from PortalFx show)";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - MazeRules.PortalHoldSeconds) < 0.001f)
+                return "inter-wave must not reuse wave-1 1.0s";
             if (Math.Abs(MazeRules.PortalHoldForWave(1) - 1.0f) > 0.001f)
                 return "wave 1 PortalFx hold 1.0s";
-            if (Math.Abs(MazeRules.PortalHoldForWave(2) - MazeRules.InterWavePortalHoldSeconds) > 0.001f)
-                return "wave 2 PortalFx hold follows inter-wave table";
+            if (Math.Abs(MazeRules.PortalHoldForWave(2) - 2.5f) > 0.001f)
+                return "wave 2 PortalFx hold 2.5s";
             if (!MazeRules.UsesPortalFx(MazeNodeKind.Normal)
                 || !MazeRules.UsesPortalFx(MazeNodeKind.Chest)
                 || !MazeRules.UsesPortalFx(MazeNodeKind.Altar))
@@ -446,9 +450,7 @@ namespace RogueShooter.Maze
             if (spawn != "[PortalFx] room=N1 wave=1 spawn after 1.0s")
                 return "portal spawn contract " + spawn;
             string spawn2 = PortalFxHook.FormatSpawn("ALTAR", 2);
-            string expect2 = "[PortalFx] room=ALTAR wave=2 spawn after "
-                + MazeRules.PortalHoldForWave(2).ToString("0.0") + "s";
-            if (spawn2 != expect2)
+            if (spawn2 != "[PortalFx] room=ALTAR wave=2 spawn after 2.5s")
                 return "inter-wave spawn contract " + spawn2;
             if (!HoldMatches(dry, 1, MazeRules.PortalHoldSeconds)
                 || !HoldMatches(dry, 2, MazeRules.PortalHoldForWave(2)))

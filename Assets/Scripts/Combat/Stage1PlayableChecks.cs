@@ -518,21 +518,23 @@ namespace RogueShooter.Combat
                 return "enter→PortalFx→wave1 must be 1.0s";
             if (Math.Abs(MazeRules.InterWavePortalHoldMaxSeconds - 3.0f) > 0.001f)
                 return "inter-wave hard cap must be 3.0s";
+            if (MazeRules.InterWavePortalHoldSeconds <= MazeRules.InterWavePortalHoldMinSeconds + 0.0001f)
+                return "inter-wave hold must be >2.0s (not 1.0s or 2.0s)";
             if (MazeRules.InterWavePortalHoldSeconds > MazeRules.InterWavePortalHoldMaxSeconds + 0.0001f)
                 return "inter-wave hold must be ≤3.0s";
-            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.0f) > 0.001f)
-                return "inter-wave default 2.0s (swappable table)";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.5f) > 0.001f)
+                return "inter-wave hold must be 2.5s from PortalFx show";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - MazeRules.PortalHoldSeconds) < 0.001f)
+                return "inter-wave must not reuse wave-1 1.0s";
             if (Math.Abs(MazeRules.PortalHoldForWave(1) - 1.0f) > 0.001f)
                 return "wave 1 hold 1.0s";
-            if (Math.Abs(MazeRules.PortalHoldForWave(2) - MazeRules.InterWavePortalHoldSeconds) > 0.001f)
-                return "wave 2 hold follows inter-wave table";
+            if (Math.Abs(MazeRules.PortalHoldForWave(2) - 2.5f) > 0.001f)
+                return "wave 2 hold 2.5s";
             string w1 = PortalFxHook.FormatSpawn("N1", 1);
             if (w1 != "[PortalFx] room=N1 wave=1 spawn after 1.0s")
                 return "wave1 spawn log " + w1;
             string w2 = PortalFxHook.FormatSpawn("ALTAR", 2);
-            string expect2 = "[PortalFx] room=ALTAR wave=2 spawn after "
-                + MazeRules.PortalHoldForWave(2).ToString("0.0") + "s";
-            if (w2 != expect2)
+            if (w2 != "[PortalFx] room=ALTAR wave=2 spawn after 2.5s")
                 return "wave2 spawn log " + w2;
             return null;
         }

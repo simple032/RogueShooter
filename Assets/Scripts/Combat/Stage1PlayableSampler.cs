@@ -73,7 +73,7 @@ namespace RogueShooter.Combat
             var sb = new StringBuilder();
             sb.AppendLine("# Stage-1 playable evidence (collision / projectiles / dodge i-frames / JianHai PNG / spawn land)");
             sb.AppendLine("# Maze v2e unchanged: 52x40 pitch 82/70 Chestx2 no LargeChest CONN follows Altar");
-            sb.AppendLine("# Cadence: enter→PortalFx→1.0s→w1; two-wave clear-w1→PortalFx→2.0s(≤3)→w2 (table InterWavePortalHoldSeconds)");
+            sb.AppendLine("# Cadence: enter→PortalFx→1.0s→w1; two-wave clear-w1→PortalFx→2.5s(>2 ≤3)→w2 from show");
             sb.AppendLine("# Art: Assets/Art/JianHai/ Provide-sourced PNGs; runtime File.ReadAllBytes+LoadImage (Editor import still preferred)");
             sb.AppendLine("# placeholders_p1: 132 numbered 64x64 jh_ PNG PPU32 pivot (0.5,0.15); same-name true art replaces");
             sb.AppendLine("# Spawn land: CombatRoomSpawn room-AABB random; melee-near/ranged-far; min player; avoid chest/altar; bypass even-ring");
@@ -155,11 +155,14 @@ namespace RogueShooter.Combat
                 "enter→PortalFx→1.0s→wave1 visible");
             Row(sb, "spawn_cadence_interwave",
                 cadenceErr == null
+                && MazeRules.InterWavePortalHoldSeconds > MazeRules.InterWavePortalHoldMinSeconds
                 && MazeRules.InterWavePortalHoldSeconds <= MazeRules.InterWavePortalHoldMaxSeconds + 0.0001f
-                && System.Math.Abs(MazeRules.PortalHoldForWave(2) - MazeRules.InterWavePortalHoldSeconds) < 0.001f,
+                && System.Math.Abs(MazeRules.PortalHoldForWave(2) - 2.5f) < 0.001f
+                && System.Math.Abs(MazeRules.InterWavePortalHoldSeconds - 1.0f) > 0.001f
+                && System.Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.0f) > 0.001f,
                 "clear-w1→PortalFx→" + MazeRules.PortalHoldForWave(2).ToString("0.0")
-                + "s(≤" + MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0")
-                + ")→wave2 table=InterWavePortalHoldSeconds");
+                + "s(>2.0 ≤" + MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0")
+                + ") from show; not 1.0s or 2.0s");
             Row(sb, "spawn_land_room_random",
                 land.CenterSpread >= 3f && land.EvenRingHits <= land.MeleeN / 5,
                 "spread=" + land.CenterSpread.ToString("0.00")
