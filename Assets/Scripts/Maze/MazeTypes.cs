@@ -213,41 +213,40 @@ namespace RogueShooter.Maze
         public float FullTotalEstimate;
         public float MaxCorridorSeg;
         public float MaxCorridorSegSeconds;
+        public float FirstHop;
+        public float FirstHopSeconds;
         public bool ConnectorReachable;
         public bool AllReachable;
     }
 
-    /// <summary>Spec v0.5 S1 maze. Walk-only clocks: short folded corridors ≤5s/seg, START→Altar 60–120s, visit-all 240±30s. Combat estimates are not a clock lock.</summary>
+    /// <summary>
+    /// Spec v0.5 S1 maze. Schematic rooms 48×36, pitch 78×66 (gap 30u).
+    /// Every template edge is Manhattan=1 (one pitch, orthogonal, straight).
+    /// START→first combat = 1×Pitch. Altar is larger than a normal combat room.
+    /// Quota: Chest×2 + Altar×1 + Normal×2 + START + CONN. Walk 60/240 is not a lock.
+    /// </summary>
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        /// <summary>Chosen 36×28 / 66×58 for v2b clocks. Room size is not locked (not 40×32). Net gap ≤30u.</summary>
-        public const float PitchX = 66f;
-        public const float PitchY = 58f;
-        public const float CombatWidth = 36f;
-        public const float CombatHeight = 28f;
-        public const float HubWidth = 26f;
-        public const float HubHeight = 22f;
-        public const float CorridorWidth = 10f;
+        /// <summary>Diagram rooms. Pitch = room + 30u gap (≤5s @ 6). No fold padding.</summary>
+        public const float CombatWidth = 48f;
+        public const float CombatHeight = 36f;
+        public const float PitchX = 78f;
+        public const float PitchY = 66f;
+        public const float HubWidth = 48f;
+        public const float HubHeight = 36f;
+        public const float AltarWidth = 60f;
+        public const float AltarHeight = 48f;
+        public const float CorridorWidth = 8f;
         public const float CorridorSegMax = 30f;
         public const float CorridorSegMaxSeconds = 5f;
-        public const int FoldStem = 12;
-        public const int FoldBranchIZ = 5;
-        public const int FoldBranchC = 4;
-        public const float FoldStemMinLen = 360f;
-        public const float FoldBranchIZMinLen = 180f;
-        public const float FoldBranchCMinLen = 150f;
-        public const float WalkAltarMinSeconds = 60f;
-        public const float WalkAltarMaxSeconds = 120f;
-        public const float WalkAllTargetSeconds = 240f;
-        public const float WalkAllSlackSeconds = 30f;
         public const float LargeChestChance = 0.25f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
         public const float PortalHoldSeconds = 1.0f;
         public const int QuotaNormal = 2;
-        public const int QuotaChest = 1;
+        public const int QuotaChest = 2;
         public const int QuotaAltar = 1;
         public const int QuotaStart = 1;
         public const int QuotaConnector = 1;

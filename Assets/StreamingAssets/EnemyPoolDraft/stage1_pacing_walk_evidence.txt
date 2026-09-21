@@ -1,22 +1,19 @@
-# Stage-1 walk-only pacing evidence (DRAFT) — v2b
-# seconds = folded graph path length / moveSpeed
-# Pitch 130/115 void. Adjacent corridor = max straight fold segment ≤30u / 5s.
-moveSpeed=6 pitch=66/58 rooms=36x28 (flex, not 40x32 lock) hub=26x22 corridor=10 segMax=30
-target START→Altar=60-120s visit-all=240±30s corridorSeg≤5s
-quota Chest×1+Altar×1+Normal×2+START+CONN unchanged
-folds I/Z stem≥12 branch≥5; C branch≥4 (no long straight pads)
+# Stage-1 walk-only evidence (DRAFT schematic)
+# seconds = center-to-center path / moveSpeed. 60/240 is NOT a lock.
+moveSpeed=6 pitch=78/66 rooms=48x36 altar=60x48 hub=48x36 corridor=8 segMax=30
+ACCEPTANCE rooms=48x36 pitch=78/66 gap=30u START=1pitch manhattan=1 CONN-adj-combat
+quota Chest×2+Altar×1+Normal×2+START+CONN
 
-seed,tpl,altar_u,altar_s,visit_u,visit_s,max_seg_u,max_seg_s,altar_ok,visit_ok,corr_ok
-1,Z,540.0,90.0,1440.0,240.0,30.0,5.00,PASS,PASS,PASS
-2,C,510.0,85.0,1410.0,235.0,30.0,5.00,PASS,PASS,PASS
-17,C,510.0,85.0,1410.0,235.0,30.0,5.00,PASS,PASS,PASS
-42,I,540.0,90.0,1440.0,240.0,30.0,5.00,PASS,PASS,PASS
-99,I,540.0,90.0,1440.0,240.0,30.0,5.00,PASS,PASS,PASS
-2026,Z,540.0,90.0,1440.0,240.0,30.0,5.00,PASS,PASS,PASS
+seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,hop_ok,corr_ok
+1,Z,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
+2,C,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
+17,C,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
+42,I,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
+99,I,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
+2026,Z,66.0,11.0,210.0,35.0,30.0,5.00,PASS,PASS
 
-# seed 5 (C) 1-hop START→ALTAR = 360u/60.0s (stem only) visit-all 235s maxSeg 5.00s
 # seed 42 detail
-[S1Maze] seed=42 tpl=I largeChest=0 rooms=START(START@0,0),N1(Normal@0,58),ALTAR(Altar@-66,58),N2(Normal@66,58),CHEST(Chest@0,116),CONN(Connector@66,116) edges=START--N1;N1--ALTAR;N1--N2;N1--CHEST;CHEST--CONN
-[S1Maze] quota Chest=1 Altar=1 Normal=2 Start=1 Connector=stub
-[S1Maze] walkOnly move=6 altar=540.0u/90.0s START→ALTAR (=length/6) full=1440.0u/240.0s visit-all maxSeg=30.0u/5.00s pitch=66/58 rooms=36x28
-# WALK PACING PASS
+[S1Maze] seed=42 tpl=I largeChest=1 rooms=START(START@0,0),LARGE(LargeChest@0,66),N1(Normal@-78,66),ALTAR(Altar@78,66),N2(Normal@156,66),CHEST2(Chest@0,132),CONN(Connector@78,132) edges=START--LARGE;LARGE--N1;LARGE--ALTAR;ALTAR--N2;LARGE--CHEST2;CHEST2--CONN
+[S1Maze] quota Chest=2 Altar=1 Normal=2 Start=1 Connector=stub
+[S1Maze] walkOnly move=6 firstHop=66.0u/11.0s (1 pitch) shortest=210.0u/35.0s START→CONN maxSeg=30.0u/5.00s pitch=78/66 rooms=48x36 altar=60x48
+# WALK GATES PASS (hop=1pitch corr≤5s; 60/240 not locked)

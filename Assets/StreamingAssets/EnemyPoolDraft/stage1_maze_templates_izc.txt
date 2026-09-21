@@ -1,25 +1,25 @@
-# S1 maze I/Z/C fold templates (v2b)
-# rooms 36x28 (flexible, not a 40x32 lock)  pitch 66/58  hub 26x22  move=6  corridor seg ≤30u / 5s
-# stem START–entry ≥12 folds (≥360u / 60s). I/Z branches ≥5. C branches ≥4.
-# No long straight pitch (130/115 void).
+# S1 maze I/Z/C templates (schematic 48×36 / pitch 78×66 gap 30)
+# Quota Chest×2 + Altar×1 + Normal×2 + START + CONN (5 combat slots)
+# All edges Manhattan=1 orthogonal straight. CONN adjacent to a combat room.
+# Altar 60×48. START→first = 1×PitchY. No two-cell span. No fold padding.
 
 I              N(1,2) -- CONN(2,2)
                  |
-    W(0,1) -- entry(1,1) -- E(2,1)
+    W(0,1) -- entry(1,1) -- E(2,1) -- E2(3,1)
                  |
               START(1,0)
-    seed 42  START→Altar 90.0s  visit-all 240.0s  maxSeg 5.00s
+    all edges Manhattan=1  CONN adj N  extra=E2
 
 Z  CONN(0,2) -- N(1,2)
               |
-    W(0,1) -- entry(1,1) -- E(2,1)
-              |
-           START(1,0)
-    seed 1   START→Altar 90.0s  visit-all 240.0s  maxSeg 5.00s
+ W2(-1,1) -- W(0,1) -- entry(1,1) -- E(2,1)
+                          |
+                       START(1,0)
+    all edges Manhattan=1  CONN adj N  extra=W2
 
-C                N(1,2)
-                   |
-    W(0,1) -- entry(1,1) -- E(2,1) -- CONN(3,1)
-                   |
-                START(1,0)
-    seed 2   START→Altar 85.0s  visit-all 235.0s  maxSeg 5.00s
+C   NW(0,2) -- N(1,2) -- CONN(2,2)
+         |         |
+      W(0,1) -- entry(1,1) -- E(2,1)
+                    |
+                 START(1,0)
+    all edges Manhattan=1  CONN(2,2) adj N(1,2)  no two-cell span

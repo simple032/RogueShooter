@@ -85,13 +85,12 @@ namespace RogueShooter.Demo
                       + "u/" + _pace.FullWalkSeconds.ToString("0.0") + "s"
                       + " waves=" + _pace.FullWaves
                       + " totalEst=" + _pace.FullTotalEstimate.ToString("0")
-                      + "s (walk-only clocks; combat est not in 60/240)");
+                      + "s (walk-only clocks; 60/240 not a path lock)");
             Debug.Log("[S1Maze] walkOnly move=" + MazeRules.PlayMoveSpeed.ToString("0")
-                      + " altar=" + _pace.AltarWalk.ToString("0.0") + "u/"
-                      + _pace.AltarWalkSeconds.ToString("0.0") + "s START→ALTAR"
-                      + " (=length/" + MazeRules.PlayMoveSpeed.ToString("0") + ")"
-                      + " full=" + _pace.FullWalk.ToString("0.0") + "u/"
-                      + _pace.FullWalkSeconds.ToString("0.0") + "s visit-all"
+                      + " firstHop=" + _pace.FirstHop.ToString("0.0") + "u/"
+                      + _pace.FirstHopSeconds.ToString("0.0") + "s (1 pitch)"
+                      + " shortest=" + _pace.ShortestWalk.ToString("0.0") + "u/"
+                      + _pace.ShortestWalkSeconds.ToString("0.0") + "s START→CONN"
                       + " maxSeg=" + _pace.MaxCorridorSeg.ToString("0.0") + "u/"
                       + _pace.MaxCorridorSegSeconds.ToString("0.00") + "s"
                       + " pitch=" + MazeRules.PitchX.ToString("0") + "/"
@@ -894,11 +893,12 @@ namespace RogueShooter.Demo
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
             string pace = _maze != null
-                ? "walkOnly altar " + _pace.AltarWalkSeconds.ToString("0") + "s (60-120) · visit-all "
-                  + _pace.FullWalkSeconds.ToString("0") + "s (240±30) · maxSeg "
+                ? "firstHop " + _pace.FirstHopSeconds.ToString("0.0") + "s (1 pitch) · START→CONN "
+                  + _pace.ShortestWalkSeconds.ToString("0") + "s · maxSeg "
                   + _pace.MaxCorridorSegSeconds.ToString("0.0") + "s (≤5) · move=" + PlaySpeed().ToString("0")
                   + " pitch=" + MazeRules.PitchX.ToString("0") + "/" + MazeRules.PitchY.ToString("0")
                   + " rooms=" + MazeRules.CombatWidth.ToString("0") + "x" + MazeRules.CombatHeight.ToString("0")
+                  + " altar=" + MazeRules.AltarWidth.ToString("0") + "x" + MazeRules.AltarHeight.ToString("0")
                 : "";
             GUI.Label(new Rect(pad + 8, pad + 136, w - 16, 18), pace, style);
             string room = _active != null
