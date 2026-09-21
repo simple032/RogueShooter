@@ -1,9 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
-using RogueShooter.Ai;
 using RogueShooter.Art;
-using RogueShooter.Boss;
-using RogueShooter.Demo;
+using RogueShooter.Combat;
 using RogueShooter.Vision;
 
 namespace RogueShooter.Player
@@ -15,7 +13,7 @@ namespace RogueShooter.Player
     /// </summary>
     public class PlayerCharge : MonoBehaviour
     {
-        [SerializeField] float hitRange = 8f;
+        [SerializeField] float hitRange = ProjectileRules.ArrowMaxRange;
 
         float _held;
         bool _charging;
@@ -49,6 +47,14 @@ namespace RogueShooter.Player
         void Update()
         {
             if (RunPause.IsPaused)
+            {
+                if (_charging)
+                    CancelCharge();
+                return;
+            }
+
+            var dodge = GetComponent<PlayerDodge>();
+            if (dodge != null && dodge.IsRolling)
             {
                 if (_charging)
                     CancelCharge();
@@ -165,98 +171,10 @@ namespace RogueShooter.Player
                       $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
 
-            ApplyHit(dmg, kind, heldSeconds);
-            return kind;
-        }
-
-        void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds)
-        {
             Vector3 origin = transform.position;
             Vector3 aim = AimDirection();
-            MobFourStateAi best = null;
-            float bestDot = 0.35f;
-            float bestD = hitRange;
-            IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
-            for (int i = 0; i < all.Count; i++)
-            {
-                MobFourStateAi mob = all[i];
-                if (mob == null || !mob.isActiveAndEnabled)
-                    continue;
-                Vector3 to = mob.transform.position - origin;
-                to.z = 0f;
-                float d = to.magnitude;
-                if (d < 0.01f || d > hitRange)
-                    continue;
-                float dot = Vector3.Dot(aim, to.normalized);
-                if (dot < bestDot)
-                    continue;
-                if (d < bestD)
-                {
-                    bestD = d;
-                    best = mob;
-                }
-            }
-
-            BossFightDriver boss = BossFightDriver.Live;
-            if (boss != null && boss.FightStarted && !boss.FightSettled)
-            {
-                Vector3 toBoss = boss.transform.position - origin;
-                toBoss.z = 0f;
-                float bossDist = toBoss.magnitude;
-                bool pointBlank = bossDist < 0.01f;
-                float bossDot = pointBlank ? 1f : Vector3.Dot(aim, toBoss.normalized);
-                if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
-                {
-                    boss.DealDamage(damage);
-                    bool bossWeak = kind == ChargeShotKind.Crit;
-                    if (bossWeak)
-                        boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
-                    if (FullChargeKnockback.Applies(kind, heldSeconds))
-                    {
-                        float kb = FullChargeKnockback.HitDistance(
-                            null, false, true, bossWeak, _ownedRewards);
-                        boss.ApplyKnockback(aim, kb);
-                    }
-                    Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
-                              $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
-                    return;
-                }
-            }
-
-            if (best == null)
-            {
-                Debug.Log($"[ChargeShot] miss kind={kind}");
-                return;
-            }
-
-            bool weak = kind == ChargeShotKind.Crit;
-            bool raised = best.ShieldRaised;
-            int amount = Mathf.Max(1, Mathf.RoundToInt(damage));
-            float stagger = ChargeShotRules.WeakSpotStaggerSeconds;
-            amount = best.ModifyIncomingShot(origin, weak, amount, out stagger);
-            var stub = best.GetComponent<StubEnemy>();
-            if (stub != null)
-                stub.TakeDamage(amount);
-            else
-                best.NotifyDamaged();
-            if (weak)
-                best.ApplyWeakSpotStagger(stagger);
-            if (FullChargeKnockback.Applies(kind, heldSeconds))
-            {
-                if (FullChargeKnockback.RootsOnBodyHit(best.KindId, raised, weak))
-                {
-                    best.ApplyRoot(FullChargeKnockback.ShieldRaisedRootSeconds);
-                }
-                else
-                {
-                    float kb = FullChargeKnockback.HitDistance(
-                        best.KindId, raised, false, weak, _ownedRewards);
-                    best.ApplyKnockback(aim, kb);
-                }
-            }
-            Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
-                      $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s" +
-                      $" zhenshi×{KnockbackRewardDraft.DistPctProduct(_ownedRewards):0.00}");
+            ArrowProjectile.Spawn(origin + aim * 0.45f, aim, dmg, kind, heldSeconds, _ownedRewards, transform, hitRange);
+            return kind;
         }
 
         Vector3 AimDirection()
@@ -272,6 +190,11 @@ namespace RogueShooter.Player
             }
 
             return Vector3.right;
+        }
+
+        public void CancelChargePublic()
+        {
+            CancelCharge();
         }
 
         void CancelCharge()

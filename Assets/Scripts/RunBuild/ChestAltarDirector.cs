@@ -38,6 +38,8 @@ namespace RogueShooter.Build
 
         public RunBuildState Build => _build;
         public int Seed => _seed;
+        public Func<Vector3, bool> CanUseSites;
+        public bool AllowReseedHotkey = true;
         public int ChestPresentCount => ChestPresenceRoller.CountPresent(_chestPresent);
         public int ChestSlotCount => _chestPresent.Count;
         public int AltarCount { get; private set; }
@@ -181,7 +183,7 @@ namespace RogueShooter.Build
 
             if (Input.GetKeyDown(KeyCode.E))
                 TryInteract();
-            if (Input.GetKeyDown(KeyCode.N))
+            if (AllowReseedHotkey && Input.GetKeyDown(KeyCode.N))
                 BeginRun(Environment.TickCount);
         }
 
@@ -240,6 +242,12 @@ namespace RogueShooter.Build
 
         void TryInteract()
         {
+            if (CanUseSites != null && _player != null && !CanUseSites(_player.position))
+            {
+                Flash("clear room first");
+                return;
+            }
+
             if (_nearest == null)
             {
                 Flash("no site in range");

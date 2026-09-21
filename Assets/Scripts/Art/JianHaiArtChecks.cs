@@ -75,6 +75,12 @@ namespace RogueShooter.Art
                 return "shoot recovery must be 0.20s";
             if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
                 return "weak-spot stagger must be 0.50s";
+            if (JianHaiArtCatalog.ArrowFlight != JianHaiArtCatalog.FxTipWarm)
+                return "arrow flight must reuse charge tip art";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.FxMageOrb) != "FX")
+                return "mage orb fx folder";
+            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxMageOrb) != JianHaiArtCatalog.LayerFx)
+                return "mage orb fx layer";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

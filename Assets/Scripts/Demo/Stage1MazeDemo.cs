@@ -12,6 +12,8 @@ using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
 using RogueShooter.Build;
+using RogueShooter.Combat;
+using RogueShooter.Layout;
 
 namespace RogueShooter.Demo
 {
@@ -49,6 +51,8 @@ namespace RogueShooter.Demo
         string _flash = "";
         float _flashUntil;
         RunBuildState _build;
+        ChestAltarDirector _buildDir;
+        readonly List<SiteRuntime> _sites = new List<SiteRuntime>();
 
         IEnumerator Start()
         {
@@ -168,14 +172,13 @@ namespace RogueShooter.Demo
                 JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerGround, 0);
                 _roomFloors[n.Id] = go;
                 _world.Add(go);
-                AddWalls(n, root);
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
                     new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
                 AddProp(n, root);
                 _sessions[n.Id] = new CombatRoomSession(n);
             }
 
-            AddDoors(root);
+            SpawnCollisionSolids(root);
 
             MazeNode start = _maze.Find("START");
             Vector3 startPos = start != null
@@ -189,11 +192,11 @@ namespace RogueShooter.Demo
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
             player.AddComponent<PlayerCharge>();
+            player.AddComponent<PlayerDodge>();
             player.AddComponent<GuaranteedCritActive>();
-            EnsureBuild();
-            var charge = player.GetComponent<PlayerCharge>();
-            if (charge != null)
-                charge.BindOwnedRewards(_build.OwnedRewardIds);
+            CollisionVolume.Add(player, CollisionLayer.Player, false, CollisionRules.PlayerHalfX, CollisionRules.PlayerHalfY);
+            EntityAnimView.Add(player, true);
+            BindDirector(player);
             _player = player.transform;
             _lastGood = startPos;
             _world.Add(player);
@@ -231,21 +234,60 @@ namespace RogueShooter.Demo
             _stubPrefab.SetActive(false);
             JianHaiBind.ApplyTo(_stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             _stubPrefab.AddComponent<StubEnemy>();
+            CollisionVolume.Add(_stubPrefab, CollisionLayer.Mob, false, CollisionRules.MobHalfX, CollisionRules.MobHalfY);
+            EntityAnimView.Add(_stubPrefab, false);
             _world.Add(_stubPrefab);
         }
 
-        void AddWalls(MazeNode n, Transform root)
+        void SpawnCollisionSolids(Transform root)
         {
-            Color wall = new Color(0.07f, 0.08f, 0.09f);
-            float t = 0.45f;
-            float x = n.Center.X;
-            float y = n.Center.Y;
-            float hw = n.Width * 0.5f;
-            float hh = n.Height * 0.5f;
-            _world.Add(DemoPrimitives.Quad("WallN_" + n.Id, new Vector3(x, y + hh, 1f), new Vector2(n.Width + t, t), wall, 2, root));
-            _world.Add(DemoPrimitives.Quad("WallS_" + n.Id, new Vector3(x, y - hh, 1f), new Vector2(n.Width + t, t), wall, 2, root));
-            _world.Add(DemoPrimitives.Quad("WallW_" + n.Id, new Vector3(x - hw, y, 1f), new Vector2(t, n.Height), wall, 2, root));
-            _world.Add(DemoPrimitives.Quad("WallE_" + n.Id, new Vector3(x + hw, y, 1f), new Vector2(t, n.Height), wall, 2, root));
+            List<MazeSolid> solids = MazeCollisionBuilder.Build(_maze);
+            for (int i = 0; i < solids.Count; i++)
+            {
+                MazeSolid s = solids[i];
+                Color color = s.Door
+                    ? new Color(0.72f, 0.16f, 0.16f)
+                    : new Color(0.07f, 0.08f, 0.09f);
+                int order = s.Door ? 6 : 2;
+                GameObject go = DemoPrimitives.Quad(
+                    s.Name,
+                    new Vector3(s.X, s.Y, s.Door ? 0f : 1f),
+                    new Vector2(s.Width, s.Height),
+                    color, order, root);
+                CollisionVolume.Add(go, s.Layer, !s.Door);
+                if (s.Door)
+                {
+                    go.SetActive(false);
+                    _doors.Add(go);
+                }
+
+                _world.Add(go);
+            }
+        }
+
+        void BindDirector(GameObject player)
+        {
+            EnsureBuild();
+            if (_buildDir == null)
+                _buildDir = gameObject.AddComponent<ChestAltarDirector>();
+            _buildDir.AllowReseedHotkey = false;
+            _buildDir.CanUseSites = SiteUnlocked;
+            _buildDir.Bind(_lock, player.transform, _sites, seed);
+            _build = _buildDir.Build;
+            var charge = player.GetComponent<PlayerCharge>();
+            if (charge != null && _build != null)
+                charge.BindOwnedRewards(_build.OwnedRewardIds);
+        }
+
+        bool SiteUnlocked(Vector3 pos)
+        {
+            MazeNode n = RoomAt(pos.x, pos.y, 0.2f);
+            if (n == null || !n.SpawnsEnemies)
+                return true;
+            CombatRoomSession s;
+            if (!_sessions.TryGetValue(n.Id, out s) || s == null)
+                return false;
+            return s.Phase == CombatRoomPhase.Cleared;
         }
 
         void AddProp(MazeNode n, Transform root)
@@ -253,9 +295,25 @@ namespace RogueShooter.Demo
             if (n.Kind != MazeNodeKind.Chest && n.Kind != MazeNodeKind.LargeChest
                 && n.Kind != MazeNodeKind.Altar && n.Kind != MazeNodeKind.Connector)
                 return;
-            string hook = n.Kind == MazeNodeKind.Altar ? "A_S1"
-                : n.Kind == MazeNodeKind.Connector ? "CONN_STUB"
-                : "Chest_S1";
+            string hook;
+            SiteKind siteKind = SiteKind.Chest;
+            if (n.Kind == MazeNodeKind.Altar)
+            {
+                hook = "A_Shared";
+                siteKind = SiteKind.Altar;
+            }
+            else if (n.Kind == MazeNodeKind.Connector)
+            {
+                hook = "CONN_STUB";
+            }
+            else if (n.Id == "CHEST2")
+            {
+                hook = "Chest_02";
+            }
+            else
+            {
+                hook = "Chest_01";
+            }
             Vector3 pos = new Vector3(n.Center.X, n.Center.Y + 0.4f, 0f);
             GameObject go;
             if (n.Kind == MazeNodeKind.Connector)
@@ -273,40 +331,15 @@ namespace RogueShooter.Demo
             }
 
             _world.Add(go);
-        }
-
-        void AddDoors(Transform root)
-        {
-            for (int i = 0; i < _maze.Edges.Length; i++)
+            if (n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.Altar)
             {
-                MazeEdge e = _maze.Edges[i];
-                MazeNode a = _maze.Find(e.FromId);
-                MazeNode b = _maze.Find(e.ToId);
-                if (a == null || b == null)
-                    continue;
-                PlaceDoor(root, a, b);
-                PlaceDoor(root, b, a);
+                var def = new SiteDef(hook, new Vector2(pos.x, pos.y), siteKind, RouteId.Shared, n.Id);
+                var runtime = go.GetComponent<SiteRuntime>();
+                if (runtime == null)
+                    runtime = go.AddComponent<SiteRuntime>();
+                runtime.Configure(def, n.Kind != MazeNodeKind.Chest);
+                _sites.Add(runtime);
             }
-        }
-
-        void PlaceDoor(Transform root, MazeNode room, MazeNode other)
-        {
-            Vector3 dir = new Vector3(other.Center.X - room.Center.X, other.Center.Y - room.Center.Y, 0f);
-            if (dir.sqrMagnitude < 0.01f)
-                return;
-            dir.Normalize();
-            float hw = room.Width * 0.5f;
-            float hh = room.Height * 0.5f;
-            Vector3 pos = new Vector3(room.Center.X, room.Center.Y, 0f) + dir * (Mathf.Abs(dir.x) > Mathf.Abs(dir.y) ? hw : hh);
-            GameObject door = DemoPrimitives.Quad(
-                "Door_" + room.Id + "_" + other.Id,
-                pos, new Vector2(2.4f, 0.28f),
-                new Color(0.72f, 0.16f, 0.16f), 6, root);
-            if (Mathf.Abs(dir.x) > Mathf.Abs(dir.y))
-                door.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
-            door.SetActive(false);
-            _doors.Add(door);
-            _world.Add(door);
         }
 
         void LogDryRun()
@@ -329,6 +362,7 @@ namespace RogueShooter.Demo
 
         void HandleHotkeys()
         {
+            bool offering = _buildDir != null && _buildDir.Offering;
             if (Input.GetKeyDown(KeyCode.N))
             {
                 BuildRun(Environment.TickCount);
@@ -349,20 +383,24 @@ namespace RogueShooter.Demo
                 TeleportFirst(MazeNodeKind.Altar);
             if (Input.GetKeyDown(KeyCode.F4))
                 TeleportFirstChest();
-            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+            if (!offering && (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)))
                 Teleport("N1");
-            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+            if (!offering && (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)))
                 Teleport("N2");
-            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+            if (!offering && (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)))
                 TeleportFirst(MazeNodeKind.Altar);
-            if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+            if (!offering && (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)))
                 TeleportFirstChest();
             if (Input.GetKeyDown(KeyCode.K))
                 KillLiveWave();
             if (Input.GetKeyDown(KeyCode.F9))
                 WriteEvidence();
             if (Input.GetKeyDown(KeyCode.E))
+            {
+                if (_buildDir != null && (_buildDir.Offering || _buildDir.Nearest != null))
+                    return;
                 TryInteract();
+            }
             if (Input.GetKeyDown(KeyCode.F6))
                 GrantZhenShi(KnockbackRewardDraft.IdLow);
             if (Input.GetKeyDown(KeyCode.F7))
@@ -609,6 +647,12 @@ namespace RogueShooter.Demo
                 return;
             }
 
+            if (n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.Altar)
+            {
+                Flash("walk closer (E range ~1.7)");
+                return;
+            }
+
             Debug.Log("[S1Maze] interact room=" + n.Id + " kind=" + MazeRules.Label(n.Kind));
             Flash("interact " + n.Id);
         }
@@ -749,9 +793,12 @@ namespace RogueShooter.Demo
             string pacePath = Stage1MazeSampler.WritePacingTo(Stage1MazeSampler.PacingPath());
             string layoutPath = Stage1MazeSampler.WriteLayoutTo(
                 Path.Combine(Stage1MazeSampler.DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
+            string playPath = Stage1PlayableSampler.WriteTo(Stage1PlayableSampler.DefaultPath());
+            Stage1PlayableSampler.WriteTo(Stage1PlayableSampler.StreamingPath());
             Debug.Log("[S1Maze] evidence " + path);
             Debug.Log("[S1Maze] pacing " + pacePath + "\n" + Stage1MazeSampler.PacingText());
             Debug.Log("[S1Maze] layout " + layoutPath);
+            Debug.Log("[S1Maze] playable " + playPath);
             Flash("wrote " + path);
         }
 
@@ -763,7 +810,8 @@ namespace RogueShooter.Demo
             bool speedOk = Mathf.Abs(PlaySpeed() - MazeRules.PlayMoveSpeed) < 0.01f;
             string mazeErr = Stage1MazeChecks.Run();
             string poolErr = StageEnemyPoolChecks.Run();
-            _pass = viewOk && speedOk && mazeErr == null && poolErr == null;
+            string playErr = Stage1PlayableChecks.Run();
+            _pass = viewOk && speedOk && mazeErr == null && poolErr == null && playErr == null;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append(" view=").Append(viewOk ? 1 : 0);
@@ -772,6 +820,8 @@ namespace RogueShooter.Demo
                 sb.Append(" mazeErr=").Append(mazeErr);
             if (poolErr != null)
                 sb.Append(" poolErr=").Append(poolErr);
+            if (playErr != null)
+                sb.Append(" playErr=").Append(playErr);
             if (_pass)
                 sb.Append(" | ").Append(Stage1MazeChecks.FormatPass());
             _status = sb.ToString();
@@ -817,6 +867,8 @@ namespace RogueShooter.Demo
             _sessions.Clear();
             _roomFloors.Clear();
             _doors.Clear();
+            _sites.Clear();
+            CollisionWorld.Clear();
             _active = null;
             if (_player != null)
             {
@@ -876,22 +928,22 @@ namespace RogueShooter.Demo
         void OnGUI()
         {
             const int pad = 8;
-            int w = 620;
-            int h = 308;
+            int w = 640;
+            int h = 340;
             GUI.Box(new Rect(pad, pad, w, h), "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             var title = new GUIStyle(style) { fontSize = 15, fontStyle = FontStyle.Bold };
             var rich = new GUIStyle(style) { richText = true };
-            GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 22), "Stage-1 maze skeleton · Spec v0.5", title);
-            GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 70),
-                "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
-                "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence\n" +
-                "full charge KB DRAFT · weak-spot ×1.5+stagger · shield-raised body root 0.5s · weak charge none\n" +
-                "F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢",
+            GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 22), "Stage-1 maze · playable combat (v2e)", title);
+            GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 78),
+                "WASD · hold LMB/C charge (flying arrow) · Space/LShift dodge i-frame · F strike · E chest/altar\n" +
+                "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
+                "enter combat → lock doors (solid) → [PortalFx] 1.0s → spawn → clear → open  |  Chest/Altar 2 waves\n" +
+                "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
+                "dodge STUB dur=0.35s iframe=0.20s cd=0.90s (DodgeRules) · layers Player/Mob/Wall/Door/Projectile",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
-            GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
+            GUI.Label(new Rect(pad + 8, pad + 108, w - 16, 36), graph, style);
             string pace = _maze != null
                 ? "firstHop " + _pace.FirstHopSeconds.ToString("0.0") + "s (~3s feel) · START→CONN "
                   + _pace.ShortestWalkSeconds.ToString("0") + "s · maxSeg "
@@ -900,20 +952,30 @@ namespace RogueShooter.Demo
                   + " rooms=" + MazeRules.CombatWidth.ToString("0") + "x" + MazeRules.CombatHeight.ToString("0")
                   + " altar=" + MazeRules.AltarWidth.ToString("0") + "x" + MazeRules.AltarHeight.ToString("0")
                 : "";
-            GUI.Label(new Rect(pad + 8, pad + 136, w - 16, 18), pace, style);
+            GUI.Label(new Rect(pad + 8, pad + 144, w - 16, 18), pace, style);
+            var dodge = _player != null ? _player.GetComponent<PlayerDodge>() : null;
+            string dodgeLine = dodge == null
+                ? ""
+                : (dodge.IsRolling ? "DODGE" : dodge.IsInvulnerable ? "IFRAME" : dodge.OnCooldown && dodge.LastRollStart > 0f ? "dodge CD" : "dodge ready")
+                  + ( _buildDir != null ? "  " + _buildDir.SummaryLine() : "");
             string room = _active != null
                 ? "active " + _active.RoomId + " " + _active.Phase + " wave=" + _active.CurrentWave
                   + "/" + _active.WavesTotal + " doors=" + (_active.DoorsLocked ? "LOCKED" : "OPEN")
                   + " live=" + _live.Count
                   + (_portalWaiting ? " PORTAL 1.0s" : "")
-                : "walk a combat room to lock + portal + spawn";
-            GUI.Label(new Rect(pad + 8, pad + 156, w - 16, 18), room, style);
+                  + "  " + dodgeLine
+                : "walk a combat room to lock + portal + spawn  " + dodgeLine;
+            GUI.Label(new Rect(pad + 8, pad + 164, w - 16, 18), room, style);
             string status = _pass
                 ? "<color=#88ff88>" + _status + "</color>"
                 : "<color=#ffcc88>" + _status + "</color>";
-            GUI.Label(new Rect(pad + 8, pad + 176, w - 16, 48), status, rich);
+            GUI.Label(new Rect(pad + 8, pad + 184, w - 16, 48), status, rich);
             if (!string.IsNullOrEmpty(_flash) && Time.unscaledTime < _flashUntil)
-                GUI.Label(new Rect(pad + 8, pad + 226, w - 16, 18), _flash, style);
+                GUI.Label(new Rect(pad + 8, pad + 234, w - 16, 18), _flash, style);
+            else if (_buildDir != null && !string.IsNullOrEmpty(_buildDir.FlashMessage()))
+                GUI.Label(new Rect(pad + 8, pad + 234, w - 16, 18), _buildDir.FlashMessage(), style);
+            if (_buildDir != null)
+                _buildDir.DrawOfferGui();
         }
     }
 }

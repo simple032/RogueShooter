@@ -46,6 +46,10 @@ namespace RogueShooter.Art
         public const string FxTipWarm = "jh_fx_charge_arrow_tip";
         public const string FxTipIdle = "jh_fx_charge_arrow_tip_idle";
         public const string FxCritFlash = "jh_fx_crit_flash";
+        /// <summary>Flying charge arrow. No dedicated projectile PNG — reuses the charge tip.</summary>
+        public const string ArrowFlight = FxTipWarm;
+        /// <summary>Cult / grand mage orb. PNG not in repo; runtime placeholder.</summary>
+        public const string FxMageOrb = "jh_fx_mage_orb";
         public const string ReticleChargeIdle = "jh_ui_reticle_charge_idle";
         public const string ReticleChargeGreen = "jh_ui_reticle_charge_green";
 

@@ -5,6 +5,7 @@ using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
 using RogueShooter.Build;
+using RogueShooter.Combat;
 
 namespace RogueShooter.Maze
 {
@@ -22,6 +23,8 @@ namespace RogueShooter.Maze
             err = CheckCombatLoop();
             if (err != null) return err;
             err = CheckPoolRouting();
+            if (err != null) return err;
+            err = Stage1PlayableChecks.Run();
             if (err != null) return err;
             return null;
         }
@@ -48,6 +51,7 @@ namespace RogueShooter.Maze
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("zhenshi=R15_C+20%/R15_R+40% mul-then-ws ");
             sb.Append("pacing=informational-walk combatEst-not-locked ");
+            sb.Append(Stage1PlayableChecks.FormatPass()).Append(' ');
             sb.Append("S2S3=not-built");
             return sb.ToString();
         }

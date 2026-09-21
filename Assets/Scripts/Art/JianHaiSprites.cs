@@ -122,6 +122,8 @@ namespace RogueShooter.Art
                 return Hex(0xe0b56a);
             if (artId.Contains("glow_cold"))
                 return Hex(0xb8c4d4);
+            if (artId.Contains("mage_orb"))
+                return Hex(0xc22bd4);
             if (artId.Contains("string_glow") || artId.Contains("bow_edge") || artId.Contains("arrow_tip"))
                 return Hex(0xd4a05a);
             if (artId.Contains("fx"))

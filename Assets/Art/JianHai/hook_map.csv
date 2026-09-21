@@ -5,3 +5,7 @@ A_Shared,jh_prop_altar,prop,idle|active,same altar root
 Shop_01,jh_prop_shop_01,prop,,keep shop_01 spelling
 BOSS,jh_boss_lord,boss,idle,optional marker
 START,jh_char_archer,char,idle,player spawn uses jh_char_archer_idle
+arrow,jh_fx_charge_arrow_tip,fx,flight,no dedicated projectile PNG; charge tip reused
+orb,jh_fx_mage_orb,fx,flight,PNG missing — runtime placeholder
+player_anim,jh_char_archer,char,idle only,GAP walk/dodge/charge/atk/_dir/_frame not in repo
+enemy_anim,jh_enemy_e1_skel,enemy,idle only,GAP walk/atk not in repo; other kinds share E1 idle

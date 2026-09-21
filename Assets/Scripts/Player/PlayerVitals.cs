@@ -29,8 +29,22 @@ namespace RogueShooter.Player
                 Configure(maxHp);
         }
 
+        public static bool HitBlockedByIFrame(bool iframeActive)
+        {
+            return iframeActive;
+        }
+
         public void ApplyHit(float amount, string kindId)
         {
+            var dodge = GetComponent<PlayerDodge>();
+            if (HitBlockedByIFrame(dodge != null && dodge.IsInvulnerable))
+            {
+                LastHitDamage = 0f;
+                LastHitKind = "IFRAME";
+                Debug.Log($"[PlayerVitals] iframe blocked kind={kindId} hp={Hp:0.#}/{MaxHp:0.#}");
+                return;
+            }
+
             float dmg = amount < 0f ? 0f : amount;
             LastHitDamage = dmg;
             LastHitKind = kindId;

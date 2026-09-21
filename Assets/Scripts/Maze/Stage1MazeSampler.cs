@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
+using RogueShooter.Combat;
 
 namespace RogueShooter.Maze
 {
@@ -40,6 +41,7 @@ namespace RogueShooter.Maze
             WritePacingTo(PacingPath());
             WriteLayoutTo(Path.Combine(DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
             WriteTemplatesTo(TemplatesPath());
+            Stage1PlayableSampler.WriteDefault();
             return WriteTo(DefaultPath(), 42);
         }
 
@@ -423,6 +425,8 @@ namespace RogueShooter.Maze
             string err = Stage1MazeChecks.Run();
             sb.Append("# ").Append(err == null ? Stage1MazeChecks.FormatPass() : "ACCEPTANCE FAIL " + err);
             sb.AppendLine();
+            sb.AppendLine("# playable");
+            sb.Append(Stage1PlayableSampler.Csv());
             return sb.ToString();
         }
     }
