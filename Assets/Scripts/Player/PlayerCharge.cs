@@ -216,14 +216,19 @@ namespace RogueShooter.Player
                 return;
             }
 
+            bool weak = kind == ChargeShotKind.Crit;
+            int amount = Mathf.Max(1, Mathf.RoundToInt(damage));
+            float stagger = ChargeShotRules.WeakSpotStaggerSeconds;
+            amount = best.ModifyIncomingShot(origin, weak, amount, out stagger);
             var stub = best.GetComponent<StubEnemy>();
             if (stub != null)
-                stub.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(damage)));
+                stub.TakeDamage(amount);
             else
                 best.NotifyDamaged();
-            if (kind == ChargeShotKind.Crit)
-                best.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
-            Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={damage:0.0} dist={bestD:0.00}");
+            if (weak)
+                best.ApplyWeakSpotStagger(stagger);
+            Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
+                      $"shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s");
         }
 
         Vector3 AimDirection()

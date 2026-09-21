@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace RogueShooter.Demo
 {
-    internal static class DemoPrimitives
+    public static class DemoPrimitives
     {
         static Sprite _white;
 
