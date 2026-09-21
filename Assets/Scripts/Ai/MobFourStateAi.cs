@@ -162,7 +162,7 @@ namespace RogueShooter.Ai
 
         public void ApplyPlaySpeed(string kindId)
         {
-            float v = EnemyKindCatalog.ForKind(kindId).WalkSpeedPlayStub;
+            float v = EnemyKindCatalog.WalkSpeed(kindId, false);
             _patrolSpeed = v;
             _chaseSpeed = v;
             _disengageSpeed = v;
@@ -452,7 +452,7 @@ namespace RogueShooter.Ai
                 dir = Vector3.right;
             dir.Normalize();
             float walk = _chaseSpeed > 0.01f ? _chaseSpeed : profile.WalkSpeedPlayStub;
-            float speed = EnemyCombatRules.OrbSpeed(walk);
+            float speed = EnemyCombatRules.OrbSpeedForKind(CurrentKindId(), walk);
             Camera cam = Camera.main;
             float ortho = cam != null ? cam.orthographicSize : EnemyCombatRules.PlayOrthoSize;
             float aspect = cam != null ? CameraViewMath.ResolveAspect(cam) : EnemyCombatRules.DefaultAspect;
@@ -483,7 +483,7 @@ namespace RogueShooter.Ai
             }
 
             _lastDealt = dmg;
-            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (walk×2, camW×0.7)");
+            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
         }
 
         void OnOrbDespawn(MageOrbProjectile orb, string reason)
@@ -570,7 +570,13 @@ namespace RogueShooter.Ai
         void Move(Vector3 toPlayer)
         {
             float dt = Time.deltaTime;
-            float mul = _shieldRaised ? EnemyCombatRules.ShieldMoveMul : 1f;
+            float mul = 1f;
+            if (_shieldRaised)
+            {
+                float shielded = EnemyKindCatalog.WalkSpeed(CurrentKindId(), true);
+                float baseWalk = _chaseSpeed > 0.01f ? _chaseSpeed : EnemyKindCatalog.WalkSpeed(CurrentKindId(), false);
+                mul = baseWalk > 0.01f ? shielded / baseWalk : EnemyCombatRules.ShieldMoveMul;
+            }
             switch (_brain.State)
             {
                 case MobAiState.Patrol:

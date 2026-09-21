@@ -11,10 +11,10 @@ namespace RogueShooter.Ai
     {
         public const float PlayOrthoSize = 6f; // producer retune; keep in sync with CameraViewService
         public const float DefaultAspect = 16f / 9f;
-        public const float OrbSpeedWalkMul = 2f;
+        public const float OrbSpeedWalkMul = 2f; // player_move × 2 → orb 12 (not mage walk × 2)
         public const float OrbRangeCameraWidthFrac = 0.7f;
         public const float ShieldRaiseDelaySeconds = 1f;
-        public const float ShieldMoveMul = 0.30f; // −70%
+        public const float ShieldMoveMul = 0.30f; // 4.5 → 1.35
         public const float ShieldFrontDamageMul = 0.50f;
         public const float ShieldWeakSpotStaggerSeconds = 1.00f;
         public const float GrandOrbSpreadDegrees = 15f;
@@ -34,12 +34,15 @@ namespace RogueShooter.Ai
         public const float MeleeHitRadius = 0.70f;
         public const float OrbHitRadiusStub = 0.40f;
 
-        // STUB play-scale walk (player play ≈ 6). Not MoveSpeeds lock CSV.
-        public const float WalkNormalStub = 2.40f;
-        public const float WalkDogStub = 3.60f;
-        public const float WalkMageStub = 2.00f;
-        public const float WalkShieldStub = 1.80f;
-        public const float WalkGrandStub = 1.80f;
+        // DRAFT play-scale walk from balance_enemy_move_draft.csv (player = 6).
+        public const float WalkPlayerStub = 6.00f;
+        public const float WalkNormalStub = 4.50f;
+        public const float WalkDogStub = 7.20f;
+        public const float WalkMageStub = 3.60f;
+        public const float WalkShieldStub = 4.50f;
+        public const float WalkShieldedStub = 1.35f;
+        public const float WalkGrandStub = 3.30f;
+        public const float OrbSpeedAbsStub = 12.00f;
 
         public static float CameraWidth(float orthographicSize, float aspect)
         {
@@ -57,6 +60,16 @@ namespace RogueShooter.Ai
 
         public static float OrbSpeed(float walkSpeed)
         {
+            return OrbSpeedForKind(null, walkSpeed);
+        }
+
+        public static float OrbSpeedForKind(string kindId, float walkSpeed)
+        {
+            float table = EnemyPoolDraft.OrbSpeedFor(kindId);
+            if (table > 0.01f)
+                return table;
+            if (OrbSpeedAbsStub > 0.01f)
+                return OrbSpeedAbsStub;
             return walkSpeed * OrbSpeedWalkMul;
         }
 

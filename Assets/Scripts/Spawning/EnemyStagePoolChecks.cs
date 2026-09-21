@@ -73,7 +73,14 @@ namespace RogueShooter.Spawning
             if (Math.Abs(EnemyCombatRules.GrandOrbSpreadDegrees - 15f) > 0.001f)
                 return "grand spread ±15°";
             if (Math.Abs(EnemyCombatRules.OrbSpeedWalkMul - 2f) > 0.001f)
-                return "orb speed = walk×2";
+                return "orb mul is player_move×2";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedAbsStub - 12f) > 0.001f
+                || Math.Abs(EnemyPoolDraft.DraftOrbSpeed - 12f) > 0.001f)
+                return "orb speed abs 12 (player 6 × 2)";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f)
+                return "cult mage orb must be 12, not walk×2=7.2";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.GrandMage, 3.3f) - 12f) > 0.001f)
+                return "grand orb must be 12";
             if (Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
                 return "orb range ≤ camera width×0.7";
             if (EnemyCombatRules.LungeDamageMinEasyStub != 30
@@ -122,6 +129,10 @@ namespace RogueShooter.Spawning
                 return "normal HP band 35-43 around 39";
             if (EnemyKindCatalog.StubHp(EnemyKindIds.Normal) != n1.HpMid)
                 return "E1 HP must not inflate by stage";
+
+            string atkMoveErr = CheckDraftAtkMove();
+            if (atkMoveErr != null)
+                return atkMoveErr;
 
             string drawErr = CheckDrawRouting();
             if (drawErr != null)
@@ -271,15 +282,15 @@ namespace RogueShooter.Spawning
 
             if (EnemyCombatRules.OrbCount(EnemyKindIds.CultMage) != 1)
                 return "S2 cult mage same as S1: single linear orb";
-            if (Math.Abs(EnemyCombatRules.OrbSpeedWalkMul - 2f) > 0.001f
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f
                 || Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
-                return "S2 cult mage orb walk×2 / camWidth×0.7 (same as S1)";
+                return "S2 cult mage orb player×2=12 / camWidth×0.7 (same as S1)";
             if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2))
                 return "S2 cult mage must not lunge";
 
             DraftEnemyStat s1 = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
-            if (Math.Abs(s1.Ttk0B - 2.0f) > 0.001f || s1.HpMid != 26 || Math.Abs(s1.Atk - 14f) > 0.001f)
-                return "cult mage 0B TTK≈2s HP mid 26 atk 14 (stage-independent)";
+            if (Math.Abs(s1.Ttk0B - 2.0f) > 0.001f || s1.HpMid != 26 || Math.Abs(s1.Atk - 19f) > 0.001f)
+                return "cult mage 0B TTK≈2s HP mid 26 atk 19 (stage-independent)";
             if (EnemyKindCatalog.StubHp(EnemyKindIds.CultMage) != 26)
                 return "S2 cult mage HP must match S1 (no stage inflate)";
             if (EnemyKindCatalog.ForKind(EnemyKindIds.CultMage).RangedOrb != true)
@@ -309,10 +320,77 @@ namespace RogueShooter.Spawning
             sb.Append(" S3=").Append(StageEnemyPool.FormatKinds(StageId.S3));
             sb.Append(" comps=5n+5e/stage room=Normal→N Altar/Chest→E LargeChest→E+1..2");
             sb.Append(" enhance=<4:+1 ==4:elite×HP1.25/atk1.15");
-            sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:52,GRAND:39 dps0b=13 thrust=[30,40]");
+            sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:52,GRAND:39");
+            sb.Append(" draftAtk=E1:25,E2:15,E3:19,SHIELD:30,GRAND:25");
+            sb.Append(" draftMove=E1:4.5,E2:7.2,E3:3.6,SHIELD:4.5/1.35,GRAND:3.3");
+            sb.Append(" playerMove=6 orb=12=player×2 dps0b=13 thrust=[30,40]");
             sb.Append(" S2cultMage=E3 sameS1orb ttk≈2s");
             sb.Append(" baseAttrStageIndependent DRAFT_NOT_LOCKED");
             return sb.ToString();
+        }
+
+        static string CheckDraftAtkMove()
+        {
+            if (Math.Abs(EnemyPoolDraft.DraftPlayerMove - 6f) > 0.001f
+                || Math.Abs(EnemyCombatRules.WalkPlayerStub - 6f) > 0.001f)
+                return "player move 6";
+
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.Normal, false), 25f))
+                return "DRAFT atk normal 25 (not 12)";
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.Dog, false), 15f))
+                return "DRAFT atk dog 15 (not 10)";
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.CultMage, false), 19f))
+                return "DRAFT atk mage 19 (not 14)";
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.Shield, false), 30f))
+                return "DRAFT atk shield 30 (not 15)";
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.GrandMage, false), 25f))
+                return "DRAFT atk grand 25 per orb (not 12)";
+
+            if (!Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.Normal), 25f)
+                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.Dog), 15f)
+                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.CultMage), 19f)
+                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.Shield), 30f)
+                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.GrandMage), 25f))
+                return "HitDamageStub must follow latest draft atk";
+
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Normal, false), 4.5f))
+                return "DRAFT move normal 4.5";
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Dog, false), 7.2f))
+                return "DRAFT move dog 7.2";
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.CultMage, false), 3.6f))
+                return "DRAFT move mage 3.6";
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Shield, false), 4.5f))
+                return "DRAFT move shield unshielded 4.5";
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Shield, true), 1.35f))
+                return "DRAFT move shield shielded 1.35";
+            if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.GrandMage, false), 3.3f))
+                return "DRAFT move grand 3.3";
+
+            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Dog, false), 7.2f))
+                return "WalkSpeed dog 7.2";
+            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 1.35f))
+                return "WalkSpeed shield raised 1.35";
+
+            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.CultMage), 12f)
+                || !Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.GrandMage), 12f))
+                return "orb_spd 12 from draft CSV";
+
+            DraftEnemyStat dog = EnemyPoolDraft.Stat(EnemyKindIds.Dog);
+            if (!Near(dog.Atk, 15f) || !Near(dog.MoveSpeed, 7.2f))
+                return "dog CSV atk 15 move 7.2";
+            DraftEnemyStat mage = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
+            if (!Near(mage.Atk, 19f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 12f))
+                return "mage CSV atk 19 move 3.6 orb 12";
+            DraftEnemyStat shield = EnemyPoolDraft.Stat(EnemyKindIds.Shield);
+            if (!Near(shield.Atk, 30f) || !Near(shield.MoveSpeed, 4.5f)
+                || !Near(shield.ShieldedMoveSpeed, 1.35f))
+                return "shield CSV atk 30 move 4.5 / 举盾 1.35";
+            return null;
+        }
+
+        static bool Near(float a, float b)
+        {
+            return Math.Abs(a - b) <= 0.001f;
         }
 
         public static List<string> SampleKindLines()

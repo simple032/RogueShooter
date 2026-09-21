@@ -97,8 +97,8 @@ namespace RogueShooter.Demo
                       + " DRAFT_NOT_LOCKED");
             if (_stage == StageId.S2)
             {
-                Debug.Log("[StagePool] S2 cult mage=E3 same-as-S1 orb walk×2 camW×0.7 " +
-                          "next-after-despawn windup+bang ttk≈2s");
+                Debug.Log("[StagePool] S2 cult mage=E3 same-as-S1 orb player×2=12 camW×0.7 " +
+                          "next-after-despawn windup+bang ttk≈2s atk=19");
             }
             return _last;
         }

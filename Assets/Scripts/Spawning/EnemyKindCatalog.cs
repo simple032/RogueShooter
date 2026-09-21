@@ -81,6 +81,15 @@ namespace RogueShooter.Spawning
             return ForKind(kindId).AtkStub;
         }
 
+        public static float WalkSpeed(string kindId, bool shielded)
+        {
+            EnemyPoolDraft.EnsureLoaded();
+            float v = EnemyPoolDraft.MoveSpeed(kindId, shielded);
+            if (v > 0.01f)
+                return v;
+            return ForKind(kindId).WalkSpeedPlayStub;
+        }
+
         public static float LungeDamageStub()
         {
             return 0.5f * (EnemyPoolDraft.LungeDamageMinEasy + EnemyPoolDraft.LungeDamageMaxEasy);

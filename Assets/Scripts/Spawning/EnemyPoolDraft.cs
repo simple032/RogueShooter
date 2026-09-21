@@ -16,6 +16,9 @@ namespace RogueShooter.Spawning
         public int HpHi;
         public float Atk;
         public string AtkKind;
+        public float MoveSpeed;
+        public float ShieldedMoveSpeed;
+        public float OrbSpeed;
     }
 
     public struct DraftCompositionRow
@@ -43,10 +46,13 @@ namespace RogueShooter.Spawning
         public const string FolderName = "EnemyPoolDraft";
         public const string CompsFile = "balance_enemy_comps_draft.csv";
         public const string StatsFile = "balance_enemy_stats_draft.csv";
+        public const string MoveFile = "balance_enemy_move_draft.csv";
         public const string PoolFile = "balance_enemy_pool_s123_draft.csv";
         public const string LockNote = "DRAFT_NOT_LOCKED";
 
         public const float DraftDps0B = 13f;
+        public const float DraftPlayerMove = 6f;
+        public const float DraftOrbSpeed = 12f; // player_move × 2 (not mage walk × 2)
         public const float EliteHpMul = 1.25f;
         public const float EliteAtkMul = 1.15f;
         public const int WaveCountMin = 3;
@@ -92,7 +98,8 @@ namespace RogueShooter.Spawning
 
             string compsPath = Path.Combine(dir, CompsFile);
             string statsPath = Path.Combine(dir, StatsFile);
-            if (!File.Exists(compsPath) || !File.Exists(statsPath))
+            string movePath = Path.Combine(dir, MoveFile);
+            if (!File.Exists(compsPath) || !File.Exists(statsPath) || !File.Exists(movePath))
             {
                 error = "missing draft CSV under " + dir;
                 _error = error;
@@ -101,6 +108,7 @@ namespace RogueShooter.Spawning
             }
 
             ParseStats(CsvTable.Parse(File.ReadAllText(statsPath, Encoding.UTF8)));
+            ParseMove(CsvTable.Parse(File.ReadAllText(movePath, Encoding.UTF8)));
             ParseComps(CsvTable.Parse(File.ReadAllText(compsPath, Encoding.UTF8)));
             _loaded = true;
             _source = dir + " (" + LockNote + ")";
@@ -156,6 +164,39 @@ namespace RogueShooter.Spawning
             if (elite)
                 a *= EliteAtkMul;
             return a;
+        }
+
+        public static float MoveSpeed(string kindId, bool shielded)
+        {
+            DraftEnemyStat s = Stat(kindId);
+            float walk = s.MoveSpeed > 0.01f ? s.MoveSpeed : DraftFallbackMove(kindId);
+            if (!shielded)
+                return walk;
+            if (s.ShieldedMoveSpeed > 0.01f)
+                return s.ShieldedMoveSpeed;
+            return walk * ShieldMoveMulFromTable();
+        }
+
+        public static float OrbSpeedFor(string kindId)
+        {
+            DraftEnemyStat s = Stat(kindId);
+            if (s.OrbSpeed > 0.01f)
+                return s.OrbSpeed;
+            return DraftOrbSpeed;
+        }
+
+        static float ShieldMoveMulFromTable()
+        {
+            return 0.30f;
+        }
+
+        static float DraftFallbackMove(string kindId)
+        {
+            if (kindId == EnemyKindIds.Dog) return 7.2f;
+            if (kindId == EnemyKindIds.CultMage) return 3.6f;
+            if (kindId == EnemyKindIds.Shield) return 4.5f;
+            if (kindId == EnemyKindIds.GrandMage) return 3.3f;
+            return 4.5f;
         }
 
         public static int RollLungeDamageEasy(Random rng)
@@ -284,6 +325,14 @@ namespace RogueShooter.Spawning
                 if (enemy.IndexOf("普通/狗", StringComparison.Ordinal) >= 0)
                     continue;
                 string kind = KindIdFromChinese(enemy);
+                float move = CsvTable.ToFloat(table.Get(row, "move_spd"), 0f);
+                float orb = CsvTable.ToFloat(table.Get(row, "orb_spd"), 0f);
+                if (enemy.IndexOf("举盾", StringComparison.Ordinal) >= 0)
+                {
+                    ApplyMove(kind, 0f, move, true, 0f);
+                    continue;
+                }
+
                 int mid = CsvTable.ToInt(table.Get(row, "hp_mid"), 0);
                 if (mid <= 0)
                     continue;
@@ -296,11 +345,49 @@ namespace RogueShooter.Spawning
                     HpLo = CsvTable.ToInt(table.Get(row, "hp_lo"), mid),
                     HpHi = CsvTable.ToInt(table.Get(row, "hp_hi"), mid),
                     Atk = CsvTable.ToFloat(table.Get(row, "atk"), 0f),
-                    AtkKind = table.Get(row, "atk_kind")
+                    AtkKind = table.Get(row, "atk_kind"),
+                    MoveSpeed = move,
+                    OrbSpeed = orb
                 };
                 if (!Stats.ContainsKey(kind))
                     Stats[kind] = stat;
+                else
+                    ApplyMove(kind, move, 0f, false, orb);
             }
+        }
+
+        static void ParseMove(CsvTable table)
+        {
+            foreach (string[] row in table.DataRows())
+            {
+                string enemy = table.Get(row, "enemy");
+                if (string.IsNullOrEmpty(enemy))
+                    continue;
+                string kind = KindIdFromChinese(enemy);
+                string state = (table.Get(row, "state") ?? "").ToLowerInvariant();
+                float move = CsvTable.ToFloat(table.Get(row, "move_spd"), 0f);
+                float orb = CsvTable.ToFloat(table.Get(row, "orb_spd"), 0f);
+                bool shielded = state.IndexOf("shield", StringComparison.Ordinal) >= 0
+                    && state.IndexOf("unshield", StringComparison.Ordinal) < 0;
+                ApplyMove(kind, shielded ? 0f : move, shielded ? move : 0f, shielded, orb);
+            }
+        }
+
+        static void ApplyMove(string kind, float move, float shieldedMove, bool shielded, float orb)
+        {
+            DraftEnemyStat s;
+            if (!Stats.TryGetValue(kind, out s))
+            {
+                s = new DraftEnemyStat { KindId = kind };
+            }
+
+            if (!shielded && move > 0.01f)
+                s.MoveSpeed = move;
+            if (shieldedMove > 0.01f)
+                s.ShieldedMoveSpeed = shieldedMove;
+            if (orb > 0.01f)
+                s.OrbSpeed = orb;
+            Stats[kind] = s;
         }
 
         static void ParseComps(CsvTable table)
