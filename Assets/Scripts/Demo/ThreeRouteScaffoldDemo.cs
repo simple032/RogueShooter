@@ -36,6 +36,7 @@ namespace RogueShooter.Demo
         readonly Dictionary<string, GameObject> _markers = new Dictionary<string, GameObject>();
         SpawnAnchor[] _demoAnchors;
         BossFightDriver _boss;
+        StageEnemyPoolDemo _stagePool;
         bool _pass;
         string _status = "loading…";
 
@@ -57,6 +58,8 @@ namespace RogueShooter.Demo
 
         void Update()
         {
+            if (_stagePool != null)
+                _stagePool.HandleHotkeys();
             TryBossEnter();
             if (_clock == null)
                 return;
@@ -244,6 +247,9 @@ namespace RogueShooter.Demo
             _buildDir = gameObject.AddComponent<ChestAltarDirector>();
             _buildDir.Bind(_lock, _player, siteRuntimes, Environment.TickCount, _clock);
             _director.Bind(_lock, _clock, slots.ToArray(), stubPrefab, _player, OnStubKilled, _buildDir.Build);
+
+            _stagePool = gameObject.AddComponent<StageEnemyPoolDemo>();
+            _stagePool.Bind(_lock, _player, stubPrefab, root);
 
             _demoAnchors = new[]
             {
@@ -461,13 +467,15 @@ namespace RogueShooter.Demo
 
             string artErr = JianHaiArtChecks.Run();
             bool artOk = artErr == null;
+            string poolErr = StageEnemyPoolChecks.Run();
+            bool poolOk = poolErr == null;
             _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && offViewSpawn
                     && edgeSkip && capOk
-                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk;
+                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk && poolOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} edgeSkip={edgeSkip} coreSkip={coreSkip} offViewSpawn={offViewSpawn} capOk={capOk} pad={SpawnViewGate.EffectivePad:0.00} z1Eff={z1Eff:0.00}");
-            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk}");
+            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk} poolOk={poolOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
             if (!buildOk)
@@ -476,6 +484,21 @@ namespace RogueShooter.Demo
                 sb.Append(" aiErr=" + aiErr);
             if (!artOk)
                 sb.Append(" artErr=" + artErr);
+            if (!poolOk)
+                sb.Append(" poolErr=" + poolErr);
+            if (poolOk)
+            {
+                sb.Append(" | ").Append(StageEnemyPoolChecks.FormatPass());
+                try
+                {
+                    string csv = EnemyStagePoolSampler.WriteDefault();
+                    Debug.Log("[StagePool] evidence csv=" + csv);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning("[StagePool] csv write " + ex.Message);
+                }
+            }
             _status = sb.ToString();
             if (_pass)
                 Debug.Log("[ThreeRouteScaffold] " + _status);
@@ -553,15 +576,14 @@ namespace RogueShooter.Demo
             string classHud = _director != null
                 ? SpawnWaveCatalog.ClassLabel(_director.LastClass) + " " + (_director.LastGroupLine ?? "")
                 : "";
-            if (!string.IsNullOrEmpty(classHud))
-            {
-                GUI.Label(new Rect(pad + 8, pad + 46, w - 16, 18),
-                    "刷怪类 HUD：" + classHud, style);
-            }
+            string poolHud = _stagePool != null ? _stagePool.LastLog : "";
+            GUI.Label(new Rect(pad + 8, pad + 46, w - 16, 18),
+                string.IsNullOrEmpty(poolHud) ? ("刷怪类 HUD：" + classHud) : poolHud, style);
 
             GUI.Label(new Rect(pad + 8, pad + 48, w - 16, 54),
                 $"WASD · E interact · F strike · N new run · F1 Chest_01 · F2 A_Shared · F3 Shop · F4 mob\n" +
-                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力射(≥0.15s)\n" +
+                $"1/2/3 band · 4=Pre · Space pause · +/- clock · R reset · hold LMB/C 蓄力射(≥0.20s)\n" +
+                $"F5/F6/F7 StagePool S1/S2/S3 · [/] room · F8 spawn pool · F9 Logs CSV\n" +
                 $"band={band}  demoClock×{(_clock != null ? _clock.ClockScale : 0f):0}  {(_clock != null && _clock.Paused ? "PAUSED" : "")}  " +
                 $"waves {(_clock != null ? _clock.WaveIndex : 0)}/{waveN}  HP×{hp} DMG×{dmg}",
                 style);

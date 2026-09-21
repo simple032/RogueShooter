@@ -16,20 +16,6 @@ namespace RogueShooter.Spawning
         S3Post
     }
 
-    public struct SpawnMember
-    {
-        public string KindId;
-        public int Count;
-    }
-
-    public struct SpawnGroupDef
-    {
-        public string GroupId;
-        public string Intent;
-        public int SumP0;
-        public SpawnMember[] Members;
-    }
-
     /// <summary>
     /// N12/N13/N17/N19 total table B2: six classes × A/B.
     /// N19 cuts S1后B / S3后B last-segment pressure; Tm slope unchanged.

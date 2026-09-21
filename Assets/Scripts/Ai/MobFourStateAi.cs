@@ -4,19 +4,23 @@ using RogueShooter.Balance;
 using RogueShooter.Demo;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Ai
 {
     /// <summary>
-    /// World-space four-state AI for SpawnBand stub enemies.
+    /// Four-state AI plus Spec v0.5 behaviors (bang, orbs, S2+ lunge, shield).
+    /// State machine is unchanged: Patrol → Alert → Chase → Attack → Disengage.
     /// </summary>
     public class MobFourStateAi : MonoBehaviour
     {
         static readonly List<MobFourStateAi> Live = new List<MobFourStateAi>();
 
         readonly MobAiBrain _brain = new MobAiBrain();
+        readonly List<MageOrbProjectile> _orbs = new List<MageOrbProjectile>();
         Transform _player;
         Vector3 _home;
+        Vector3 _facing = Vector3.right;
         float _patrolSpeed = 1.35f;
         float _chaseSpeed = 3.6f;
         float _disengageSpeed = 2.4f;
@@ -34,26 +38,29 @@ namespace RogueShooter.Ai
         float _lastDealt;
         float _staggerUntil;
         bool _wasStaggered;
+        StageId _stage = StageId.S1;
+        float _atkOverride;
+        bool _elite;
+        bool _playScale;
+        MobBangMarker _bang;
+        MobShieldVisual _shieldVis;
+        bool _shieldRaised;
+        bool _shieldBroken;
+        float _shieldRaiseAt = -1f;
+        bool _lunging;
+        float _lungeLeft;
+        float _lungeCd;
+        Vector3 _lungeDir;
 
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
         public bool IsStaggered => Time.time < _staggerUntil;
-
-        /// <summary>Proof helper: deal one recommend hit immediately (same path as Attack windup end).</summary>
-        public bool ForceDealHitForProof()
-        {
-            if (_playerVitals == null && _player != null)
-                _playerVitals = _player.GetComponent<PlayerVitals>();
-            string kind = CurrentKindId();
-            float dmg = EnemyDamageCatalog.HitDamage(kind);
-            _lastDealt = dmg;
-            if (_playerVitals == null)
-                return false;
-            _playerVitals.ApplyHit(dmg, kind);
-            return true;
-        }
+        public StageId Stage => _stage;
+        public bool ShieldRaised => _shieldRaised;
+        public bool Elite => _elite;
+        public Vector3 Facing => _facing;
 
         public static IReadOnlyList<MobFourStateAi> All => Live;
 
@@ -63,14 +70,30 @@ namespace RogueShooter.Ai
 
         public void Configure(BalanceLockData data, Transform player)
         {
+            Configure(data, player, StageId.S1, false, 0f, false);
+        }
+
+        public void Configure(BalanceLockData data, Transform player, StageId stage, bool playScale)
+        {
+            Configure(data, player, stage, playScale, 0f, false);
+        }
+
+        public void Configure(
+            BalanceLockData data, Transform player, StageId stage, bool playScale, float atkOverride, bool elite)
+        {
             _player = player;
+            _stage = stage;
+            _playScale = playScale;
+            _atkOverride = atkOverride;
+            _elite = elite;
             _home = transform.position;
             _lastKnown = _home;
             _patrolT = UnityEngine.Random.Range(0f, 6.28f);
             float detect = 5.5f;
             float mul = 1.6f;
             float alert = 1.2f;
-            float attack = 0.7f;
+            var profile = EnemyKindCatalog.ForKind(CurrentKindId());
+            float attack = profile.AttackRange > 0.05f ? profile.AttackRange : 0.7f;
             if (data != null)
             {
                 if (data.mobDetectRadius > 0f) detect = data.mobDetectRadius;
@@ -79,13 +102,24 @@ namespace RogueShooter.Ai
                 if (data.mobPatrolRadius > 0f) _patrolRadius = data.mobPatrolRadius;
             }
 
+            if (profile.RangedOrb && detect < attack + 0.5f)
+                detect = attack + 1.0f;
+
             var stub = GetComponent<StubEnemy>();
-            ApplyKindSpeed(stub != null ? stub.KindId : "E1");
+            string kind = stub != null ? stub.KindId : "E1";
+            if (playScale)
+                ApplyPlaySpeed(kind);
+            else
+                ApplyKindSpeed(kind);
 
             _brain.Configure(detect, mul, alert, attack);
             _sr = GetComponent<SpriteRenderer>();
             if (_sr != null)
-                _base = _sr.color;
+            {
+                _base = KindTint(kind, _sr.color);
+                _sr.color = _base;
+            }
+
             _pressure = GetComponent<EnemyPressureState>();
             if (_player != null)
                 _playerVitals = _player.GetComponent<PlayerVitals>();
@@ -93,9 +127,29 @@ namespace RogueShooter.Ai
             _cooldownLeft = 0f;
             _inWindup = false;
             _lastDealt = 0f;
+            _shieldRaised = false;
+            _shieldBroken = false;
+            _shieldRaiseAt = -1f;
+            _lunging = false;
+            _lungeCd = 0f;
+            _orbs.Clear();
             EnsureLabel();
+            _bang = GetComponent<MobBangMarker>();
+            if (_bang == null)
+                _bang = gameObject.AddComponent<MobBangMarker>();
+            _bang.Ensure();
+            _bang.SetVisible(false);
+            if (profile.Shield)
+            {
+                _shieldVis = GetComponent<MobShieldVisual>();
+                if (_shieldVis == null)
+                    _shieldVis = gameObject.AddComponent<MobShieldVisual>();
+                _shieldVis.Ensure();
+            }
+
             ApplyVisual();
-            Debug.Log($"[MobAI] {name} Patrol home={_home} detect={detect:0.0} alert={alert:0.00}s attack={attack:0.00}");
+            Debug.Log($"[MobAI] {name} Patrol home={_home} stage={StageIdUtil.Label(_stage)} kind={kind} " +
+                      $"elite={_elite} detect={detect:0.0} alert={alert:0.00}s attack={attack:0.00} DRAFT");
         }
 
         public void ApplyKindSpeed(string kindId)
@@ -106,9 +160,16 @@ namespace RogueShooter.Ai
             _disengageSpeed = v;
         }
 
+        public void ApplyPlaySpeed(string kindId)
+        {
+            float v = EnemyKindCatalog.ForKind(kindId).WalkSpeedPlayStub;
+            _patrolSpeed = v;
+            _chaseSpeed = v;
+            _disengageSpeed = v;
+        }
+
         public void ForceChase()
         {
-            // Kept for debug only. Normal spawn must start Patrol (视野外不追).
             Debug.LogWarning($"[MobAI] {name} ForceChase ignored — spawn stays Patrol");
         }
 
@@ -119,19 +180,51 @@ namespace RogueShooter.Ai
                 _lastKnown = _player.position;
         }
 
-        /// <summary>Spec §4 弱点命中硬直: interrupt attack and freeze movement.</summary>
         public void ApplyWeakSpotStagger(float seconds)
         {
             float dur = seconds > 0.01f ? seconds : ChargeShotRules.WeakSpotStaggerSeconds;
             _staggerUntil = Time.time + dur;
             _inWindup = false;
             _windupLeft = 0f;
+            _lunging = false;
+            SetBang(false);
             NotifyDamaged();
+            if (_shieldRaised)
+                ShatterShield();
             if (_sr != null)
                 _sr.color = new Color(0.92f, 0.92f, 0.88f);
             if (_label != null)
                 _label.text = "STAGGER";
             Debug.Log($"[MobAI] {name} weak-spot stagger {dur:0.00}s");
+        }
+
+        /// <summary>Shield front −50%; weak-spot unchanged. Returns applied damage.</summary>
+        public int ModifyIncomingShot(Vector3 origin, bool weakSpot, int amount, out float staggerSeconds)
+        {
+            string kind = CurrentKindId();
+            staggerSeconds = EnemyCombatRules.WeakSpotStaggerSeconds(kind);
+            if (!_shieldRaised)
+                return amount < 1 ? 1 : amount;
+            bool front = EnemyCombatRules.HitFromFront(
+                _facing.x, _facing.y, origin.x, origin.y, transform.position.x, transform.position.y);
+            float mul = EnemyCombatRules.IncomingDamageMul(true, front, weakSpot);
+            int dmg = Mathf.Max(1, Mathf.RoundToInt(amount * mul));
+            if (weakSpot)
+                ShatterShield();
+            return dmg;
+        }
+
+        public bool ForceDealHitForProof()
+        {
+            if (_playerVitals == null && _player != null)
+                _playerVitals = _player.GetComponent<PlayerVitals>();
+            string kind = CurrentKindId();
+            float dmg = HitDamage();
+            _lastDealt = dmg;
+            if (_playerVitals == null)
+                return false;
+            _playerVitals.ApplyHit(dmg, kind);
+            return true;
         }
 
         void OnEnable()
@@ -159,6 +252,9 @@ namespace RogueShooter.Ai
             if (RunPause.IsPaused || _player == null)
                 return;
 
+            if (_lungeCd > 0f)
+                _lungeCd -= Time.deltaTime;
+
             if (IsStaggered)
             {
                 _wasStaggered = true;
@@ -181,6 +277,11 @@ namespace RogueShooter.Ai
             DistToPlayer = delta.magnitude;
             if (DistToPlayer <= _brain.DetectRadius)
                 _lastKnown = _player.position;
+            if (delta.sqrMagnitude > 0.0001f && _brain.State != MobAiState.Patrol)
+                _facing = delta.normalized;
+
+            TickShield();
+
             bool atHome = (transform.position - _home).sqrMagnitude <= 0.14f * 0.14f;
             MobAiState prev = _brain.State;
             bool dmg = _pendingDamage;
@@ -198,7 +299,28 @@ namespace RogueShooter.Ai
                 {
                     _inWindup = false;
                     _windupLeft = 0f;
+                    SetBang(false);
                 }
+
+                if (prev == MobAiState.Patrol && _brain.State == MobAiState.Alert)
+                    ArmShield();
+                if (_brain.State == MobAiState.Patrol || _brain.State == MobAiState.Disengage)
+                    ResetShieldCycle();
+            }
+
+            if (_lunging)
+            {
+                TickLunge(Time.deltaTime);
+                return;
+            }
+
+            if (EnemyCombatRules.CanLunge(CurrentKindId(), _stage)
+                && _brain.State == MobAiState.Chase
+                && DistToPlayer <= EnemyCombatRules.LungeRangeStub
+                && _lungeCd <= 0f)
+            {
+                BeginLunge(delta);
+                return;
             }
 
             if (_brain.State == MobAiState.Attack)
@@ -207,12 +329,65 @@ namespace RogueShooter.Ai
             Move(delta);
         }
 
+        void ArmShield()
+        {
+            var p = EnemyKindCatalog.ForKind(CurrentKindId());
+            if (!p.Shield || _shieldBroken || _shieldRaised)
+                return;
+            _shieldRaiseAt = Time.time + EnemyCombatRules.ShieldRaiseDelaySeconds;
+        }
+
+        void TickShield()
+        {
+            var p = EnemyKindCatalog.ForKind(CurrentKindId());
+            if (!p.Shield || _shieldBroken || _shieldRaised)
+                return;
+            if (_shieldRaiseAt > 0f && Time.time >= _shieldRaiseAt)
+            {
+                _shieldRaised = true;
+                if (_shieldVis != null)
+                    _shieldVis.SetRaised(true, _facing);
+                Debug.Log($"[Shield] {name} raised (DRAFT move×{EnemyCombatRules.ShieldMoveMul:0.00})");
+                ApplyVisual();
+            }
+        }
+
+        void ShatterShield()
+        {
+            if (!_shieldRaised && _shieldBroken)
+                return;
+            _shieldRaised = false;
+            _shieldBroken = true;
+            _shieldRaiseAt = -1f;
+            if (_shieldVis != null)
+                _shieldVis.SetRaised(false, _facing);
+            Debug.Log($"[Shield] {name} shatter");
+        }
+
+        void ResetShieldCycle()
+        {
+            if (!EnemyKindCatalog.ForKind(CurrentKindId()).Shield)
+                return;
+            _shieldBroken = false;
+            _shieldRaised = false;
+            _shieldRaiseAt = -1f;
+            if (_shieldVis != null)
+                _shieldVis.SetRaised(false, _facing);
+        }
+
         void BeginAttackCycle()
         {
-            var def = EnemyDamageCatalog.ForKind(CurrentKindId());
+            var profile = EnemyKindCatalog.ForKind(CurrentKindId());
             _cooldownLeft = 0f;
+            if (profile.RangedOrb && LiveOrbCount() > 0)
+            {
+                _inWindup = false;
+                return;
+            }
+
             _inWindup = true;
-            _windupLeft = def.WindupRecommend;
+            _windupLeft = profile.WindupSeconds;
+            SetBang(true);
         }
 
         void TickAttack(float dt)
@@ -220,14 +395,24 @@ namespace RogueShooter.Ai
             if (_playerVitals == null && _player != null)
                 _playerVitals = _player.GetComponent<PlayerVitals>();
 
-            var def = EnemyDamageCatalog.ForKind(CurrentKindId());
+            var profile = EnemyKindCatalog.ForKind(CurrentKindId());
+            if (profile.RangedOrb && LiveOrbCount() > 0)
+            {
+                _inWindup = false;
+                SetBang(false);
+                return;
+            }
+
             if (_cooldownLeft > 0f)
             {
                 _cooldownLeft -= dt;
                 if (_cooldownLeft > 0f)
                     return;
+                if (profile.RangedOrb && LiveOrbCount() > 0)
+                    return;
                 _inWindup = true;
-                _windupLeft = def.WindupRecommend;
+                _windupLeft = profile.WindupSeconds;
+                SetBang(true);
             }
 
             if (!_inWindup)
@@ -238,13 +423,134 @@ namespace RogueShooter.Ai
                 return;
 
             _inWindup = false;
-            float dmg = EnemyDamageCatalog.HitDamage(CurrentKindId());
+            SetBang(false);
+            if (profile.RangedOrb)
+                FireOrbs(profile);
+            else
+                DealMeleeHit();
+            _cooldownLeft = profile.AttackIntervalSeconds;
+        }
+
+        void DealMeleeHit()
+        {
+            float dmg = HitDamage();
             _lastDealt = dmg;
             if (_playerVitals != null)
                 _playerVitals.ApplyHit(dmg, CurrentKindId());
             else
                 Debug.Log($"[MobAI] {name} hit dmg={dmg:0.#} (no PlayerVitals)");
-            _cooldownLeft = def.AttackIntervalRecommend;
+        }
+
+        void FireOrbs(EnemyKindProfile profile)
+        {
+            if (_player == null)
+                return;
+            Vector3 origin = transform.position;
+            Vector3 dir = _player.position - origin;
+            dir.z = 0f;
+            if (dir.sqrMagnitude < 0.0001f)
+                dir = Vector3.right;
+            dir.Normalize();
+            float walk = _chaseSpeed > 0.01f ? _chaseSpeed : profile.WalkSpeedPlayStub;
+            float speed = EnemyCombatRules.OrbSpeed(walk);
+            Camera cam = Camera.main;
+            float ortho = cam != null ? cam.orthographicSize : EnemyCombatRules.PlayOrthoSize;
+            float aspect = cam != null ? CameraViewMath.ResolveAspect(cam) : EnemyCombatRules.DefaultAspect;
+            float maxRange = EnemyCombatRules.OrbMaxRange(ortho, aspect);
+            float dmg = HitDamage();
+            int n = EnemyCombatRules.OrbCount(CurrentKindId());
+            for (int i = 0; i < n; i++)
+            {
+                float deg = 0f;
+                if (n == 3)
+                {
+                    if (i == 0) deg = -EnemyCombatRules.GrandOrbSpreadDegrees;
+                    else if (i == 2) deg = EnemyCombatRules.GrandOrbSpreadDegrees;
+                }
+
+                float ox, oy;
+                EnemyCombatRules.RotateDeg(dir.x, dir.y, deg, out ox, out oy);
+                var go = new GameObject("Orb_" + CurrentKindId());
+                go.transform.position = origin + new Vector3(ox, oy, 0f) * 0.35f;
+                go.transform.localScale = new Vector3(0.28f, 0.28f, 1f);
+                Color col = CurrentKindId() == EnemyKindIds.GrandMage
+                    ? new Color(0.25f, 0.95f, 1f)
+                    : new Color(0.95f, 0.2f, 0.95f);
+                DemoPrimitives.AddSprite(go, col, 18);
+                var orb = go.AddComponent<MageOrbProjectile>();
+                _orbs.Add(orb);
+                orb.Launch(go.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
+            }
+
+            _lastDealt = dmg;
+            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (walk×2, camW×0.7)");
+        }
+
+        void OnOrbDespawn(MageOrbProjectile orb, string reason)
+        {
+            _orbs.Remove(orb);
+            Debug.Log($"[Orb] {name} despawn {reason} live={LiveOrbCount()}");
+        }
+
+        int LiveOrbCount()
+        {
+            int n = 0;
+            for (int i = _orbs.Count - 1; i >= 0; i--)
+            {
+                if (_orbs[i] == null || !_orbs[i].Alive)
+                    _orbs.RemoveAt(i);
+                else
+                    n++;
+            }
+
+            return n;
+        }
+
+        void BeginLunge(Vector3 toPlayer)
+        {
+            _lunging = true;
+            _lungeLeft = EnemyCombatRules.LungeDistanceStub;
+            _lungeDir = toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.right;
+            if (_label != null)
+                _label.text = "LUNGE";
+            Debug.Log($"[Lunge] {name} start dist={DistToPlayer:0.00} DRAFT dmg=[{EnemyCombatRules.LungeDamageMinEasyStub},{EnemyCombatRules.LungeDamageMaxEasyStub}]");
+        }
+
+        void TickLunge(float dt)
+        {
+            float step = EnemyCombatRules.LungeSpeedStub * dt;
+            if (step > _lungeLeft)
+                step = _lungeLeft;
+            transform.position += _lungeDir * step;
+            _lungeLeft -= step;
+            if (DistToPlayer <= EnemyCombatRules.LungeContactRadiusStub)
+            {
+                float dmg = EnemyPoolDraft.LungeDamageMinEasy
+                    + (EnemyPoolDraft.LungeDamageMaxEasy - EnemyPoolDraft.LungeDamageMinEasy) * 0.5f;
+                _lastDealt = dmg;
+                if (_playerVitals != null)
+                    _playerVitals.ApplyHit(dmg, CurrentKindId() + "_thrust");
+                Debug.Log($"[Lunge] {name} hit dmg={dmg:0.#} (DRAFT easy mid of [30,40])");
+                EndLunge();
+                return;
+            }
+
+            if (_lungeLeft <= 0f)
+                EndLunge();
+        }
+
+        void EndLunge()
+        {
+            _lunging = false;
+            _lungeCd = EnemyCombatRules.LungeCooldownStub;
+            ApplyVisual();
+        }
+
+        float HitDamage()
+        {
+            if (_atkOverride > 0.01f)
+                return _atkOverride;
+            return EnemyKindCatalog.HitDamageStub(CurrentKindId());
         }
 
         string CurrentKindId()
@@ -264,24 +570,25 @@ namespace RogueShooter.Ai
         void Move(Vector3 toPlayer)
         {
             float dt = Time.deltaTime;
+            float mul = _shieldRaised ? EnemyCombatRules.ShieldMoveMul : 1f;
             switch (_brain.State)
             {
                 case MobAiState.Patrol:
                     _patrolT += dt * 0.85f;
                     Vector3 patrol = _home + new Vector3(Mathf.Cos(_patrolT), Mathf.Sin(_patrolT), 0f) * _patrolRadius;
-                    transform.position = Vector3.MoveTowards(transform.position, patrol, _patrolSpeed * dt);
+                    transform.position = Vector3.MoveTowards(transform.position, patrol, _patrolSpeed * mul * dt);
                     break;
                 case MobAiState.Alert:
-                    transform.position = Vector3.MoveTowards(transform.position, _lastKnown, _patrolSpeed * 0.75f * dt);
+                    transform.position = Vector3.MoveTowards(transform.position, _lastKnown, _patrolSpeed * 0.75f * mul * dt);
                     break;
                 case MobAiState.Chase:
                     if (DistToPlayer > 0.2f)
-                        transform.position += toPlayer.normalized * (_chaseSpeed * dt);
+                        transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
                     break;
                 case MobAiState.Attack:
                     break;
                 case MobAiState.Disengage:
-                    transform.position = Vector3.MoveTowards(transform.position, _home, _disengageSpeed * dt);
+                    transform.position = Vector3.MoveTowards(transform.position, _home, _disengageSpeed * mul * dt);
                     break;
             }
         }
@@ -302,12 +609,35 @@ namespace RogueShooter.Ai
             BuiltinUiFont.Apply(_label);
         }
 
+        void SetBang(bool on)
+        {
+            if (_bang == null)
+                return;
+            _bang.SetVisible(on);
+            if (on && _label != null)
+                _label.text = "!";
+        }
+
         void ApplyVisual()
         {
             if (_label != null)
-                _label.text = _brain.State.ToString().ToUpperInvariant();
+            {
+                if (_shieldRaised)
+                    _label.text = "SHIELD";
+                else if (_elite)
+                    _label.text = "ELITE " + _brain.State.ToString().ToUpperInvariant();
+                else
+                    _label.text = _brain.State.ToString().ToUpperInvariant();
+            }
+
             if (_sr == null)
                 return;
+            if (_shieldRaised)
+            {
+                _sr.color = new Color(0.40f, 0.70f, 1f);
+                return;
+            }
+
             switch (_brain.State)
             {
                 case MobAiState.Alert:
@@ -325,6 +655,18 @@ namespace RogueShooter.Ai
                 default:
                     _sr.color = _base;
                     break;
+            }
+        }
+
+        static Color KindTint(string kind, Color fallback)
+        {
+            switch (kind)
+            {
+                case EnemyKindIds.Dog: return new Color(0.95f, 0.55f, 0.18f);
+                case EnemyKindIds.CultMage: return new Color(0.78f, 0.22f, 0.85f);
+                case EnemyKindIds.Shield: return new Color(0.35f, 0.55f, 0.92f);
+                case EnemyKindIds.GrandMage: return new Color(0.20f, 0.82f, 0.95f);
+                default: return fallback;
             }
         }
     }

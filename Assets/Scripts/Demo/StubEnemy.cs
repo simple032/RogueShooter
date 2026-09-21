@@ -25,11 +25,23 @@ namespace RogueShooter.Demo
             _baseScale = transform.localScale;
         }
 
+        bool _elite;
+
+        public bool Elite => _elite;
+
         public void ConfigureKind(string kindId, int hp = 1)
+        {
+            ConfigureKind(kindId, hp, false);
+        }
+
+        public void ConfigureKind(string kindId, int hp, bool elite)
         {
             _kindId = string.IsNullOrEmpty(kindId) ? "E1" : kindId;
             hitPoints = hp < 1 ? 1 : hp;
+            _elite = elite;
             _dead = false;
+            if (elite)
+                _pressureScale = 1.18f;
         }
 
         public void SetPressureScale(float scale)
