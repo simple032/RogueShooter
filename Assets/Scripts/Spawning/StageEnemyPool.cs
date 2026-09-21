@@ -106,8 +106,7 @@ namespace RogueShooter.Spawning
 
         /// <summary>
         /// Enter combat room: draw one composition from the current stage pool.
-        /// Normal + ordinary Chest → tier=normal. Altar / LargeChest → enhanced.
-        /// LargeChest then +1～2 same-pool units.
+        /// Normal + ordinary Chest → tier=normal. Altar / LargeChest → enhanced (same, no extra count).
         /// </summary>
         public static DrawnComposition DrawComposition(StageId stage, CombatRoomKind roomKind, Random rng)
         {
@@ -125,11 +124,6 @@ namespace RogueShooter.Spawning
 
             SpawnMember[] members = EnemyPoolDraft.CloneMembers(row.Members);
             int extra = 0;
-            if (CombatRoomKindUtil.AddsBigChestExtra(roomKind))
-            {
-                extra = rng.Next(EnemyPoolDraft.BigChestExtraMin, EnemyPoolDraft.BigChestExtraMax + 1);
-                members = EnemyPoolEnhance.AddSamePoolUnits(members, extra, stage);
-            }
 
             bool eliteMark = row.EliteMark;
             string eliteKind = eliteMark ? EnemyPoolEnhance.PickEliteKind(members) : null;

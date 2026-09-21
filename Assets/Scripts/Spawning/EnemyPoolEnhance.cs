@@ -5,7 +5,7 @@ namespace RogueShooter.Spawning
 {
     /// <summary>
     /// DRAFT enhance rules: count&lt;4 → +1 same-pool unit; count==4 → mark 1 elite (HP×1.25 / atk×1.15).
-    /// Large chest: after enhanced, +1～2 more same-pool units.
+    /// Altar and LargeChest both draw enhanced only — no extra unit bump.
     /// Grand mage: do not add a second A unless the source already had two.
     /// </summary>
     public static class EnemyPoolEnhance

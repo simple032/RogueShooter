@@ -59,8 +59,8 @@ namespace RogueShooter.Spawning
         public const float EliteAtkMul = 1.15f;
         public const int WaveCountMin = 3;
         public const int WaveCountMax = 4;
-        public const int BigChestExtraMin = 1;
-        public const int BigChestExtraMax = 2;
+        public const int BigChestExtraMin = 0;
+        public const int BigChestExtraMax = 0;
         public const int LungeDamageMinEasy = 30;
         public const int LungeDamageMaxEasy = 40;
 

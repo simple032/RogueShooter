@@ -34,10 +34,10 @@ namespace RogueShooter.Spawning
                 || kind == CombatRoomKind.LargeChest;
         }
 
-        /// <summary>Big/high chest: after enhanced, +1～2 same-pool units.</summary>
+        /// <summary>No extra count bump. Altar and LargeChest share enhanced tier only.</summary>
         public static bool AddsBigChestExtra(CombatRoomKind kind)
         {
-            return kind == CombatRoomKind.LargeChest;
+            return false;
         }
 
         public static CombatRoomKind Parse(string raw)

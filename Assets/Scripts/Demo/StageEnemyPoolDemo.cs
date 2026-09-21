@@ -12,7 +12,7 @@ using RogueShooter.Vision;
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// Hotkeys: F5/F6/F7 stage, [ ] room kind (Normal / Altar / Chest=normal / LargeChest=enhanced),
+    /// Hotkeys: F5/F6/F7 stage, [ ] room kind (Normal / Altar=E / Chest=N / LargeChest=E),
     /// F8 spawn composition, F9 write Logs CSV.
     /// Console contract: [StagePool] S? room=? comp=… kinds=…
     /// Ordinary Chest never draws enhanced.
@@ -131,7 +131,7 @@ namespace RogueShooter.Demo
         {
             return "StagePool " + StageIdUtil.Label(_stage)
                 + " room=" + CombatRoomKindUtil.Label(_room)
-                + " F5/F6/F7 stage  [/] room(N/Altar/Chest=N/Large=E)  F8 spawn  F9 CSV  "
+                + " F5/F6/F7 stage  [/] room(N/Altar=E/Chest=N/Large=E)  F8 spawn  F9 CSV  "
                 + (_last.CompId ?? "");
         }
 
