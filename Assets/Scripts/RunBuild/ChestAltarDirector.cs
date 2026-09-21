@@ -140,6 +140,7 @@ namespace RogueShooter.Build
                 _build.Reset(gold);
             _deathNoted = false;
 
+            RewardCatalog.BindPoolOwned(_build != null ? _build.OwnedRewardIds : null);
             _shopShelves = ShopStock.RollShelves(_rng);
             Debug.Log($"[Shop] stock n={_shopShelves.Length} no-refresh shelves={ShopStock.FormatShelves(_shopShelves)} gold={gold}");
 
@@ -360,6 +361,7 @@ namespace RogueShooter.Build
                 return;
             }
 
+            RewardCatalog.BindPoolOwned(_build != null ? _build.OwnedRewardIds : null);
             _altarPicks = AltarRewardRoll.RollThree(altar.AltarSize, _rng);
             if (_altarPicks == null || _altarPicks.Length == 0)
             {
@@ -414,12 +416,13 @@ namespace RogueShooter.Build
                 if (_offering == null || pick < 0 || pick >= _altarPicks.Length)
                     return;
                 AltarSize size = _offering.AltarSize;
-                bool added = _build.ConfirmAltarSize(size);
+                string rewardId = _altarPicks[pick].Id;
+                bool added = _build.ConfirmAltarPick(size, rewardId);
                 _offering.MarkLit();
                 Debug.Log("[Altar] confirm " + _offering.Id + " size=" + AltarRewardRoll.SizeLabel(size)
-                    + " added=" + added + " delta=" + AltarRewardRoll.BuildDelta(size)
+                    + " pick=" + rewardId + " added=" + added + " delta=" + AltarRewardRoll.BuildDelta(size)
                     + " lit=" + _offering.Lit + " B=" + _build.BuildCount);
-                Flash("lit " + _offering.Id);
+                Flash("lit " + _offering.Id + " " + rewardId);
                 CloseOffer(restoreTime: true);
                 return;
             }

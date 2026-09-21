@@ -3,6 +3,7 @@ using UnityEngine;
 using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Boss;
+using RogueShooter.Build;
 using RogueShooter.Demo;
 using RogueShooter.Vision;
 
@@ -171,11 +172,14 @@ namespace RogueShooter.Player
 
         void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds)
         {
+            RewardStatHooks.SyncClock(Time.time);
             Vector3 origin = transform.position;
             Vector3 aim = AimDirection();
             MobFourStateAi best = null;
+            MobFourStateAi back = null;
             float bestDot = 0.35f;
             float bestD = hitRange;
+            float backD = hitRange;
             IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
             for (int i = 0; i < all.Count; i++)
             {
@@ -192,8 +196,15 @@ namespace RogueShooter.Player
                     continue;
                 if (d < bestD)
                 {
+                    back = best;
+                    backD = bestD;
                     bestD = d;
                     best = mob;
+                }
+                else if (best != null && d < backD)
+                {
+                    backD = d;
+                    back = mob;
                 }
             }
 
@@ -207,7 +218,10 @@ namespace RogueShooter.Player
                 float bossDot = pointBlank ? 1f : Vector3.Dot(aim, toBoss.normalized);
                 if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
                 {
-                    boss.DealDamage(damage);
+                    bool bossFull = boss.Brain != null && boss.Brain.Hp >= boss.Brain.MaxHp - 0.001f;
+                    float scaled = RewardStatHooks.ModifyOutgoing(_ownedRewards, damage, bossFull, Time.time);
+                    boss.DealDamage(scaled);
+                    ApplyLifesteal(scaled);
                     bool bossWeak = kind == ChargeShotKind.Crit;
                     if (bossWeak)
                         boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
@@ -217,7 +231,7 @@ namespace RogueShooter.Player
                             null, false, true, bossWeak, _ownedRewards);
                         boss.ApplyKnockback(aim, kb);
                     }
-                    Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
+                    Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={scaled:0.0} dist={bossDist:0.00} " +
                               $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
                     return;
                 }
@@ -229,24 +243,34 @@ namespace RogueShooter.Player
                 return;
             }
 
+            float dealt = HitMob(best, damage, kind, heldSeconds, origin, aim, false);
+            float pierceAdd = RewardStatHooks.PierceBackAdd(_ownedRewards);
+            if (back != null && pierceAdd > 0f)
+                dealt += HitMob(back, damage * pierceAdd, kind, heldSeconds, origin, aim, true);
+            ApplyLifesteal(dealt);
+        }
+
+        float HitMob(MobFourStateAi best, float damage, ChargeShotKind kind, float heldSeconds,
+            Vector3 origin, Vector3 aim, bool piercePacket)
+        {
             bool weak = kind == ChargeShotKind.Crit;
             bool raised = best.ShieldRaised;
-            int amount = Mathf.Max(1, Mathf.RoundToInt(damage));
+            StubEnemy stub = best.GetComponent<StubEnemy>();
+            bool full = stub != null && stub.IsFullHp;
+            float scaled = RewardStatHooks.ModifyOutgoing(_ownedRewards, damage, full, Time.time);
+            int amount = Mathf.Max(1, Mathf.RoundToInt(scaled));
             float stagger = ChargeShotRules.WeakSpotStaggerSeconds;
             amount = best.ModifyIncomingShot(origin, weak, amount, out stagger);
-            var stub = best.GetComponent<StubEnemy>();
             if (stub != null)
                 stub.TakeDamage(amount);
             else
                 best.NotifyDamaged();
-            if (weak)
+            if (weak && !piercePacket)
                 best.ApplyWeakSpotStagger(stagger);
-            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            if (!piercePacket && FullChargeKnockback.Applies(kind, heldSeconds))
             {
                 if (FullChargeKnockback.RootsOnBodyHit(best.KindId, raised, weak))
-                {
                     best.ApplyRoot(FullChargeKnockback.ShieldRaisedRootSeconds);
-                }
                 else
                 {
                     float kb = FullChargeKnockback.HitDistance(
@@ -254,9 +278,22 @@ namespace RogueShooter.Player
                     best.ApplyKnockback(aim, kb);
                 }
             }
-            Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
+
+            Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0}" +
+                      $" pierce={(piercePacket ? 1 : 0)} " +
                       $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s" +
                       $" zhenshi×{KnockbackRewardDraft.DistPctProduct(_ownedRewards):0.00}");
+            return amount;
+        }
+
+        void ApplyLifesteal(float damageDealt)
+        {
+            float heal = RewardStatHooks.LifestealHeal(_ownedRewards, damageDealt);
+            if (heal <= 0f)
+                return;
+            PlayerVitals vitals = GetComponent<PlayerVitals>();
+            if (vitals != null)
+                vitals.Heal(heal);
         }
 
         Vector3 AimDirection()

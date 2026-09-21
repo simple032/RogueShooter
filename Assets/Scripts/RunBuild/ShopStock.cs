@@ -194,11 +194,7 @@ namespace RogueShooter.Build
                         RewardRow cand = RewardCatalog.All[r];
                         if (used.Contains(cand.Id))
                             continue;
-                        if (tier == RewardTier.High && !RewardCatalog.IsHighPoolId(cand.Id))
-                            continue;
-                        if (RewardCatalog.IsDeletedHighId(cand.Id))
-                            continue;
-                        if (cand.Tier != tier)
+                        if (!RewardCatalog.CanOffer(cand, tier))
                             continue;
                         row = cand;
                         break;

@@ -22,9 +22,17 @@ namespace RogueShooter.Build
     public static class RewardCatalog
     {
         /// <summary>Producer lock: high draws only these ids. Deleted R1H/R2H/R4H/R5H/R6H.</summary>
-        public static readonly string[] HighPoolIds = { "R3", "R7H", "R8H", "R9H" };
+        public static readonly string[] HighPoolIds =
+            { "R3", "R7H", "R8H", "R9H", "R12H", "R13H", "R14H" };
 
         public static readonly string[] DeletedHighIds = { "R1H", "R2H", "R4H", "R5H", "R6H" };
+
+        static IList<string> _poolOwned;
+
+        public static void BindPoolOwned(IList<string> owned)
+        {
+            _poolOwned = owned;
+        }
 
         public static readonly RewardRow[] All =
         {
@@ -44,6 +52,12 @@ namespace RogueShooter.Build
             Row("R8H", "破甲猛击", "crit_damage", 0.65f, "percent", "暴击伤害+65%", RewardTier.High, 60, 3),
             Row("R9H", "隙矢追猎", "weak_damage", 0.65f, "percent", "弱点攻击伤害+65%", RewardTier.High, 60, 3),
             Row("R10", "止血", "heal", 0.40f, "percent_max_hp", "回复40%最大生命", RewardTier.Mid, 40, 2),
+            Row("R11L", "满血额外伤害", "dmg_vs_fullhp", 0.15f, "percent", "满血目标伤害+15%", RewardTier.Low, 20, 1),
+            Row("R11M", "满血额外伤害", "dmg_vs_fullhp", 0.30f, "percent", "满血目标伤害+30%", RewardTier.Mid, 40, 2),
+            Row("R12M", "进房间5s内加攻", "atk_enter_room_5s", 0.20f, "percent", "进房5s内攻击+20%", RewardTier.Mid, 40, 2),
+            Row("R12H", "进房间5s内加攻", "atk_enter_room_5s", 0.40f, "percent", "进房5s内攻击+40%", RewardTier.High, 60, 3),
+            Row("R13H", "攻击吸血", "lifesteal", 0.15f, "percent", "攻击吸血15%", RewardTier.High, 60, 3),
+            Row("R14H", "穿透后排", "pierce_back", 0.30f, "percent_add", "穿透后排伤害+30%", RewardTier.High, 60, 3),
             Row("R15_C", "震矢", "kb_dist_pct", 0.20f, "percent", "满蓄击退距离+20%", RewardTier.Low, 20, 1),
             Row("R15_R", "震矢", "kb_dist_pct", 0.40f, "percent", "满蓄击退距离+40%", RewardTier.Mid, 40, 2),
         };
@@ -124,7 +138,14 @@ namespace RogueShooter.Build
                 return false;
             if (tier == RewardTier.High && !IsHighPoolId(row.Id))
                 return false;
+            if (RewardStatHooks.IsPoolExcluded(row, _poolOwned))
+                return false;
             return true;
+        }
+
+        public static bool CanOffer(RewardRow row, RewardTier tier)
+        {
+            return EligibleForPool(row, tier);
         }
 
         public static int CountInTier(RewardTier tier)

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RogueShooter.Build;
 
 namespace RogueShooter.Maze
 {
@@ -57,6 +58,7 @@ namespace RogueShooter.Maze
 
             Phase = CombatRoomPhase.Sealed;
             CurrentWave = 1;
+            RewardStatHooks.NotifyRoomEntered();
             steps.Add(LockStep());
             steps.Add(PortalStep(1));
             steps.Add(SpawnStep(1));

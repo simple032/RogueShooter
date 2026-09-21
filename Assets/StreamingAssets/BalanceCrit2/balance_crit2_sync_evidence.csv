@@ -1,7 +1,9 @@
 check,status,detail
-rewards_sync,PASS,byte-match producer <-> balance_rewards_箭骸.csv sha=f902015d85f16eaa
+rewards_sync,PASS,byte-match producer <-> balance_rewards_箭骸.csv sha=96b75a6599b80f9c
 offer_sync,PASS,byte-match producer <-> balance_offer_rules_箭骸.csv sha=39ded64891217b14
 shop_sync,PASS,byte-match producer <-> balance_shop_prices_箭骸.csv sha=4774084dee978a5a
-no_deleted_h,PASS,csv_ids=['R10'; 'R1L'; 'R1M'; 'R2L'; 'R2M'; 'R3'; 'R4L'; 'R4M'; 'R5L'; 'R5M'; 'R6L'; 'R6M'; 'R7H'; 'R7M'; 'R8H'; 'R9H']; deleted_absent; r15_kept=True; mirror=ok
-high_pool_only_R3_R7H_R8H_R9H,PASS,csv_high=['R3'; 'R7H'; 'R8H'; 'R9H']; cs_high=['R3'; 'R7H'; 'R8H'; 'R9H']; sim400_unique=['R3'; 'R7H'; 'R8H'; 'R9H']; shop80=['R3'; 'R7H'; 'R8H'; 'R9H']
-price_ratio_1_2_3,PASS,csv_ratio=1:2:3 high=54-66 mid=60 equiv=1/2/3/2; cs PriceBaseHigh=60 HighPriceMin/Max=54/66 PriceFromLow*3; no active 72-88/1:2:4
+no_deleted_h,PASS,R1-R14 present=True; deleted_absent; r15_kept=True; mirror=ok
+high_pool_only_R3_R7H_R8H_R9H,PASS,extended lock=['R12H'; 'R13H'; 'R14H'; 'R3'; 'R7H'; 'R8H'; 'R9H']; sim500=['R12H'; 'R13H'; 'R14H'; 'R3'; 'R7H'; 'R8H'; 'R9H']
+price_ratio_1_2_3,PASS,csv+cs 1:2:3 high 54-66 mid 60; no active 1:2:4
+r14h_pierce_cap,PASS,Σ0.90 still offers R14H; Σ1.20 excluded; 200 cap draws no R14H
+new_stat_hooks,PASS,R11 dmg_vs_fullhp mul; R12 atk_enter_room_5s window; R13 lifesteal heal; R14 pierce_back 2nd target

@@ -20,12 +20,17 @@ namespace RogueShooter.Demo
         public event System.Action Damaged;
         public event System.Action<StubEnemy> Died;
 
+        public int Hp => hitPoints;
+        public int MaxHp => _maxHp;
+        public bool IsFullHp => !_dead && hitPoints >= _maxHp && _maxHp > 0;
+
         void Awake()
         {
             _baseScale = transform.localScale;
         }
 
         bool _elite;
+        int _maxHp = 1;
 
         public bool Elite => _elite;
 
@@ -38,6 +43,7 @@ namespace RogueShooter.Demo
         {
             _kindId = string.IsNullOrEmpty(kindId) ? "E1" : kindId;
             hitPoints = hp < 1 ? 1 : hp;
+            _maxHp = hitPoints;
             _elite = elite;
             _dead = false;
             if (elite)
