@@ -1,5 +1,6 @@
 using UnityEngine;
 using RogueShooter.Balance;
+using RogueShooter.Player;
 using RogueShooter.Spawning;
 
 namespace RogueShooter.Boss
@@ -25,6 +26,9 @@ namespace RogueShooter.Boss
         float _lastWallMinutes;
         int _lastTimeTier = -1;
         float _staggerUntil;
+        Vector3 _knockDir;
+        float _knockLeft;
+        float _knockSpeed;
 
         public bool IsStaggered => Time.time < _staggerUntil;
 
@@ -120,6 +124,21 @@ namespace RogueShooter.Boss
             Debug.Log($"[BossFight] weak-spot stagger {dur:0.00}s");
         }
 
+        public void ApplyKnockback(Vector3 shotAway, float distance)
+        {
+            if (!FightStarted || FightSettled || distance < 0.01f)
+                return;
+            shotAway.z = 0f;
+            if (shotAway.sqrMagnitude < 0.0001f)
+                shotAway = Vector3.up;
+            _knockDir = shotAway.normalized;
+            float dur = FullChargeKnockback.SlideSeconds(distance, true);
+            _knockLeft = dur;
+            _knockSpeed = dur > 0.001f ? distance / dur : 0f;
+            Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=BOSS dist=" + distance.ToString("0.00")
+                      + " t=" + dur.ToString("0.00") + "s (no move×0.6)");
+        }
+
         public void NotifyPlayerDead()
         {
             if (!FightStarted || FightSettled)
@@ -151,6 +170,7 @@ namespace RogueShooter.Boss
         {
             if (!FightStarted || Brain == null || FightSettled)
                 return;
+            TickKnockback(Time.deltaTime);
             if (IsStaggered)
                 return;
             var before = Brain.Phase;
@@ -167,6 +187,20 @@ namespace RogueShooter.Boss
 
             if (Brain.Phase == BossPhase.Defeated)
                 Finish(BossSettleOutcome.Win);
+        }
+
+        void TickKnockback(float dt)
+        {
+            if (_knockLeft <= 0f)
+                return;
+            float step = _knockSpeed * dt;
+            float max = _knockSpeed * _knockLeft;
+            if (step > max)
+                step = max;
+            transform.position += _knockDir * step;
+            _knockLeft -= dt;
+            if (_knockLeft < 0f)
+                _knockLeft = 0f;
         }
 
         void ApplyDoorVisual(bool closed)

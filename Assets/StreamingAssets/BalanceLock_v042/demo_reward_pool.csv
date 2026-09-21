@@ -17,3 +17,5 @@ VIT_E,E,survival,
 GOLD_E,E,economy,
 DMG_E,E,damage,
 CRIT_E,E,damage,
+R15_C,C,damage,震矢 DRAFT 满蓄击退+20%
+R15_R,R,damage,震矢 DRAFT 满蓄击退+40%

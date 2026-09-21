@@ -1,0 +1,29 @@
+# Stage1MazeSampler layout seed=42 (v2e 52x40 / pitch 82/70 gap30 START~18u)
+moveSpeed=6 rooms=52x40 altar=52x40 pitch=82/70 hub=52x40 segMax=30u/5s
+[S1Maze] seed=42 tpl=I largeChest=0 rooms=START(START@0,0),N1(Normal@0,58),CHEST(Chest@-82,58),N2(Normal@82,58),ALTAR(Altar@-82,128),CHEST2(Chest@0,128),CONN(Connector@-164,128) edges=START--N1;N1--CHEST;N1--N2;N1--CHEST2;CHEST--ALTAR;ALTAR--CHEST2;ALTAR--CONN
+[S1Maze] quota Chest=2 Altar=1 Normal=2 Start=1 Connector=stub
+[S1Maze] walkOnly move=6 firstHop=18.0u/3.0s (feel ~3s, not a lock) shortest=292.0u/48.7s START→CONN maxSeg=30.0u/5.00s
+[S1Maze] reachable=1 conn=1 tpl=I
+# rooms
+room START kind=START center=0,0 size=52x40 spawn=0
+room N1 kind=Normal center=0,58 size=52x40 spawn=1
+room CHEST kind=Chest center=-82,58 size=52x40 spawn=1
+room N2 kind=Normal center=82,58 size=52x40 spawn=1
+room ALTAR kind=Altar center=-82,128 size=52x40 spawn=1
+room CHEST2 kind=Chest center=0,128 size=52x40 spawn=1
+room CONN kind=Connector center=-164,128 size=52x40 spawn=0
+# edges (ortho=straight; diagonal=L-bend only; CONN follows Altar)
+edge START--N1 folds=1 len=18.0u/3.0s maxSeg=18.0u/3.00s pts=0,20 0,38
+edge N1--CHEST folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=-26,58 -56,58
+edge N1--N2 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=26,58 56,58
+edge N1--CHEST2 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=0,78 0,108
+edge CHEST--ALTAR folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=-82,78 -82,108
+edge ALTAR--CHEST2 folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=-56,128 -26,128
+edge ALTAR--CONN folds=1 len=30.0u/5.0s maxSeg=30.0u/5.00s pts=-108,128 -138,128
+# ASCII topology (col,row) Pitch 82/70  N口 fixed  CONN follows Altar
+I     NW(0,2) -- N(1,2)
+         |         |
+      W(0,1) -- N口(1,1) -- E(2,1)
+                   |
+                START(1,0)
+    N口=fixed Normal  4-slot shuffle Altar+Chest×2+Normal  CONN: W west / E east / NW west / N north

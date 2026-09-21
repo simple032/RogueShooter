@@ -1,0 +1,13 @@
+key,value,notes
+principle_1,加大房不拉长廊,
+principle_2,多余折线删,
+principle_3,仅对角互通才折,
+principle_4,正交邻接直线廊≤5s/≤30u,
+principle_5,START→首房廊≤5s（间隙）,
+abolish,每边≥4折段硬凑,制作人废
+recommend_room,100x80,可±一档
+recommend_pitch,130x110,间隙30；I无折≈59s
+alt_room_A,108x84,I≈61s
+alt_pitch_A,138x114,
+full_clear_note,≈240靠加房/加边/模板hop不靠正交折线,I贪心全访约1.6–2.8×最短量级仍可能<240
+diag_fold,对角边允许折线补时,正交禁止为凑时而折

@@ -25,12 +25,18 @@ namespace RogueShooter.Player
         float _recoverUntil;
         ChargeFxView _fx;
         GuaranteedCritActive _guaranteed;
+        IList<string> _ownedRewards;
 
         public bool IsCharging => _charging;
         public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
         public ChargeShotKind LastShot { get; private set; }
         public float LastDamage { get; private set; }
+
+        public void BindOwnedRewards(IList<string> owned)
+        {
+            _ownedRewards = owned;
+        }
 
         void Awake()
         {
@@ -159,11 +165,11 @@ namespace RogueShooter.Player
                       $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
 
-            ApplyHit(dmg, kind);
+            ApplyHit(dmg, kind, heldSeconds);
             return kind;
         }
 
-        void ApplyHit(float damage, ChargeShotKind kind)
+        void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds)
         {
             Vector3 origin = transform.position;
             Vector3 aim = AimDirection();
@@ -202,8 +208,15 @@ namespace RogueShooter.Player
                 if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
                 {
                     boss.DealDamage(damage);
-                    if (kind == ChargeShotKind.Crit)
+                    bool bossWeak = kind == ChargeShotKind.Crit;
+                    if (bossWeak)
                         boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
+                    if (FullChargeKnockback.Applies(kind, heldSeconds))
+                    {
+                        float kb = FullChargeKnockback.HitDistance(
+                            null, false, true, bossWeak, _ownedRewards);
+                        boss.ApplyKnockback(aim, kb);
+                    }
                     Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={damage:0.0} dist={bossDist:0.00} " +
                               $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
                     return;
@@ -217,6 +230,7 @@ namespace RogueShooter.Player
             }
 
             bool weak = kind == ChargeShotKind.Crit;
+            bool raised = best.ShieldRaised;
             int amount = Mathf.Max(1, Mathf.RoundToInt(damage));
             float stagger = ChargeShotRules.WeakSpotStaggerSeconds;
             amount = best.ModifyIncomingShot(origin, weak, amount, out stagger);
@@ -227,8 +241,22 @@ namespace RogueShooter.Player
                 best.NotifyDamaged();
             if (weak)
                 best.ApplyWeakSpotStagger(stagger);
+            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            {
+                if (FullChargeKnockback.RootsOnBodyHit(best.KindId, raised, weak))
+                {
+                    best.ApplyRoot(FullChargeKnockback.ShieldRaisedRootSeconds);
+                }
+                else
+                {
+                    float kb = FullChargeKnockback.HitDistance(
+                        best.KindId, raised, false, weak, _ownedRewards);
+                    best.ApplyKnockback(aim, kb);
+                }
+            }
             Debug.Log($"[ChargeShot] hit {best.name} kind={kind} dmg={amount:0.0} dist={bestD:0.00} " +
-                      $"shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s");
+                      $"held={heldSeconds:0.00} shieldFront={(best.ShieldRaised ? 1 : 0)} stagger={stagger:0.00}s" +
+                      $" zhenshi×{KnockbackRewardDraft.DistPctProduct(_ownedRewards):0.00}");
         }
 
         Vector3 AimDirection()

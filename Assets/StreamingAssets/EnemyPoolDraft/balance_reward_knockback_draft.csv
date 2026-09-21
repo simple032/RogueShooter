@@ -1,0 +1,11 @@
+id,name_cn,rarity,tier,stack_mode,effect_key,value,build_equiv,pools,notes
+R15_C,震矢,C,低,mul,kb_dist_pct,0.20,1,chest|altar|shop,提高满蓄击退距离20%
+R15_R,震矢,R,中,mul,kb_dist_pct,0.40,2,chest|altar|shop,提高满蓄击退距离40%
+META,no_high,1,,,无高档,,
+META,weak_charge,unaffected,,,弱蓄仍无击退,,
+META,stack,mul_on_kb_dist,,,多次获取：kb *= Π(1+value),,
+META,order,base*enh_mul*ws_mul,,,先强化乘区，再弱点×1.5（若弱点命中）,
+META,shield_raised_body,root_only,,,举盾非弱点仍定身0.5s；本强化不改为击退,,
+META,shield_ws,applies,,,盾弱点碎盾后的击退距离吃本乘区,,
+META,relation,append_v41,,,并入强化重填草案v4.1；不锁,,
+META,lock,0,,,,,

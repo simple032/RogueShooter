@@ -1,0 +1,22 @@
+metric,current,target,pass,notes
+room_combat,36x28,flexible dodge (not locked 40x32),PASS,chosen for v2b; ACCEPTANCE does not lock WxH
+pitch,66/58,≈68/60 max 70/62,PASS,Pitch 130/115 void
+hub,26x22,~26x22,PASS,
+move_spd,6,6,PASS,
+adj_corridor_max_s,5.00,≤5,PASS,max straight fold segment 30u
+adj_corridor_max_u,30.0,≤30,PASS,Pitch-room=30/30
+stem_folds,12,I/Z ≥4 per edge / stem 12 hops,PASS,START–entry
+IZ_branch_folds,5,≥4,PASS,
+C_branch_folds,4,≥3,PASS,fewer so shortest ≤120
+seed1_Z_altar_s,90.0,60-120,PASS,540u/6
+seed2_C_altar_s,85.0,60-120,PASS,510u/6
+seed17_C_altar_s,85.0,60-120,PASS,
+seed42_I_altar_s,90.0,60-120,PASS,540u/6
+seed99_I_altar_s,90.0,60-120,PASS,
+seed2026_Z_altar_s,90.0,60-120,PASS,
+seed5_C_1hop_altar_s,60.0,60-120,PASS,stem only 360u/6
+tpl_I_full_s,240.0,240±30,PASS,1440u/6
+tpl_Z_full_s,240.0,240±30,PASS,
+tpl_C_full_s,235.0,240±30,PASS,1410u/6
+max_single_edge_corridor_s,5.00,≤5,PASS,not folded-edge total
+quota,Chest×1+Altar×1+Normal×2+START+CONN,unchanged,PASS,5 room-edges

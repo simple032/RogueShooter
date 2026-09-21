@@ -1,0 +1,10 @@
+key,value,notes
+room_combat,52x40,普/箱/祭坛同尺寸
+pitch,82x70,约值
+corridor_u,30,正交廊
+move_spd,6,
+pure_walk_time_gate,取消,不再作硬闸
+start_to_first_combat_s,3,意向可留；非硬闸
+layout_s1_quota,箱2/祭坛1/普2,保留
+altar_slots,4槽洗CONN随Altar,保留
+fold_policy,仅对角可折,保留

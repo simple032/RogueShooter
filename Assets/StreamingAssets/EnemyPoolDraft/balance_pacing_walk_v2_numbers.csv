@@ -1,0 +1,15 @@
+item,formula,value
+PitchX_recommend,,68.0
+PitchY_recommend,,60.0
+gap_x,,28.0
+gap_y,,28.0
+seg_max_u,,30.0
+seg_max_s,,5.0
+I_edges_on_shortest,,3
+Z_edges_on_shortest,,3
+C_edges_on_shortest,,5
+folds_per_edge_for_I_at_60s,ceil((60*6/3)/30),4
+folds_per_edge_for_I_at_90s,ceil((90*6/3)/30),6
+folds_per_edge_for_C_at_90s,ceil((90*6/5)/30),4
+min_hops_shortest_60s_1seg,ceil(60/5),12
+min_edge_traversals_full_240s_1seg,ceil(240/5),48

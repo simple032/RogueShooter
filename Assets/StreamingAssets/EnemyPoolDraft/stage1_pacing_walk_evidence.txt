@@ -1,0 +1,20 @@
+# Stage-1 walk evidence (v2e)
+# seconds = center-to-center path / moveSpeed. NO pure-walk time gate.
+# START→N口 door ~18u / ~3s feel (not a lock). gap≤30u geometry lock.
+moveSpeed=6 pitch=82/70 rooms=52x40 altar=52x40 hub=52x40 corridor=8 segMax=30
+ACCEPTANCE rooms=52x40 pitch=82/70 gap=30u startN=fixedNormal connFollowsAltar no-walk-clock
+quota Chest×2+Altar×1+Normal×2+START+CONN
+
+seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,start_n,conn_altar,gap_ok
+1,Z,18.0,3.0,280.0,46.7,30.0,5.00,PASS,PASS,PASS
+2,C,18.0,3.0,222.0,37.0,30.0,5.00,PASS,PASS,PASS
+17,C,18.0,3.0,222.0,37.0,30.0,5.00,PASS,PASS,PASS
+42,I,18.0,3.0,292.0,48.7,30.0,5.00,PASS,PASS,PASS
+99,I,18.0,3.0,222.0,37.0,30.0,5.00,PASS,PASS,PASS
+2026,Z,18.0,3.0,280.0,46.7,30.0,5.00,PASS,PASS,PASS
+
+# seed 42 detail
+[S1Maze] seed=42 tpl=I largeChest=0 rooms=START(START@0,0),N1(Normal@0,58),CHEST(Chest@-82,58),N2(Normal@82,58),ALTAR(Altar@-82,128),CHEST2(Chest@0,128),CONN(Connector@-164,128) edges=START--N1;N1--CHEST;N1--N2;N1--CHEST2;CHEST--ALTAR;ALTAR--CHEST2;ALTAR--CONN
+[S1Maze] quota Chest=2 Altar=1 Normal=2 Start=1 Connector=stub
+[S1Maze] walkOnly move=6 firstHop=18.0u/3.0s (feel ~3s, not a lock) shortest=292.0u/48.7s START→CONN maxSeg=30.0u/5.00s pitch=82/70 rooms=52x40 altar=52x40
+# GEOMETRY PASS (rooms/pitch/gap/startN/connAltar; no walk-clock gate)
