@@ -81,22 +81,29 @@ namespace RogueShooter.Combat
             string probe = CombatRoomSpawn.ProbeAvoidVolumes();
             Row(sb, "playable_acceptance", err == null, err ?? Stage1PlayableChecks.FormatPass());
             Row(sb, "dodge_duration",
-                DodgeRules.DurationSeconds >= 0.30f && DodgeRules.DurationSeconds <= 0.40f,
-                "dur=" + DodgeRules.DurationSeconds.ToString("0.00") + "s ACTION_SPEC");
+                System.Math.Abs(DodgeRules.DurationSeconds - 0.40f) < 0.0001f,
+                "dur=" + DodgeRules.DurationSeconds.ToString("0.00") + "s draft/ACTION_SPEC");
             Row(sb, "dodge_iframes",
-                DodgeRules.IFrameActive(0.10f, 0f)
-                && !DodgeRules.IFrameActive(0.07f, 0f)
-                && !DodgeRules.IFrameActive(0.29f, 0f),
+                DodgeRules.IFrameActive(0.04f, 0f)
+                && DodgeRules.IFrameActive(0.10f, 0f)
+                && !DodgeRules.IFrameActive(0.03f, 0f)
+                && !DodgeRules.IFrameActive(0.28f, 0f),
                 "iframe=" + DodgeRules.IFrameStartSeconds.ToString("0.00")
                 + "-" + DodgeRules.IFrameEndSeconds.ToString("0.00")
                 + "s len=" + DodgeRules.IFrameSeconds.ToString("0.00")
-                + "s suggested-unlocked");
+                + "s draft-unlocked");
             Row(sb, "dodge_cooldown",
-                DodgeRules.CooldownSeconds >= 0.80f && DodgeRules.CooldownSeconds <= 1.00f,
+                System.Math.Abs(DodgeRules.CooldownSeconds - 1.00f) < 0.0001f,
                 "cd=" + DodgeRules.CooldownSeconds.ToString("0.00") + "s");
-            Row(sb, "dodge_distance_derived",
-                System.Math.Abs(DodgeRules.Distance - DodgeRules.MoveSpeedRef * DodgeRules.DurationSeconds) < 0.0001f,
-                "dist=" + DodgeRules.Distance.ToString("0.00") + "=move6×dur (not a new table row)");
+            Row(sb, "dodge_displacement",
+                System.Math.Abs(DodgeRules.Distance - 6f) < 0.0001f,
+                "dist=" + DodgeRules.Distance.ToString("0.00") + "u draft table (not speed×dur)");
+            Row(sb, "dodge_cancel_into_roll",
+                DodgeRules.CancelCharge && DodgeRules.CancelShotRecovery
+                && DodgeRules.BlockFireWhileRolling
+                && DodgeRules.StaminaCost < 0.0001f
+                && !PlayerDodge.RecoveryBlocksRoll(),
+                "cancel=charge+shotRecover blockFire stamina=0");
             Row(sb, "action_spec_p1",
                 System.Math.Abs(ActionSpecP1.Fps - 12f) < 0.001f
                 && ActionSpecP1.PlayerRoll.Root == "jh_char_archer_roll"

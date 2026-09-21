@@ -45,6 +45,7 @@ namespace RogueShooter.Combat
             sb.Append("-").Append(DodgeRules.IFrameEndSeconds.ToString("0.00"));
             sb.Append("s cd=").Append(DodgeRules.CooldownSeconds.ToString("0.00"));
             sb.Append("s dist=").Append(DodgeRules.Distance.ToString("0.00"));
+            sb.Append(" cancel=charge+recover fireBlocked stamina=0");
             sb.Append(" interact=chest+altar");
             CombatRoomSpawnStats land = CombatRoomSpawn.SampleSeed42();
             sb.Append(" spawn=room-random melee-near/ranged-far");
@@ -62,23 +63,30 @@ namespace RogueShooter.Combat
 
         static string CheckDodgeTable()
         {
-            if (DodgeRules.DurationSeconds < 0.30f || DodgeRules.DurationSeconds > 0.40f)
-                return "dodge duration stub must stay 0.3–0.4s";
             if (Math.Abs(DodgeRules.DurationSeconds - 0.40f) > 0.0001f)
-                return "ACTION_SPEC roll duration 0.40s";
-            if (Math.Abs(DodgeRules.IFrameStartSeconds - 0.08f) > 0.0001f)
-                return "iframe start suggested 0.08s (unlocked table)";
-            float len = DodgeRules.IFrameSeconds;
-            if (len < 0.18f || len > 0.26f)
-                return "iframe length must stay ≈0.2s (suggested unlocked)";
-            if (DodgeRules.CooldownSeconds < 0.80f || DodgeRules.CooldownSeconds > 1.00f)
-                return "dodge cooldown stub must stay 0.8–1.0s";
-            if (Math.Abs(DodgeRules.MoveSpeedRef - MazeRules.PlayMoveSpeed) > 0.0001f)
-                return "dodge distance must derive from play move 6";
-            if (Math.Abs(DodgeRules.Distance - DodgeRules.MoveSpeedRef * DodgeRules.DurationSeconds) > 0.0001f)
-                return "dodge distance = speed × duration";
-            if (DodgeRules.IFrameActive(0.07f, 0f))
-                return "startup 0–0.08s is hittable";
+                return "dodge duration draft 0.40s";
+            if (Math.Abs(DodgeRules.IFrameStartSeconds - 0.04f) > 0.0001f)
+                return "iframe start draft 0.04s (unlocked table)";
+            if (Math.Abs(DodgeRules.IFrameEndSeconds - 0.28f) > 0.0001f)
+                return "iframe end draft 0.28s (unlocked table)";
+            if (Math.Abs(DodgeRules.IFrameSeconds - 0.24f) > 0.0001f)
+                return "iframe length 0.24s (0.04–0.28)";
+            if (Math.Abs(DodgeRules.CooldownSeconds - 1.00f) > 0.0001f)
+                return "dodge cooldown draft 1.00s";
+            if (Math.Abs(DodgeRules.Distance - 6f) > 0.0001f)
+                return "dodge displacement draft 6u";
+            if (Math.Abs(DodgeRules.StaminaCost) > 0.0001f)
+                return "dodge stamina cost must stay 0";
+            if (!DodgeRules.CancelCharge || !DodgeRules.CancelShotRecovery)
+                return "roll must cancel charge and shot recovery";
+            if (!DodgeRules.BlockFireWhileRolling)
+                return "no fire while rolling";
+            if (PlayerDodge.RecoveryBlocksRoll())
+                return "recovery must not block roll";
+            if (DodgeRules.IFrameActive(0.03f, 0f))
+                return "startup 0–0.04s is hittable";
+            if (DodgeRules.IFrameActive(0.04f, 0f) == false)
+                return "i-frame on at t=0.04";
             if (DodgeRules.IFrameActive(0.10f, 0f) == false)
                 return "i-frame on at t=0.10";
             if (DodgeRules.IFrameActive(DodgeRules.IFrameEndSeconds, 0f))
@@ -87,8 +95,8 @@ namespace RogueShooter.Combat
                 return "i-frame off after window";
             if (!DodgeRules.RollActive(0.39f, 0f) || DodgeRules.RollActive(0.41f, 0f))
                 return "roll duration window 0.40s";
-            if (!DodgeRules.OnCooldown(0.89f, 0f) || DodgeRules.OnCooldown(0.91f, 0f))
-                return "dodge cooldown window";
+            if (!DodgeRules.OnCooldown(0.99f, 0f) || DodgeRules.OnCooldown(1.01f, 0f))
+                return "dodge cooldown window 1.00s";
             if (PlayerVitals.HitBlockedByIFrame(true))
             { /* expected */ }
             else
@@ -306,6 +314,10 @@ namespace RogueShooter.Combat
                 return "skel OnHitOpen";
             if (ActionSpecP1.Cardinal(0f, -1f) != "s" || ActionSpecP1.Cardinal(1f, 0f) != "e")
                 return "cardinal n/e/s/w";
+            if (ActionSpecP1.PlayerRollIFrameStartFrame > 1)
+                return "i-frame start still on early roll frames";
+            if (ActionSpecP1.PlayerRollIFrameEndFrame < 4)
+                return "i-frame end should reach mid-roll frames before recover";
             if (EntityAnimCatalog.PlayerSprite(EntityAnimState.Dodge) != EntityAnimCatalog.PlayerRoll)
                 return "dodge maps to roll clip";
             if (EntityAnimCatalog.ResolveEnemy(EntityAnimState.Walk, EnemyKindIds.Dog)

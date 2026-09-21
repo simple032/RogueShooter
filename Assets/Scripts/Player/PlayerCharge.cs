@@ -55,6 +55,14 @@ namespace RogueShooter.Player
 
         void Update()
         {
+            var dodge = GetComponent<PlayerDodge>();
+            bool rolling = dodge != null && dodge.IsRolling;
+            if (rolling)
+            {
+                CancelIntoRoll();
+                return;
+            }
+
             TickQueuedFire();
             if (RunPause.IsPaused)
             {
@@ -69,14 +77,6 @@ namespace RogueShooter.Player
                 if (_charging)
                     CancelCharge();
                 _pendingFire = false;
-                return;
-            }
-
-            var dodge = GetComponent<PlayerDodge>();
-            if (dodge != null && dodge.IsRolling)
-            {
-                if (_charging)
-                    CancelCharge();
                 return;
             }
 
@@ -216,6 +216,16 @@ namespace RogueShooter.Player
 
         void TickQueuedFire()
         {
+            if (DodgeRules.BlockFireWhileRolling)
+            {
+                var dodge = GetComponent<PlayerDodge>();
+                if (dodge != null && dodge.IsRolling)
+                {
+                    _pendingFire = false;
+                    return;
+                }
+            }
+
             if (!_pendingFire || Time.time < _fireAt)
                 return;
             _pendingFire = false;
@@ -248,6 +258,19 @@ namespace RogueShooter.Player
         public void CancelChargePublic()
         {
             CancelCharge();
+        }
+
+        /// <summary>Roll interrupt: drop charge, pending OnFire, and shot recovery.</summary>
+        public void CancelIntoRoll()
+        {
+            if (DodgeRules.CancelCharge)
+                CancelCharge();
+            _pendingFire = false;
+            if (DodgeRules.CancelShotRecovery)
+            {
+                _recoverUntil = 0f;
+                _atkUntil = 0f;
+            }
         }
 
         void CancelCharge()

@@ -4,11 +4,12 @@
 # Spawn: CombatRoomSpawn room-AABB random; bypass SpawnCluster.Offset r=0.85 even-ring
 # replica=python Knuth System.Random matching CombatRoomSpawn.SampleSeed42
 check,result,detail
-playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_fx_charge_arrow_tip speed=12 orb=jh_fx_mage_orb dodge dur=0.40s iframe=0.08-0.28s cd=0.90s dist=2.40 interact=chest+altar spawn=room-random melee-near/ranged-far meleeMean=14.54 rangedMean=32.50 gap=17.96 p50M=15.22 p50R=31.38 spread=17.22 minPlayer=2.00 avoidHits=0 evenRing=0
-dodge_duration,PASS,dur=0.40s ACTION_SPEC
-dodge_iframes,PASS,iframe=0.08-0.28s len=0.20s suggested-unlocked
-dodge_cooldown,PASS,cd=0.90s
-dodge_distance_derived,PASS,dist=2.40=move6×dur (not a new table row)
+playable_acceptance,PASS,playable=collision+arrow+orb+dodge-iframes art=JianHai-PNG-runtime layers=Player/Mob/Wall/Door/Projectile door=locked-blocks/open-pass arrow=jh_fx_charge_arrow_tip speed=12 orb=jh_fx_mage_orb dodge dur=0.40s iframe=0.04-0.28s cd=1.00s dist=6.00 cancel=charge+recover fireBlocked stamina=0 interact=chest+altar spawn=room-random melee-near/ranged-far meleeMean=14.54 rangedMean=32.50 gap=17.96 p50M=15.22 p50R=31.38 spread=17.22 minPlayer=2.00 avoidHits=0 evenRing=0
+dodge_duration,PASS,dur=0.40s draft/ACTION_SPEC
+dodge_iframes,PASS,iframe=0.04-0.28s len=0.24s draft-unlocked
+dodge_cooldown,PASS,cd=1.00s
+dodge_displacement,PASS,dist=6.00u draft table (not speed×dur)
+dodge_cancel_into_roll,PASS,cancel=charge+shotRecover blockFire stamina=0
 action_spec_p1,PASS,fps=12 roll+charge/atk idle/move/hurt/death; S1 N/D/M clips; OnFire@_01
 arrow_art,PASS,jh_fx_charge_arrow_tip
 orb_art,PASS,jh_fx_mage_orb Assets/Art/JianHai/FX/jh_fx_mage_orb.png

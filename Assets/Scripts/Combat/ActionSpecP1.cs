@@ -50,7 +50,7 @@ namespace RogueShooter.Combat
 
     /// <summary>
     /// ACTION_SPEC_P1_v01 clip table. 12 fps naming; missing PNGs fall back to idle.
-    /// Roll i-frame numbers live in DodgeRules (suggested, not locked).
+    /// Roll i-frame numbers live in DodgeRules (producer draft, not locked).
     /// Charge combat times stay in ChargeShotRules (ring 0.70 / green 0.68–0.72).
     /// </summary>
     public static class ActionSpecP1
@@ -61,6 +61,12 @@ namespace RogueShooter.Combat
         /// <summary>Pose-only full-draw mark from the action spec. Not a combat lock (ring fill stays 0.70s).</summary>
         public const float ChargeFullPoseSeconds = 0.90f;
         public const float ChargeWindupPoseSeconds = 0.14f;
+
+        /// <summary>Roll i-frame window lives in DodgeRules (producer draft, unlocked).</summary>
+        public static float PlayerRollIFrameStart => DodgeRules.IFrameStartSeconds;
+        public static float PlayerRollIFrameEnd => DodgeRules.IFrameEndSeconds;
+        public static int PlayerRollIFrameStartFrame => PlayerRoll.FrameAt(DodgeRules.IFrameStartSeconds);
+        public static int PlayerRollIFrameEndFrame => PlayerRoll.FrameAt(DodgeRules.IFrameEndSeconds);
 
         public static ActionClipDef PlayerIdle => Clip(JianHaiArtCatalog.PlayerIdle, 4, 0.33f, true);
         public static ActionClipDef PlayerWalk => Clip("jh_char_archer_walk", 6, 0.50f, true);

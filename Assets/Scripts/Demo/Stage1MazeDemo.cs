@@ -1036,7 +1036,7 @@ namespace RogueShooter.Demo
                 "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
                 "enter combat → lock doors (solid) → [PortalFx] 1.0s → spawn → clear → open  |  Chest/Altar 2 waves\n" +
                 "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
-                "dodge STUB/ACTION_SPEC dur=0.40s iframe=0.08–0.28s (len=0.20 建议不锁) cd=0.90s · JianHai PNG · layers Player/Mob/Wall/Door/Projectile",
+                "dodge DRAFT DodgeRules dur=0.40s iframe=0.04–0.28s (len=0.24 未锁) cd=1.00s dist=6u cancel charge/recover · JianHai PNG · layers Player/Mob/Wall/Door/Projectile",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 108, w - 16, 36), graph, style);

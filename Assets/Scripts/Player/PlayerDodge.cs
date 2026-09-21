@@ -4,8 +4,8 @@ using RogueShooter.Combat;
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Space / LeftShift dodge roll. Displacement, duration, i-frames, CD live in DodgeRules.
-    /// Blocked by wall/door volumes. Cancels charge.
+    /// Space / LeftShift dodge roll. Table lives in DodgeRules (draft, unlocked).
+    /// Cancels charge and shot recovery. No fire while rolling. No stamina.
     /// </summary>
     [DefaultExecutionOrder(35)]
     public class PlayerDodge : MonoBehaviour
@@ -39,7 +39,7 @@ namespace RogueShooter.Player
             if (!IsRolling)
                 return;
 
-            float step = (DodgeRules.Distance / DodgeRules.DurationSeconds) * Time.deltaTime;
+            float step = DodgeRules.RollSpeed * Time.deltaTime;
             CollisionWorld.TryMove(
                 transform,
                 CollisionRules.PlayerHalfX,
@@ -56,6 +56,14 @@ namespace RogueShooter.Player
             if (OnCooldown && _rollStart > -100f)
                 return false;
             return true;
+        }
+
+        /// <summary>
+        /// Charge, atk 后摇, and recover do not block the roll — DodgeRules cancel flags.
+        /// </summary>
+        public static bool RecoveryBlocksRoll()
+        {
+            return !DodgeRules.CancelCharge && !DodgeRules.CancelShotRecovery;
         }
 
         bool WantDodge()
@@ -84,14 +92,18 @@ namespace RogueShooter.Player
             if (_charge == null)
                 _charge = GetComponent<PlayerCharge>();
             if (_charge != null)
-                _charge.CancelChargePublic();
+                _charge.CancelIntoRoll();
             Debug.Log("[Dodge] start dir=" + _dir
                       + " dur=" + DodgeRules.DurationSeconds.ToString("0.00")
                       + "s iframe=" + DodgeRules.IFrameStartSeconds.ToString("0.00")
                       + "-" + DodgeRules.IFrameEndSeconds.ToString("0.00")
                       + "s (len=" + DodgeRules.IFrameSeconds.ToString("0.00")
-                      + " suggested-unlocked) cd=" + DodgeRules.CooldownSeconds.ToString("0.00")
+                      + " draft-unlocked) cd=" + DodgeRules.CooldownSeconds.ToString("0.00")
                       + "s dist=" + DodgeRules.Distance.ToString("0.00")
+                      + " cancelCharge=" + (DodgeRules.CancelCharge ? 1 : 0)
+                      + " cancelRecover=" + (DodgeRules.CancelShotRecovery ? 1 : 0)
+                      + " blockFire=" + (DodgeRules.BlockFireWhileRolling ? 1 : 0)
+                      + " stamina=" + DodgeRules.StaminaCost.ToString("0")
                       + " ACTION_SPEC_P1/DodgeRules");
         }
     }
