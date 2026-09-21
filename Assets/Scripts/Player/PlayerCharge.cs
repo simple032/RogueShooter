@@ -9,8 +9,9 @@ using RogueShooter.Vision;
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Hold-to-charge bow. Ring full at 0.50s; fire if held over 0.2s;
-    /// weak under 0.4s x0.50; weak-spot 0.48-0.52s. Movement x0.5 while charging.
+    /// Hold-to-charge bow. Ring full at 0.70s; fire if held over 0.2s;
+    /// weak under 0.4s x0.50; weak-spot 0.68-0.72s. After a shot, 0.2s recovery.
+    /// Movement x0.5 while charging.
     /// </summary>
     public class PlayerCharge : MonoBehaviour
     {
@@ -21,10 +22,12 @@ namespace RogueShooter.Player
         bool _mid;
         bool _green;
         bool _exited;
+        float _recoverUntil;
         ChargeFxView _fx;
         GuaranteedCritActive _guaranteed;
 
         public bool IsCharging => _charging;
+        public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
         public ChargeShotKind LastShot { get; private set; }
         public float LastDamage { get; private set; }
@@ -49,7 +52,7 @@ namespace RogueShooter.Player
             bool hold = Input.GetMouseButton(0) || Input.GetKey(KeyCode.C);
             if (!_charging)
             {
-                if (hold)
+                if (hold && Time.time >= _recoverUntil)
                     BeginCharge();
                 return;
             }
@@ -151,7 +154,9 @@ namespace RogueShooter.Player
             else if (_fx != null)
                 _fx.HideAll();
 
+            _recoverUntil = Time.time + ChargeShotRules.RecoverSeconds;
             Debug.Log($"[ChargeShot] {kind} dmg={dmg:0.0} held={heldSeconds:0.000}s p={p:0.00} " +
+                      $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
 
             ApplyHit(dmg, kind);

@@ -15,10 +15,10 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
-        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 4 (producer DungeonMap); stub occupancy is JianHaiBind scale.")]
+        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 6 (producer retune); stub occupancy is JianHaiBind scale.")]
         [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize;
-        [Tooltip("0 = MoveSpeeds.Player (L=22)")]
-        [SerializeField] float moveSpeed = 0f;
+        [Tooltip("Play default ~6. 0 = MoveSpeeds.Player (L=22)")]
+        [SerializeField] float moveSpeed = 6f;
         [SerializeField] float spawnRetryInterval = 0.35f;
 
         SpawnAnchor[] _anchors;
@@ -57,7 +57,7 @@ namespace RogueShooter.Demo
             GameObject player = new GameObject("Player");
             player.transform.position = Vector3.zero;
             JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
-            float spd = MoveSpeeds.Player;
+            float spd = moveSpeed > 0.0001f ? moveSpeed : MoveSpeeds.Player;
             player.AddComponent<PlayerMotor2D>().Configure(spd);
 
             Camera cam = Camera.main;
@@ -134,7 +134,7 @@ namespace RogueShooter.Demo
 
             float share = JianHaiArtCatalog.EntityStubWorldScale / (orthographicSize * 2f);
             sb.Append($" entityScale={JianHaiArtCatalog.EntityStubWorldScale:0.00} share≈{share:0.000}");
-            bool shareOk = share > 0.05f && share < 0.16f;
+            bool shareOk = share > 0.04f && share < 0.16f;
             pass &= shareOk;
             if (!shareOk)
                 sb.Append(" shareFAIL");

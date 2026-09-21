@@ -3,14 +3,14 @@ using System;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// Charge FX hooks. Ring fill 0.50s (full circle = weak-spot center).
+    /// Charge FX hooks. Ring fill 0.70s (full circle = weak-spot center).
     /// A string-glow is weak secondary. No progress-bar HUD.
     /// </summary>
     public static class ChargeFxHooks
     {
-        public const float ChargeSeconds = 0.50f;
-        public const float GreenEnter = 0.48f;
-        public const float GreenExit = 0.52f;
+        public const float ChargeSeconds = 0.70f;
+        public const float GreenEnter = 0.68f;
+        public const float GreenExit = 0.72f;
         public const float MidAt = 0.15f;
 
         public static float GreenWindowSeconds => GreenExit - GreenEnter;

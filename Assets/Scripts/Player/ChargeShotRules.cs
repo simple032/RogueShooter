@@ -9,17 +9,17 @@ namespace RogueShooter.Player
     }
 
     /// <summary>
-    /// Charge bow (制作人 2026-09-21): ring full at 0.50s.
-    /// Fire if held over 0.2s; weak if held under 0.4s (x0.50); weak-spot 0.48-0.52s.
+    /// Charge bow (制作人 retune): ring full at 0.70s; recover 0.2s after fire.
+    /// Fire if held over 0.2s; weak if held under 0.4s (x0.50); weak-spot 0.68-0.72s.
     /// </summary>
     public static class ChargeShotRules
     {
-        public const float RingFillSeconds = 0.50f;
+        public const float RingFillSeconds = 0.70f;
         public const float ChargeSeconds = RingFillSeconds;
         public const float MinChargeSeconds = 0.20f;
         public const float WeakMaxSeconds = 0.40f;
-        public const float GreenEnterSeconds = 0.48f;
-        public const float GreenExitSeconds = 0.52f;
+        public const float GreenEnterSeconds = 0.68f;
+        public const float GreenExitSeconds = 0.72f;
         public const float GreenEnter = GreenEnterSeconds;
         public const float GreenExit = GreenExitSeconds;
         public const float BaseDamage = 10f;

@@ -21,9 +21,9 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize; // 4 = producer DungeonMap; occupancy via JianHaiBind scale
-        [Tooltip("0 = use MoveSpeeds.Player (L=22 lock)")]
-        [SerializeField] float moveSpeed = 0f;
+        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize; // 6 = producer retune
+        [Tooltip("Play default ~6. 0 = MoveSpeeds.Player (L=22 lock)")]
+        [SerializeField] float moveSpeed = 6f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
         [SerializeField] float demoClockScaleOverride = 0f;
 
