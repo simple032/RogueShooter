@@ -3,17 +3,17 @@ using System;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// P0 charge-crit FX hooks. Spec §7.5 numbers. Visuals only — no progress-bar HUD.
-    /// Aim reticle ring fill is the charge (fig1). A string-glow is weak secondary.
+    /// Charge FX hooks. Ring fill 0.50s (full circle = weak-spot center).
+    /// A string-glow is weak secondary. No progress-bar HUD.
     /// </summary>
     public static class ChargeFxHooks
     {
-        public const float ChargeSeconds = 1.00f;
-        public const float GreenEnter = 0.76f;
-        public const float GreenExit = 0.84f;
+        public const float ChargeSeconds = 0.50f;
+        public const float GreenEnter = 0.48f;
+        public const float GreenExit = 0.52f;
         public const float MidAt = 0.15f;
 
-        public static float GreenWindowSeconds => ChargeSeconds * (GreenExit - GreenEnter);
+        public static float GreenWindowSeconds => GreenExit - GreenEnter;
 
         public static event Action OnChargeMid;
         public static event Action OnChargeEnterGreen;

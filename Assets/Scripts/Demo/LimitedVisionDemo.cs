@@ -15,7 +15,7 @@ namespace RogueShooter.Demo
     /// </summary>
     public class LimitedVisionDemo : MonoBehaviour
     {
-        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 2.75 (2.7–2.8); stub occupancy is JianHaiBind scale.")]
+        [Tooltip("Serialized on LimitedVisionDemo.scene — Unity uses that value, not the C# initializer. Keep 4 (producer DungeonMap); stub occupancy is JianHaiBind scale.")]
         [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize;
         [Tooltip("0 = MoveSpeeds.Player (L=22)")]
         [SerializeField] float moveSpeed = 0f;
@@ -134,7 +134,7 @@ namespace RogueShooter.Demo
 
             float share = JianHaiArtCatalog.EntityStubWorldScale / (orthographicSize * 2f);
             sb.Append($" entityScale={JianHaiArtCatalog.EntityStubWorldScale:0.00} share≈{share:0.000}");
-            bool shareOk = share > 0.11f && share < 0.15f;
+            bool shareOk = share > 0.05f && share < 0.16f;
             pass &= shareOk;
             if (!shareOk)
                 sb.Append(" shareFAIL");

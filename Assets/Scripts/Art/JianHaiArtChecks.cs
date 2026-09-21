@@ -11,9 +11,9 @@ namespace RogueShooter.Art
             if (JianHaiArtCatalog.Ppu != 32)
                 return "PPU must be 32";
             if (JianHaiArtCatalog.EntityStubWorldScale != 0.62f)
-                return "entity stub world scale must stay 0.62 (play ortho 2.75)";
-            if (Math.Abs(CameraViewService.PlayOrthoSize - 2.75f) > 0.001f)
-                return "play ortho must stay 2.75 (2.7–2.8 band)";
+                return "entity stub world scale must stay 0.62 (play ortho 4)";
+            if (Math.Abs(CameraViewService.PlayOrthoSize - 4f) > 0.001f)
+                return "play ortho must stay 4 (producer DungeonMap)";
             if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
                 != JianHaiArtCatalog.EntityStubWorldScale)
                 return "player stub scale";
@@ -65,10 +65,11 @@ namespace RogueShooter.Art
                 return "charge reticle must stay ≤ ~0.72u (fig2 / half-head)";
             if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
                 return "fx layer";
-            if (ChargeFxHooks.ChargeSeconds != 1.00f)
-                return "crit2 charge 1.00s";
-            if (ChargeFxHooks.GreenEnter != 0.76f || ChargeFxHooks.GreenExit != 0.84f)
-                return "crit2 weak-spot window 76–84%";
+            if (Math.Abs(ChargeFxHooks.ChargeSeconds - 0.50f) > 0.001f)
+                return "ring fill must be 0.50s";
+            if (Math.Abs(ChargeFxHooks.GreenEnter - 0.48f) > 0.001f
+                || Math.Abs(ChargeFxHooks.GreenExit - 0.52f) > 0.001f)
+                return "weak-spot window 0.48–0.52s";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

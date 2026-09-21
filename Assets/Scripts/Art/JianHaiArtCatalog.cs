@@ -16,8 +16,8 @@ namespace RogueShooter.Art
 
         /// <summary>
         /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
-        /// Shrinks player/E1/BOSS occupancy at play ortho 2.75. Keep this shrink;
-        /// do not jump CameraViewService ortho to 3.5 to fake occupancy.
+        /// Shrinks player/E1/BOSS occupancy at play ortho 4. Keep this shrink;
+        /// do not raise ortho further to fake occupancy.
         /// </summary>
         public const float EntityStubWorldScale = 0.62f;
 

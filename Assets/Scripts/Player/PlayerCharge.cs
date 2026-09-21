@@ -9,8 +9,8 @@ using RogueShooter.Vision;
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Hold-to-charge bow. Spec: 0.90s full, green 72–84% crit, min 0.15s or no shot,
-    /// weak ×0.60, late full ×1.0. Movement ×0.5 while charging (PlayerMotor2D).
+    /// Hold-to-charge bow. Ring full at 0.50s; fire if held over 0.2s;
+    /// weak under 0.4s x0.50; weak-spot 0.48-0.52s. Movement x0.5 while charging.
     /// </summary>
     public class PlayerCharge : MonoBehaviour
     {
@@ -61,24 +61,24 @@ namespace RogueShooter.Player
             }
 
             _held += Time.deltaTime;
-            float p = Mathf.Clamp01(ChargeShotRules.Progress(_held));
+            float p = ChargeShotRules.Progress(_held);
             if (_fx != null)
                 _fx.SetChargeProgress(p, _green);
-            if (!_mid && p >= ChargeFxHooks.MidAt)
+            if (!_mid && _held >= ChargeFxHooks.MidAt)
             {
                 _mid = true;
                 ChargeFxHooks.ChargeMid();
                 Debug.Log("[ChargeFx] OnChargeMid");
             }
 
-            if (!_green && p >= ChargeShotRules.GreenEnter)
+            if (!_green && _held >= ChargeShotRules.GreenEnterSeconds)
             {
                 _green = true;
                 ChargeFxHooks.ChargeEnterGreen();
                 Debug.Log("[ChargeFx] OnChargeEnterGreen");
             }
 
-            if (_green && !_exited && p >= ChargeShotRules.GreenExit)
+            if (_green && !_exited && _held > ChargeShotRules.GreenExitSeconds)
             {
                 _exited = true;
                 _green = false;

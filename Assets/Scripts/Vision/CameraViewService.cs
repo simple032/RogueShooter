@@ -3,15 +3,15 @@ using UnityEngine;
 namespace RogueShooter.Vision
 {
     /// <summary>
-    /// Main orthographic camera view (GDD M1d Must). Play ortho is 2.75
-    /// (2.7–2.8 band). Do not jump to 3.5; occupancy still uses JianHai stub scale.
+    /// Main orthographic camera view (GDD M1d Must). Play ortho is 4
+    /// (producer local DungeonMap). Occupancy still uses JianHai stub scale.
     /// Full fog-of-war is not implemented here.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]
     public class CameraViewService : MonoBehaviour, IWorldView
     {
-        public const float PlayOrthoSize = 2.75f;
+        public const float PlayOrthoSize = 4f;
 
         public static CameraViewService Instance { get; private set; }
 
