@@ -220,28 +220,30 @@ namespace RogueShooter.Maze
     }
 
     /// <summary>
-    /// Spec v0.5 S1 maze. v2c lock B_推荐: rooms 100×80, pitch 130×110 (gap 30u).
-    /// Orthogonal edges are straight short corridors. Folds only on diagonal links.
-    /// START→first combat = 1×Pitch (door gap ≤30u / 5s). Altar larger than combat.
-    /// Quota: Chest×2 + Altar×1 + Normal×2 + START + CONN. Walk 60/240 is not a lock.
-    /// Ref (no-fold center hops): I ≈ 2·Py+Px ≈ 59s; C ≈ 2·Py+3·Px ≈ 102s.
+    /// Spec v0.5 S1 maze. v2e lock: rooms 52×40 (Normal/Chest/Altar same),
+    /// pitch 82×70, ortho door gap 30u. START neighbor is a fixed Normal.
+    /// Four combat slots shuffle Altar×1+Chest×2+Normal×1; CONN follows Altar.
+    /// No pure-walk time gate. Folds only on diagonal links.
     /// </summary>
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        /// <summary>v2c B_推荐. Pitch = room + 30u gap (≤5s @ 6). No ortho fold padding.</summary>
-        public const float CombatWidth = 100f;
-        public const float CombatHeight = 80f;
-        public const float PitchX = 130f;
-        public const float PitchY = 110f;
-        public const float HubWidth = 80f;
-        public const float HubHeight = 80f;
-        public const float AltarWidth = 120f;
-        public const float AltarHeight = 96f;
+        /// <summary>v2e. Pitch = room + 30u gap. START door is a shorter feel hop (~18u), not a clock lock.</summary>
+        public const float CombatWidth = 52f;
+        public const float CombatHeight = 40f;
+        public const float PitchX = 82f;
+        public const float PitchY = 70f;
+        public const float HubWidth = 52f;
+        public const float HubHeight = 40f;
+        public const float AltarWidth = 52f;
+        public const float AltarHeight = 40f;
         public const float CorridorWidth = 8f;
         public const float CorridorSegMax = 30f;
         public const float CorridorSegMaxSeconds = 5f;
+        /// <summary>START→N口 door gap feel (~3s @ 6). Not an ACCEPTANCE clock.</summary>
+        public const float StartDoorGap = 18f;
+        public const float StartPitchY = 58f;
         public const float LargeChestChance = 0.25f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
@@ -251,12 +253,6 @@ namespace RogueShooter.Maze
         public const int QuotaAltar = 1;
         public const int QuotaStart = 1;
         public const int QuotaConnector = 1;
-        /// <summary>I no-fold START→CONN = 2·PitchY + PitchX. CSV B_推荐 ≈58.3s.</summary>
-        public const float INofoldHopsX = 1f;
-        public const float INofoldHopsY = 2f;
-        /// <summary>C snake START→CONN = 2·PitchY + 3·PitchX. CSV B_推荐 ≈101.7s.</summary>
-        public const float CNofoldHopsX = 3f;
-        public const float CNofoldHopsY = 2f;
 
         public static int WaveCount(MazeNodeKind kind)
         {

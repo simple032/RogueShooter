@@ -8,8 +8,8 @@ namespace RogueShooter.Maze
     /// Seeded Stage-1 maze only (Spec v0.5 §1/§3). Quota: Chest×2 + Altar×1 +
     /// Normal×2 + START + connector stub. Corridors are edges and never spawn.
     /// Same seed → same graph. No S2/S3 layouts.
-    /// v2c B_推荐 rooms 100×80, pitch 130×110, Manhattan=1 orthogonal edges,
-    /// START hop = 1×Pitch. I ≈59s, C snake ≈102s. Folds only if diagonal.
+    /// v2e: rooms 52×40, pitch 82×70, N口 fixed Normal, 4-slot shuffle,
+    /// CONN follows Altar. START door ~18u feel. Folds only if diagonal.
     /// </summary>
     public static class Stage1MazeGen
     {
@@ -25,7 +25,11 @@ namespace RogueShooter.Maze
         struct Tpl
         {
             public string Id;
-            public Slot[] Slots;
+            public Slot Start;
+            public Slot Entry;
+            public Slot[] Shuffle;
+            public int[] ConnDx;
+            public int[] ConnDy;
             public int[] EdgeA;
             public int[] EdgeB;
         }
@@ -36,121 +40,78 @@ namespace RogueShooter.Maze
         {
             var rng = new Random(seed);
             Tpl tpl = Templates[Mod(seed, Templates.Length)];
-            MazeNodeKind[] combatKinds =
+            MazeNodeKind[] shuffleKinds =
             {
-                MazeNodeKind.Normal, MazeNodeKind.Normal,
-                MazeNodeKind.Chest, MazeNodeKind.Chest, MazeNodeKind.Altar
+                MazeNodeKind.Altar, MazeNodeKind.Chest, MazeNodeKind.Chest, MazeNodeKind.Normal
             };
-            Shuffle(combatKinds, rng);
+            Shuffle(shuffleKinds, rng);
 
-            int startCol = 0;
-            int startRow = 0;
-            for (int i = 0; i < tpl.Slots.Length; i++)
-            {
-                if (tpl.Slots[i].Start)
-                {
-                    startCol = tpl.Slots[i].Col;
-                    startRow = tpl.Slots[i].Row;
-                    break;
-                }
-            }
+            int startCol = tpl.Start.Col;
+            int startRow = tpl.Start.Row;
 
-            var nodes = new MazeNode[tpl.Slots.Length];
-            int combatIx = 0;
-            int normalIx = 1;
+            var nodes = new MazeNode[7];
+            nodes[0] = MakeNode("START", MazeNodeKind.Start,
+                CellX(tpl.Start.Col, startCol), CellY(tpl.Start.Row, startRow),
+                MazeRules.HubWidth, MazeRules.HubHeight);
+            nodes[1] = MakeNode("N1", MazeNodeKind.Normal,
+                CellX(tpl.Entry.Col, startCol), CellY(tpl.Entry.Row, startRow),
+                MazeRules.CombatWidth, MazeRules.CombatHeight);
+
+            int normalIx = 2;
             int chestIx = 1;
             bool anyLarge = false;
-            for (int i = 0; i < tpl.Slots.Length; i++)
+            int altarNode = -1;
+            int altarShuffle = -1;
+            for (int i = 0; i < 4; i++)
             {
-                Slot s = tpl.Slots[i];
-                MazeNodeKind kind;
-                string id;
-                float w;
-                float h;
-                if (s.Start)
+                MazeNodeKind kind = shuffleKinds[i];
+                if (kind == MazeNodeKind.Chest && rng.NextDouble() < MazeRules.LargeChestChance)
                 {
-                    kind = MazeNodeKind.Start;
-                    id = "START";
-                    w = MazeRules.HubWidth;
-                    h = MazeRules.HubHeight;
+                    kind = MazeNodeKind.LargeChest;
+                    anyLarge = true;
                 }
-                else if (s.Connector)
+
+                string id;
+                if (kind == MazeNodeKind.Normal)
+                    id = "N" + (normalIx++);
+                else if (kind == MazeNodeKind.Altar)
+                    id = "ALTAR";
+                else if (kind == MazeNodeKind.LargeChest)
                 {
-                    kind = MazeNodeKind.Connector;
-                    id = "CONN";
-                    w = MazeRules.CombatWidth;
-                    h = MazeRules.CombatHeight;
+                    id = chestIx == 1 ? "LARGE" : "LARGE" + chestIx;
+                    chestIx++;
                 }
                 else
                 {
-                    kind = combatKinds[combatIx++];
-                    if (kind == MazeNodeKind.Chest && rng.NextDouble() < MazeRules.LargeChestChance)
-                    {
-                        kind = MazeNodeKind.LargeChest;
-                        anyLarge = true;
-                    }
-                    if (kind == MazeNodeKind.Normal)
-                        id = "N" + (normalIx++);
-                    else if (kind == MazeNodeKind.Altar)
-                        id = "ALTAR";
-                    else if (kind == MazeNodeKind.LargeChest)
-                    {
-                        id = chestIx == 1 ? "LARGE" : "LARGE" + chestIx;
-                        chestIx++;
-                    }
-                    else
-                    {
-                        id = chestIx == 1 ? "CHEST" : "CHEST" + chestIx;
-                        chestIx++;
-                    }
-                    if (kind == MazeNodeKind.Altar)
-                    {
-                        w = MazeRules.AltarWidth;
-                        h = MazeRules.AltarHeight;
-                    }
-                    else
-                    {
-                        w = MazeRules.CombatWidth;
-                        h = MazeRules.CombatHeight;
-                    }
+                    id = chestIx == 1 ? "CHEST" : "CHEST" + chestIx;
+                    chestIx++;
                 }
 
-                nodes[i] = new MazeNode
+                Slot s = tpl.Shuffle[i];
+                nodes[2 + i] = MakeNode(id, kind,
+                    CellX(s.Col, startCol), CellY(s.Row, startRow),
+                    MazeRules.CombatWidth, MazeRules.CombatHeight);
+                if (kind == MazeNodeKind.Altar)
                 {
-                    Id = id,
-                    Kind = kind,
-                    Center = new MazeVec2(
-                        (s.Col - startCol) * MazeRules.PitchX,
-                        (s.Row - startRow) * MazeRules.PitchY),
-                    Width = w,
-                    Height = h
-                };
+                    altarNode = 2 + i;
+                    altarShuffle = i;
+                }
             }
 
-            var edges = new MazeEdge[tpl.EdgeA.Length];
+            if (altarNode < 0)
+                altarNode = 2;
+
+            Slot altarSlot = tpl.Shuffle[altarShuffle < 0 ? 0 : altarShuffle];
+            int connCol = altarSlot.Col + tpl.ConnDx[altarShuffle < 0 ? 0 : altarShuffle];
+            int connRow = altarSlot.Row + tpl.ConnDy[altarShuffle < 0 ? 0 : altarShuffle];
+            nodes[6] = MakeNode("CONN", MazeNodeKind.Connector,
+                CellX(connCol, startCol), CellY(connRow, startRow),
+                MazeRules.CombatWidth, MazeRules.CombatHeight);
+
+            var edges = new MazeEdge[tpl.EdgeA.Length + 1];
             for (int e = 0; e < tpl.EdgeA.Length; e++)
-            {
-                MazeNode a = nodes[tpl.EdgeA[e]];
-                MazeNode b = nodes[tpl.EdgeB[e]];
-                MazeVec2 doorA = DoorToward(a, b);
-                MazeVec2 doorB = DoorToward(b, a);
-                MazeVec2[] pts = BuildCorridor(doorA, doorB);
-                float len;
-                float maxSeg;
-                MeasurePoly(pts, out len, out maxSeg);
-                edges[e] = new MazeEdge
-                {
-                    FromId = a.Id,
-                    ToId = b.Id,
-                    From = doorA,
-                    To = doorB,
-                    Width = MazeRules.CorridorWidth,
-                    Length = len,
-                    MaxSegment = maxSeg,
-                    FoldCount = pts.Length - 1,
-                    Points = pts
-                };
-            }
+                edges[e] = MakeEdge(nodes[tpl.EdgeA[e]], nodes[tpl.EdgeB[e]]);
+            edges[tpl.EdgeA.Length] = MakeEdge(nodes[altarNode], nodes[6]);
 
             FillNeighbors(nodes, edges);
             var maze = new Stage1Maze
@@ -258,7 +219,21 @@ namespace RogueShooter.Maze
                 MazeNode first = maze.Find(start.NeighborIds[0]);
                 if (first != null)
                 {
-                    pace.FirstHop = start.Center.Dist(first.Center);
+                    MazeEdge hop = null;
+                    if (maze.Edges != null)
+                    {
+                        for (int i = 0; i < maze.Edges.Length; i++)
+                        {
+                            if (maze.Edges[i].Connects(start.Id, first.Id))
+                            {
+                                hop = maze.Edges[i];
+                                break;
+                            }
+                        }
+                    }
+
+                    // Door-to-door net (START edge ~18u / ~3s feel). Not a clock lock.
+                    pace.FirstHop = hop != null ? hop.Length : start.Center.Dist(first.Center);
                     pace.FirstHopSeconds = pace.FirstHop / moveSpeed;
                 }
             }
@@ -541,58 +516,62 @@ namespace RogueShooter.Maze
 
         static Tpl[] BuildTemplates()
         {
-            // v2c B_推荐 100×80 / pitch 130×110. Every edge Manhattan=1, orthogonal
-            // straight, door gap 30u. I/Z star + extra combat: START→CONN = 2·Py+Px.
-            // C snake + west stub: START→CONN = 2·Py+3·Px. CONN always adj a combat.
+            // Approved 12-panel review. START + N口(Normal) fixed. Four shuffle
+            // slots Altar/Chest/Chest/Normal. CONN offset is per-Altar-slot.
+            // 0=START 1=N口 2..5=shuffle. CONN is appended as node 6.
             return new[]
             {
                 new Tpl
                 {
                     Id = "I",
-                    Slots = new[]
+                    Start = S(1, 0, true, false, false),
+                    Entry = S(1, 1, false, true, false),
+                    Shuffle = new[]
                     {
-                        S(1, 0, true, false, false),
-                        S(1, 1, false, true, false),
                         S(0, 1, false, true, false),
                         S(2, 1, false, true, false),
-                        S(3, 1, false, true, false),
-                        S(1, 2, false, true, false),
-                        S(2, 2, false, false, true)
+                        S(0, 2, false, true, false),
+                        S(1, 2, false, true, false)
                     },
-                    EdgeA = new[] { 0, 1, 1, 3, 1, 5 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5, 6 }
+                    // I-1 W west, I-2 E east, I-3 NW west, I-4 N north (12-panel).
+                    ConnDx = new[] { -1, 1, -1, 0 },
+                    ConnDy = new[] { 0, 0, 0, 1 },
+                    EdgeA = new[] { 0, 1, 1, 1, 2, 4 },
+                    EdgeB = new[] { 1, 2, 3, 5, 4, 5 }
                 },
                 new Tpl
                 {
                     Id = "Z",
-                    Slots = new[]
+                    Start = S(1, 0, true, false, false),
+                    Entry = S(1, 1, false, true, false),
+                    Shuffle = new[]
                     {
-                        S(1, 0, true, false, false),
-                        S(1, 1, false, true, false),
-                        S(2, 1, false, true, false),
                         S(0, 1, false, true, false),
-                        S(-1, 1, false, true, false),
-                        S(1, 2, false, true, false),
-                        S(0, 2, false, false, true)
+                        S(2, 1, false, true, false),
+                        S(3, 1, false, true, false),
+                        S(2, 2, false, true, false)
                     },
-                    EdgeA = new[] { 0, 1, 1, 3, 1, 5 },
-                    EdgeB = new[] { 1, 2, 3, 4, 5, 6 }
+                    ConnDx = new[] { -1, 0, 1, 0 },
+                    ConnDy = new[] { 0, -1, 0, 1 },
+                    EdgeA = new[] { 0, 1, 1, 3, 3 },
+                    EdgeB = new[] { 1, 2, 3, 4, 5 }
                 },
                 new Tpl
                 {
                     Id = "C",
-                    Slots = new[]
+                    Start = S(1, 0, true, false, false),
+                    Entry = S(1, 1, false, true, false),
+                    Shuffle = new[]
                     {
-                        S(1, 0, true, false, false),
-                        S(1, 1, false, true, false),
-                        S(2, 1, false, true, false),
-                        S(3, 1, false, true, false),
-                        S(3, 2, false, true, false),
                         S(0, 1, false, true, false),
-                        S(4, 2, false, false, true)
+                        S(2, 1, false, true, false),
+                        S(1, 2, false, true, false),
+                        S(2, 2, false, true, false)
                     },
-                    EdgeA = new[] { 0, 1, 2, 3, 4, 1 },
-                    EdgeB = new[] { 1, 2, 3, 4, 6, 5 }
+                    ConnDx = new[] { -1, 1, 0, 1 },
+                    ConnDy = new[] { 0, 0, 1, 0 },
+                    EdgeA = new[] { 0, 1, 1, 1, 4, 3 },
+                    EdgeB = new[] { 1, 2, 3, 4, 5, 5 }
                 }
             };
         }
@@ -600,6 +579,52 @@ namespace RogueShooter.Maze
         static Slot S(int col, int row, bool start, bool combat, bool connector)
         {
             return new Slot { Col = col, Row = row, Start = start, Combat = combat, Connector = connector };
+        }
+
+        static float CellX(int col, int startCol)
+        {
+            return (col - startCol) * MazeRules.PitchX;
+        }
+
+        static float CellY(int row, int startRow)
+        {
+            if (row <= startRow)
+                return (row - startRow) * MazeRules.StartPitchY;
+            return MazeRules.StartPitchY + (row - startRow - 1) * MazeRules.PitchY;
+        }
+
+        static MazeNode MakeNode(string id, MazeNodeKind kind, float x, float y, float w, float h)
+        {
+            return new MazeNode
+            {
+                Id = id,
+                Kind = kind,
+                Center = new MazeVec2(x, y),
+                Width = w,
+                Height = h
+            };
+        }
+
+        static MazeEdge MakeEdge(MazeNode a, MazeNode b)
+        {
+            MazeVec2 doorA = DoorToward(a, b);
+            MazeVec2 doorB = DoorToward(b, a);
+            MazeVec2[] pts = BuildCorridor(doorA, doorB);
+            float len;
+            float maxSeg;
+            MeasurePoly(pts, out len, out maxSeg);
+            return new MazeEdge
+            {
+                FromId = a.Id,
+                ToId = b.Id,
+                From = doorA,
+                To = doorB,
+                Width = MazeRules.CorridorWidth,
+                Length = len,
+                MaxSegment = maxSeg,
+                FoldCount = pts.Length - 1,
+                Points = pts
+            };
         }
 
         static float EdgeWalk(Stage1Maze maze, int u, int v)

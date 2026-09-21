@@ -28,10 +28,18 @@ namespace RogueShooter.Maze
             return Path.Combine(DefaultDirectory(), PacingFileName);
         }
 
+        public static string TemplatesFileName => "stage1_maze_templates_izc.txt";
+
+        public static string TemplatesPath()
+        {
+            return Path.Combine(DefaultDirectory(), TemplatesFileName);
+        }
+
         public static string WriteDefault()
         {
             WritePacingTo(PacingPath());
             WriteLayoutTo(Path.Combine(DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
+            WriteTemplatesTo(TemplatesPath());
             return WriteTo(DefaultPath(), 42);
         }
 
@@ -51,7 +59,7 @@ namespace RogueShooter.Maze
             Stage1Maze maze = Stage1MazeGen.Generate(seed);
             MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (v2c B_推荐 100x80 / pitch 130/110 gap30)");
+            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (v2e 52x40 / pitch 82/70 gap30 START~18u)");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
@@ -68,7 +76,7 @@ namespace RogueShooter.Maze
             sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatQuota(maze));
             sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" firstHop=").Append(pace.FirstHop.ToString("0.0")).Append("u/");
-            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (1 pitch)");
+            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (feel ~3s, not a lock)");
             sb.Append(" shortest=").Append(pace.ShortestWalk.ToString("0.0")).Append("u/");
             sb.Append(pace.ShortestWalkSeconds.ToString("0.0")).Append("s START→CONN");
             sb.Append(" maxSeg=").Append(pace.MaxCorridorSeg.ToString("0.0")).Append("u/");
@@ -93,7 +101,7 @@ namespace RogueShooter.Maze
                 }
             }
 
-            sb.AppendLine("# straight ortho edges (Manhattan=1; each door gap ≤30u)");
+            sb.AppendLine("# edges (ortho=straight; diagonal=L-bend only; CONN follows Altar)");
             if (maze.Edges != null)
             {
                 for (int i = 0; i < maze.Edges.Length; i++)
@@ -119,7 +127,7 @@ namespace RogueShooter.Maze
                 }
             }
 
-            sb.AppendLine("# ASCII topology (col,row) Pitch 130/110  all edges Manhattan=1");
+            sb.AppendLine("# ASCII topology (col,row) Pitch 82/70  N口 fixed  CONN follows Altar");
             sb.AppendLine(AsciiTopology(maze.TemplateId));
             return sb.ToString();
         }
@@ -130,12 +138,12 @@ namespace RogueShooter.Maze
             {
                 return string.Join("\n", new[]
                 {
-                    "Z  CONN(0,2) -- N(1,2)",
-                    "              |",
-                    " W2(-1,1) -- W(0,1) -- entry(1,1) -- E(2,1)",
-                    "                          |",
-                    "                       START(1,0)",
-                    "    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=W2"
+                    "Z                    NE(2,2)",
+                    "                        |",
+                    "    W(0,1) -- N口(1,1) -- E(2,1) -- E2(3,1)",
+                    "                 |",
+                    "              START(1,0)",
+                    "    N口=fixed Normal  4-slot shuffle Altar+Chest×2+Normal  CONN: W west / E south / E2 east / NE north"
                 });
             }
 
@@ -143,23 +151,72 @@ namespace RogueShooter.Maze
             {
                 return string.Join("\n", new[]
                 {
-                    "C                    c2(3,1) -- c3(3,2) -- CONN(4,2)",
-                    "                         |",
-                    " extra(0,1) -- c0(1,1) -- c1(2,1)",
-                    "                  |",
-                    "               START(1,0)",
-                    "    snake 2·Py+3·Px ≈102s  CONN adj c3  extra west stub  Manhattan=1"
+                    "C              N(1,2) -- NE(2,2)",
+                    "                 |         |",
+                    "    W(0,1) -- N口(1,1) -- E(2,1)",
+                    "                 |",
+                    "              START(1,0)",
+                    "    N口=fixed Normal  4-slot shuffle  CONN: W west / E east / N north / NE east"
                 });
             }
 
             return string.Join("\n", new[]
             {
-                "I              N(1,2) -- CONN(2,2)",
-                "                 |",
-                "    W(0,1) -- entry(1,1) -- E(2,1) -- E2(3,1)",
-                "                 |",
-                "              START(1,0)",
-                "    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=E2"
+                "I     NW(0,2) -- N(1,2)",
+                "         |         |",
+                "      W(0,1) -- N口(1,1) -- E(2,1)",
+                "                   |",
+                "                START(1,0)",
+                "    N口=fixed Normal  4-slot shuffle Altar+Chest×2+Normal  CONN: W west / E east / NW west / N north"
+            });
+        }
+
+        public static string WriteTemplatesTo(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                path = TemplatesPath();
+            string dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(path, TemplatesText(), new UTF8Encoding(false));
+            return path;
+        }
+
+        public static string TemplatesText()
+        {
+            return string.Join("\n", new[]
+            {
+                "# S1 maze I/Z/C templates (v2e 52×40 / pitch 82×70 gap 30)",
+                "# Quota Chest×2 + Altar×1 + Normal×2 + START + CONN",
+                "# START neighbor = fixed Normal (N口). Not shuffled.",
+                "# Remaining 4 combat slots shuffle Altar×1 + Chest×2 + Normal×1.",
+                "# CONN follows Altar: orthogonal straight exit, no fake-exit folds.",
+                "# Orthogonal adjacency = short straight corridor. Diagonal rooms may L-bend.",
+                "# No pure-walk time gate. START→N口 door ~18u / ~3s @ ms6 is feel only.",
+                "",
+                "I  START(1,0) -- N口(1,1) -- W(0,1) / E(2,1) / N(1,2)",
+                "                 W(0,1) -- NW(0,2) -- N(1,2)",
+                "   I-1 Altar@W(0,1)   CONN(-1,1) west",
+                "   I-2 Altar@E(2,1)   CONN(3,1)  east",
+                "   I-3 Altar@NW(0,2)  CONN(-1,2) west",
+                "   I-4 Altar@N(1,2)   CONN(1,3)  north",
+                "",
+                "Z  START(1,0) -- N口(1,1) -- W(0,1) / E(2,1)",
+                "                              E(2,1) -- E2(3,1)",
+                "                              E(2,1) -- NE(2,2)",
+                "   Z-1 Altar@W(0,1)   CONN(-1,1) west",
+                "   Z-2 Altar@E(2,1)   CONN(2,0)  south",
+                "   Z-3 Altar@E2(3,1)  CONN(4,1)  east",
+                "   Z-4 Altar@NE(2,2)  CONN(2,3)  north",
+                "",
+                "C  START(1,0) -- N口(1,1) -- W(0,1) / E(2,1) / N(1,2)",
+                "                              N(1,2) -- NE(2,2)",
+                "                              E(2,1) -- NE(2,2)",
+                "   C-1 Altar@W(0,1)   CONN(-1,1) west",
+                "   C-2 Altar@E(2,1)   CONN(3,1)  east",
+                "   C-3 Altar@N(1,2)   CONN(1,3)  north",
+                "   C-4 Altar@NE(2,2)  CONN(3,2)  east",
+                ""
             });
         }
 
@@ -178,9 +235,9 @@ namespace RogueShooter.Maze
         {
             int[] seeds = { 1, 2, 17, 42, 99, 2026 };
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage-1 walk-only evidence (v2c B_推荐)");
-            sb.AppendLine("# seconds = center-to-center path / moveSpeed. 60/240 is NOT a lock.");
-            sb.AppendLine("# I no-fold ≈ 2·Py+Px ≈59s; C snake ≈ 2·Py+3·Px ≈102s (CSV B_推荐).");
+            sb.AppendLine("# Stage-1 walk evidence (v2e)");
+            sb.AppendLine("# seconds = center-to-center path / moveSpeed. NO pure-walk time gate.");
+            sb.AppendLine("# START→N口 door ~18u / ~3s feel (not a lock). gap≤30u geometry lock.");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/")
               .Append(MazeRules.PitchY.ToString("0"));
@@ -193,19 +250,32 @@ namespace RogueShooter.Maze
             sb.Append(" corridor=").Append(MazeRules.CorridorWidth.ToString("0.#"));
             sb.Append(" segMax=").Append(MazeRules.CorridorSegMax.ToString("0"));
             sb.AppendLine();
-            sb.AppendLine("ACCEPTANCE rooms=100x80 pitch=130/110 gap=30u START=1pitch manhattan=1 CONN-adj-combat v2c-B_推荐");
+            sb.AppendLine("ACCEPTANCE rooms=52x40 pitch=82/70 gap=30u startN=fixedNormal connFollowsAltar no-walk-clock");
             sb.AppendLine("quota Chest×2+Altar×1+Normal×2+START+CONN");
             sb.AppendLine();
-            sb.AppendLine("seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,hop_ok,corr_ok");
+            sb.AppendLine("seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,start_n,conn_altar,gap_ok");
             bool allOk = true;
             for (int i = 0; i < seeds.Length; i++)
             {
                 Stage1Maze maze = Stage1MazeGen.Generate(seeds[i]);
                 MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
-                bool hopOk = Math.Abs(pace.FirstHop - MazeRules.PitchY) <= 0.51f
-                    || Math.Abs(pace.FirstHop - MazeRules.PitchX) <= 0.51f;
-                bool corrOk = pace.MaxCorridorSegSeconds <= MazeRules.CorridorSegMaxSeconds + 0.05f;
-                if (!hopOk || !corrOk)
+                MazeNode start = maze.Find("START");
+                MazeNode first = start != null && start.NeighborIds != null && start.NeighborIds.Length > 0
+                    ? maze.Find(start.NeighborIds[0]) : null;
+                bool startN = first != null && first.Kind == MazeNodeKind.Normal;
+                MazeNode conn = maze.Find("CONN");
+                bool connAltar = false;
+                if (conn != null && conn.NeighborIds != null)
+                {
+                    for (int n = 0; n < conn.NeighborIds.Length; n++)
+                    {
+                        MazeNode nb = maze.Find(conn.NeighborIds[n]);
+                        if (nb != null && nb.Kind == MazeNodeKind.Altar)
+                            connAltar = true;
+                    }
+                }
+                bool gapOk = pace.MaxCorridorSeg <= MazeRules.CorridorSegMax + 0.05f;
+                if (!startN || !connAltar || !gapOk)
                     allOk = false;
                 sb.Append(seeds[i]).Append(',').Append(maze.TemplateId).Append(',');
                 sb.Append(pace.FirstHop.ToString("0.0")).Append(',');
@@ -214,8 +284,9 @@ namespace RogueShooter.Maze
                 sb.Append(pace.ShortestWalkSeconds.ToString("0.0")).Append(',');
                 sb.Append(pace.MaxCorridorSeg.ToString("0.0")).Append(',');
                 sb.Append(pace.MaxCorridorSegSeconds.ToString("0.00")).Append(',');
-                sb.Append(hopOk ? "PASS" : "FAIL").Append(',');
-                sb.Append(corrOk ? "PASS" : "FAIL");
+                sb.Append(startN ? "PASS" : "FAIL").Append(',');
+                sb.Append(connAltar ? "PASS" : "FAIL").Append(',');
+                sb.Append(gapOk ? "PASS" : "FAIL");
                 sb.AppendLine();
             }
 
@@ -227,7 +298,7 @@ namespace RogueShooter.Maze
             sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatQuota(d));
             sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" firstHop=").Append(dp.FirstHop.ToString("0.0")).Append("u/");
-            sb.Append(dp.FirstHopSeconds.ToString("0.0")).Append("s (1 pitch)");
+            sb.Append(dp.FirstHopSeconds.ToString("0.0")).Append("s (feel ~3s, not a lock)");
             sb.Append(" shortest=").Append(dp.ShortestWalk.ToString("0.0")).Append("u/");
             sb.Append(dp.ShortestWalkSeconds.ToString("0.0")).Append("s START→CONN");
             sb.Append(" maxSeg=").Append(dp.MaxCorridorSeg.ToString("0.0")).Append("u/");
@@ -239,7 +310,7 @@ namespace RogueShooter.Maze
             sb.Append(" altar=").Append(MazeRules.AltarWidth.ToString("0")).Append("x")
               .Append(MazeRules.AltarHeight.ToString("0"));
             sb.AppendLine();
-            sb.Append("# ").Append(allOk ? "WALK GATES PASS (hop=1pitch corr≤5s; 60/240 not locked)" : "WALK GATES FAIL");
+            sb.Append("# ").Append(allOk ? "GEOMETRY PASS (rooms/pitch/gap/startN/connAltar; no walk-clock gate)" : "GEOMETRY FAIL");
             sb.AppendLine();
             return sb.ToString();
         }
@@ -273,11 +344,11 @@ namespace RogueShooter.Maze
             sb.Append("u/").Append(pace.FullWalkSeconds.ToString("0.0")).Append("s");
             sb.Append(" waves=").Append(pace.FullWaves);
             sb.Append(" totalEst=").Append(pace.FullTotalEstimate.ToString("0"));
-            sb.Append("s (walk-only clocks; 60/240 not a path lock)");
+            sb.Append("s (informational walk; no clock gate)");
             sb.AppendLine();
             sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" firstHop=").Append(pace.FirstHop.ToString("0.0")).Append("u/");
-            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (1 pitch)");
+            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (feel ~3s, not a lock)");
             sb.Append(" shortest=").Append(pace.ShortestWalk.ToString("0.0")).Append("u/");
             sb.Append(pace.ShortestWalkSeconds.ToString("0.0")).Append("s START→CONN");
             sb.Append(" maxSeg=").Append(pace.MaxCorridorSeg.ToString("0.0")).Append("u/");

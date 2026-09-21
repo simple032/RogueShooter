@@ -38,15 +38,16 @@ namespace RogueShooter.Maze
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar/LargeChest→E ");
             sb.Append("ortho=6 move=6 ");
-            sb.Append("rooms=100x80 altar=120x96 hub=80x80 pitch=130/110 gap=30u ");
-            sb.Append("corridorSeg≤5s startHop=1pitch orthoStraight manhattan1 ");
-            sb.Append("pacing=v2c-B_推荐 I≈59s C≈102s no-fold-pad ");
+            sb.Append("rooms=52x40 pitch=82/70 gap=30u startDoor~18u ");
+            sb.Append("startN=fixedNormal shuffle4=Altar+Chest×2+Normal ");
+            sb.Append("connFollowsAltar orthoStraight diagFoldOnly ");
+            sb.Append("no-walk-clock-gate ");
             sb.Append("knockback=draftMid dog4.32/mage2.16/normal2.7/grand1.98/shield2.7|root0.5/boss0.30 ");
             sb.Append("ws=×1.5+stagger0.5 shieldShatter=1.0s ");
             sb.Append("return=0.6s formula=move×0.6(non-boss) ");
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("zhenshi=R15_C+20%/R15_R+40% mul-then-ws ");
-            sb.Append("pacing=walkOnly-clocks combatEst-not-locked ");
+            sb.Append("pacing=informational-walk combatEst-not-locked ");
             sb.Append("S2S3=not-built");
             return sb.ToString();
         }
@@ -73,29 +74,25 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
-            if (Math.Abs(MazeRules.CombatWidth - 100f) > 0.001f
-                || Math.Abs(MazeRules.CombatHeight - 80f) > 0.001f)
-                return "combat rooms must be 100x80 (v2c B_推荐)";
-            if (Math.Abs(MazeRules.PitchX - 130f) > 0.001f
-                || Math.Abs(MazeRules.PitchY - 110f) > 0.001f)
-                return "pitch must be 130/110 (v2c B_推荐)";
+            if (Math.Abs(MazeRules.CombatWidth - 52f) > 0.001f
+                || Math.Abs(MazeRules.CombatHeight - 40f) > 0.001f)
+                return "combat rooms must be 52x40 (v2e)";
+            if (Math.Abs(MazeRules.PitchX - 82f) > 0.001f
+                || Math.Abs(MazeRules.PitchY - 70f) > 0.001f)
+                return "pitch must be 82/70 (v2e)";
             if (Math.Abs(MazeRules.PitchX - MazeRules.CombatWidth - 30f) > 0.01f
                 || Math.Abs(MazeRules.PitchY - MazeRules.CombatHeight - 30f) > 0.01f)
-                return "net gap Pitch-room must be 30u (corridor ≤5s)";
-            if (Math.Abs(MazeRules.HubWidth - 80f) > 0.001f
-                || Math.Abs(MazeRules.HubHeight - 80f) > 0.001f)
-                return "START hub 80x80 so the first vertical door gap is 30u";
-            if (Math.Abs(MazeRules.AltarWidth - 120f) > 0.001f
-                || Math.Abs(MazeRules.AltarHeight - 96f) > 0.001f)
-                return "altar room must be 120x96 (larger than combat 100x80)";
-            float startGapY = MazeRules.PitchY - MazeRules.HubHeight * 0.5f - MazeRules.CombatHeight * 0.5f;
-            if (startGapY > 30.01f)
-                return "START door gap must be ≤30u";
+                return "net gap Pitch-room must be 30u";
+            if (Math.Abs(MazeRules.AltarWidth - MazeRules.CombatWidth) > 0.001f
+                || Math.Abs(MazeRules.AltarHeight - MazeRules.CombatHeight) > 0.001f)
+                return "altar must match combat room size 52x40";
+            if (Math.Abs(MazeRules.HubWidth - MazeRules.CombatWidth) > 0.001f
+                || Math.Abs(MazeRules.HubHeight - MazeRules.CombatHeight) > 0.001f)
+                return "START hub matches combat 52x40";
             if (MazeRules.QuotaChest != 2 || MazeRules.QuotaNormal != 2 || MazeRules.QuotaAltar != 1)
                 return "quota Chest×2+Altar×1+Normal×2";
-            if (MazeRules.CorridorSegMax > 30.01f
-                || MazeRules.CorridorSegMaxSeconds > 5.01f)
-                return "corridor segment max 30u / 5s";
+            if (MazeRules.CorridorSegMax > 30.01f)
+                return "corridor segment max 30u";
             if (Math.Abs(MazeRules.PlayMoveSpeed - 6f) > 0.001f)
                 return "walk-only pacing keeps moveSpeed 6";
             string kb = CheckKnockbackDraft();
@@ -244,34 +241,19 @@ namespace RogueShooter.Maze
                     return "seed " + seeds[s] + " not all reachable";
                 if (!pace.ConnectorReachable)
                     return "seed " + seeds[s] + " CONN not reachable";
-                if (pace.ShortestCombatRooms < 2)
-                    return "seed " + seeds[s] + " shortest must visit ≥2 combat rooms";
-                if (pace.MaxCorridorSegSeconds > MazeRules.CorridorSegMaxSeconds + 0.05f)
-                    return "seed " + seeds[s] + " corridor seg " + pace.MaxCorridorSegSeconds.ToString("0.00")
-                        + "s > 5s";
-                if (Math.Abs(pace.FirstHop - MazeRules.PitchY) > 0.51f
-                    && Math.Abs(pace.FirstHop - MazeRules.PitchX) > 0.51f)
-                    return "seed " + seeds[s] + " START→first combat " + pace.FirstHop.ToString("0.0")
-                        + "u must be 1 pitch";
+                if (pace.ShortestCombatRooms < 1)
+                    return "seed " + seeds[s] + " shortest must visit a combat room";
+                if (pace.MaxCorridorSeg > MazeRules.CorridorSegMax + 0.05f)
+                    return "seed " + seeds[s] + " corridor seg " + pace.MaxCorridorSeg.ToString("0.0")
+                        + "u > 30";
                 if (maze.Edges == null || maze.Edges.Length < 4)
                     return "seed " + seeds[s] + " need corridors";
                 MazeNode start = maze.Find("START");
                 if (start == null || start.NeighborIds == null || start.NeighborIds.Length != 1)
                     return "seed " + seeds[s] + " START must have exactly one neighbor";
                 MazeNode first = maze.Find(start.NeighborIds[0]);
-                if (first == null || !first.SpawnsEnemies)
-                    return "seed " + seeds[s] + " START neighbor must be combat";
-                float expect;
-                if (maze.TemplateId == "C")
-                    expect = (MazeRules.CNofoldHopsY * MazeRules.PitchY
-                        + MazeRules.CNofoldHopsX * MazeRules.PitchX) / MazeRules.PlayMoveSpeed;
-                else
-                    expect = (MazeRules.INofoldHopsY * MazeRules.PitchY
-                        + MazeRules.INofoldHopsX * MazeRules.PitchX) / MazeRules.PlayMoveSpeed;
-                if (Math.Abs(pace.ShortestWalkSeconds - expect) > 0.25f)
-                    return "seed " + seeds[s] + " tpl " + maze.TemplateId
-                        + " START→CONN " + pace.ShortestWalkSeconds.ToString("0.0")
-                        + "s != v2c no-fold " + expect.ToString("0.0") + "s";
+                if (first == null || first.Kind != MazeNodeKind.Normal)
+                    return "seed " + seeds[s] + " START neighbor must be the fixed Normal";
                 for (int e = 0; e < maze.Edges.Length; e++)
                 {
                     MazeEdge edge = maze.Edges[e];
@@ -283,30 +265,55 @@ namespace RogueShooter.Maze
                     if (ea == null || eb == null)
                         return "seed " + seeds[s] + " dangling edge";
                     int md = GridManhattan(ea, eb);
-                    if (md != 1)
-                        return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
-                            + " manhattan=" + md + " (must be 1; no two-cell span)";
                     bool ortho = Math.Abs(ea.Center.X - eb.Center.X) < 0.51f
                         || Math.Abs(ea.Center.Y - eb.Center.Y) < 0.51f;
-                    if (!ortho)
-                        return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
-                            + " must be orthogonal";
-                    if (edge.FoldCount != 1)
-                        return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
-                            + " orthogonal must be straight";
+                    bool isConnAltar = (ea.Kind == MazeNodeKind.Connector && eb.Kind == MazeNodeKind.Altar)
+                        || (eb.Kind == MazeNodeKind.Connector && ea.Kind == MazeNodeKind.Altar);
+                    if (isConnAltar)
+                    {
+                        if (!ortho || md != 1 || edge.FoldCount != 1)
+                            return "seed " + seeds[s] + " CONN↔Altar must be orthogonal straight";
+                    }
+                    else if (ortho)
+                    {
+                        if (md != 1)
+                            return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
+                                + " orthogonal manhattan=" + md;
+                        if (edge.FoldCount != 1)
+                            return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
+                                + " orthogonal must be straight";
+                    }
+                    else
+                    {
+                        if (md != 2)
+                            return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
+                                + " diagonal manhattan=" + md;
+                        if (edge.FoldCount > 2)
+                            return "seed " + seeds[s] + " " + edge.FromId + "--" + edge.ToId
+                                + " diagonal fold too long";
+                    }
                 }
                 MazeNode conn = maze.Find("CONN");
-                if (conn == null || conn.NeighborIds == null || conn.NeighborIds.Length < 1)
-                    return "seed " + seeds[s] + " CONN must touch a room";
-                bool connCombat = false;
+                if (conn == null || conn.NeighborIds == null || conn.NeighborIds.Length != 1)
+                    return "seed " + seeds[s] + " CONN must have exactly one neighbor";
+                bool connAltar = false;
                 for (int n = 0; n < conn.NeighborIds.Length; n++)
                 {
                     MazeNode nb = maze.Find(conn.NeighborIds[n]);
-                    if (nb != null && nb.SpawnsEnemies && GridManhattan(conn, nb) == 1)
-                        connCombat = true;
+                    if (nb != null && nb.Kind == MazeNodeKind.Altar)
+                        connAltar = true;
                 }
-                if (!connCombat)
-                    return "seed " + seeds[s] + " CONN must be adjacent to a combat room";
+                if (!connAltar)
+                    return "seed " + seeds[s] + " CONN must follow Altar";
+                for (int i = 0; i < maze.Nodes.Length; i++)
+                {
+                    for (int j = i + 1; j < maze.Nodes.Length; j++)
+                    {
+                        if (maze.Nodes[i].Center.Dist(maze.Nodes[j].Center) < 1f)
+                            return "seed " + seeds[s] + " overlapping rooms "
+                                + maze.Nodes[i].Id + "/" + maze.Nodes[j].Id;
+                    }
+                }
                 for (int i = 0; i < maze.Nodes.Length; i++)
                 {
                     MazeNode n = maze.Nodes[i];
@@ -491,10 +498,17 @@ namespace RogueShooter.Maze
         static int GridManhattan(MazeNode a, MazeNode b)
         {
             int ac = (int)Math.Round(a.Center.X / MazeRules.PitchX);
-            int ar = (int)Math.Round(a.Center.Y / MazeRules.PitchY);
+            int ar = GridRow(a.Center.Y);
             int bc = (int)Math.Round(b.Center.X / MazeRules.PitchX);
-            int br = (int)Math.Round(b.Center.Y / MazeRules.PitchY);
+            int br = GridRow(b.Center.Y);
             return Math.Abs(ac - bc) + Math.Abs(ar - br);
+        }
+
+        static int GridRow(float y)
+        {
+            if (y < MazeRules.StartPitchY * 0.5f)
+                return 0;
+            return 1 + (int)Math.Round((y - MazeRules.StartPitchY) / MazeRules.PitchY);
         }
 
         static bool HasKind(CombatStep[] steps, string kind)

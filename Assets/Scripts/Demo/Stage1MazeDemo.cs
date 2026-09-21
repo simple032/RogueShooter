@@ -85,10 +85,10 @@ namespace RogueShooter.Demo
                       + "u/" + _pace.FullWalkSeconds.ToString("0.0") + "s"
                       + " waves=" + _pace.FullWaves
                       + " totalEst=" + _pace.FullTotalEstimate.ToString("0")
-                      + "s (walk-only clocks; 60/240 not a path lock)");
+                      + "s (informational walk; no clock gate)");
             Debug.Log("[S1Maze] walkOnly move=" + MazeRules.PlayMoveSpeed.ToString("0")
                       + " firstHop=" + _pace.FirstHop.ToString("0.0") + "u/"
-                      + _pace.FirstHopSeconds.ToString("0.0") + "s (1 pitch)"
+                      + _pace.FirstHopSeconds.ToString("0.0") + "s (feel ~3s, not a lock)"
                       + " shortest=" + _pace.ShortestWalk.ToString("0.0") + "u/"
                       + _pace.ShortestWalkSeconds.ToString("0.0") + "s START→CONN"
                       + " maxSeg=" + _pace.MaxCorridorSeg.ToString("0.0") + "u/"
@@ -893,9 +893,9 @@ namespace RogueShooter.Demo
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
             GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
             string pace = _maze != null
-                ? "firstHop " + _pace.FirstHopSeconds.ToString("0.0") + "s (1 pitch) · START→CONN "
+                ? "firstHop " + _pace.FirstHopSeconds.ToString("0.0") + "s (~3s feel) · START→CONN "
                   + _pace.ShortestWalkSeconds.ToString("0") + "s · maxSeg "
-                  + _pace.MaxCorridorSegSeconds.ToString("0.0") + "s (≤5) · move=" + PlaySpeed().ToString("0")
+                  + _pace.MaxCorridorSeg.ToString("0") + "u (≤30) · move=" + PlaySpeed().ToString("0")
                   + " pitch=" + MazeRules.PitchX.ToString("0") + "/" + MazeRules.PitchY.ToString("0")
                   + " rooms=" + MazeRules.CombatWidth.ToString("0") + "x" + MazeRules.CombatHeight.ToString("0")
                   + " altar=" + MazeRules.AltarWidth.ToString("0") + "x" + MazeRules.AltarHeight.ToString("0")

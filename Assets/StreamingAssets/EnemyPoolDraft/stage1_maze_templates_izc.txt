@@ -1,25 +1,30 @@
-# S1 maze I/Z/C templates (v2c B_推荐 100×80 / pitch 130×110 gap 30)
-# Quota Chest×2 + Altar×1 + Normal×2 + START + CONN (5 combat slots)
-# All edges Manhattan=1 orthogonal straight. CONN adjacent to a combat room.
-# Altar 120×96. START→first = 1×PitchY. I≈59s C≈102s. No ortho fold-pad.
+# S1 maze I/Z/C templates (v2e 52×40 / pitch 82×70 gap 30)
+# Quota Chest×2 + Altar×1 + Normal×2 + START + CONN
+# START neighbor = fixed Normal (N口). Not shuffled.
+# Remaining 4 combat slots shuffle Altar×1 + Chest×2 + Normal×1.
+# CONN follows Altar: orthogonal straight exit, no fake-exit folds.
+# Orthogonal adjacency = short straight corridor. Diagonal rooms may L-bend.
+# No pure-walk time gate. START→N口 door ~18u / ~3s @ ms6 is feel only.
 
-I              N(1,2) -- CONN(2,2)
-                 |
-    W(0,1) -- entry(1,1) -- E(2,1) -- E2(3,1)
-                 |
-              START(1,0)
-    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=E2
+I  START(1,0) -- N口(1,1) -- W(0,1) / E(2,1) / N(1,2)
+                 W(0,1) -- NW(0,2) -- N(1,2)
+   I-1 Altar@W(0,1)   CONN(-1,1) west
+   I-2 Altar@E(2,1)   CONN(3,1)  east
+   I-3 Altar@NW(0,2)  CONN(-1,2) west
+   I-4 Altar@N(1,2)   CONN(1,3)  north
 
-Z  CONN(0,2) -- N(1,2)
-              |
- W2(-1,1) -- W(0,1) -- entry(1,1) -- E(2,1)
-                          |
-                       START(1,0)
-    star 2·Py+Px ≈59s  Manhattan=1  CONN adj N  extra=W2
+Z  START(1,0) -- N口(1,1) -- W(0,1) / E(2,1)
+                              E(2,1) -- E2(3,1)
+                              E(2,1) -- NE(2,2)
+   Z-1 Altar@W(0,1)   CONN(-1,1) west
+   Z-2 Altar@E(2,1)   CONN(2,0)  south
+   Z-3 Altar@E2(3,1)  CONN(4,1)  east
+   Z-4 Altar@NE(2,2)  CONN(2,3)  north
 
-C                    c2(3,1) -- c3(3,2) -- CONN(4,2)
-                         |
- extra(0,1) -- c0(1,1) -- c1(2,1)
-                  |
-               START(1,0)
-    snake 2·Py+3·Px ≈102s  CONN adj c3  extra west stub  Manhattan=1
+C  START(1,0) -- N口(1,1) -- W(0,1) / E(2,1) / N(1,2)
+                              N(1,2) -- NE(2,2)
+                              E(2,1) -- NE(2,2)
+   C-1 Altar@W(0,1)   CONN(-1,1) west
+   C-2 Altar@E(2,1)   CONN(3,1)  east
+   C-3 Altar@N(1,2)   CONN(1,3)  north
+   C-4 Altar@NE(2,2)  CONN(3,2)  east
