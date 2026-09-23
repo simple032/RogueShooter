@@ -76,8 +76,8 @@
 
 | 前缀 | 用途 | 例 |
 |------|------|-----|
-| `jh_char_` | 主角 | `jh_char_archer_idle` |
-| `jh_enemy_` | 小怪 | `jh_enemy_e1_skel_idle` |
+| `jh_char_` | 主角 | `jh_char_archer_idle_00` |
+| `jh_enemy_` | 小怪 | `jh_enemy_e1_skel_idle` / `jh_enemy_dog_idle_00` / `jh_enemy_mage_idle_00` |
 | `jh_boss_` | BOSS | `jh_boss_lord_idle` |
 | `jh_prop_` | 交互物 | `jh_prop_chest_closed` |
 | `jh_tile_` | 铺装 | `jh_tile_floor_hub` |
@@ -113,7 +113,7 @@
 
 | ID | 文件 | 尺寸 | 说明 |
 |----|------|------|------|
-| CHAR | `jh_char_archer_idle.png` | 64×64 | 主角 idle |
+| CHAR | `jh_char_archer_idle_00.png` | 64×64 | 主角 idle 首帧 |
 | E1 | `jh_enemy_e1_skel_idle.png` | 64×64 | 骸兵（首类小怪） |
 | BOSS | `jh_boss_lord_idle.png` | 128×128 | 箭骸领主 idle |
 

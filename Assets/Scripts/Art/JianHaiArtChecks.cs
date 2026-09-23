@@ -55,6 +55,43 @@ namespace RogueShooter.Art
                 return "large chest must read bigger than small";
             if (!(aw > sw))
                 return "altar 96 must read bigger than small chest 64";
+            if (JianHaiArtCatalog.PlayerIdle != "jh_char_archer_idle_00")
+                return "player idle must be framed _00";
+            if (JianHaiArtCatalog.SpriteNameForHook("START", "idle") != JianHaiArtCatalog.PlayerIdle)
+                return "START idle frame";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.PlayerIdle)
+                != "Assets/Art/JianHai/Characters/jh_char_archer_idle_00.png")
+                return "player idle path";
+            if (JianHaiArtCatalog.EnemyE1Idle != "jh_enemy_e1_skel_idle")
+                return "skel idle";
+            if (JianHaiArtCatalog.EnemyDogIdle != "jh_enemy_dog_idle_00")
+                return "dog idle";
+            if (JianHaiArtCatalog.EnemyMageIdle != "jh_enemy_mage_idle_00")
+                return "mage idle";
+            if (JianHaiArtCatalog.SpriteName("jh_enemy_dog", "idle") != JianHaiArtCatalog.EnemyDogIdle)
+                return "dog idle frame";
+            if (JianHaiArtCatalog.SpriteName("jh_enemy_mage", "idle") != JianHaiArtCatalog.EnemyMageIdle)
+                return "mage idle frame";
+            if (JianHaiArtCatalog.SpriteName("jh_enemy_e1_skel", "idle") != JianHaiArtCatalog.EnemyE1Idle)
+                return "skel idle frame";
+            if (LegacyS1Enemy(JianHaiArtCatalog.EnemyE1Idle)
+                || LegacyS1Enemy(JianHaiArtCatalog.EnemyDogIdle)
+                || LegacyS1Enemy(JianHaiArtCatalog.EnemyMageIdle))
+                return "legacy s1 enemy id";
+            string tileIds = JianHaiStage1Art.ValidateIds();
+            if (tileIds != null)
+                return tileIds;
+            if (JianHaiStage1Art.RejectReason(_ => false, _ => true) == null)
+                return "missing png must abort";
+            if (JianHaiStage1Art.RejectReason(_ => true, _ => false) == null)
+                return "unloaded sprite must abort";
+            if (JianHaiStage1Art.RejectReason(_ => true, _ => true) != null)
+                return "complete tiles must pass";
+            string partial = JianHaiStage1Art.RejectReason(
+                id => id != "jh_decal_s1_rubble_01",
+                _ => true);
+            if (partial == null || partial.IndexOf("jh_decal_s1_rubble_01", StringComparison.Ordinal) < 0)
+                return "single missing tile must name the png";
             if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.FxStringGlow) != "FX")
                 return "fx folder";
             if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.FxStringGlow)
@@ -99,6 +136,13 @@ namespace RogueShooter.Art
             }
 
             return null;
+        }
+
+        static bool LegacyS1Enemy(string artId)
+        {
+            return !string.IsNullOrEmpty(artId)
+                && artId.StartsWith("jh_enemy_", StringComparison.Ordinal)
+                && artId.IndexOf("_s1_", StringComparison.Ordinal) >= 0;
         }
     }
 }
