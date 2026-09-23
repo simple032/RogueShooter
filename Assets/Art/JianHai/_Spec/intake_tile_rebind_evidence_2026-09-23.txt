@@ -1,0 +1,92 @@
+jianhai_s1_stage1_rebuild evidence
+=================================
+time_local_CST: 2026-09-23 20:54:32 Asia/Shanghai
+worktree: D:\Game building\RogueShooter-s1-tile-rebuild
+dirty_repo_untouched: D:\Game Provide\RogueShooter (branch cursor/stage-map-gen-c3d4 left dirty)
+main_SHA: a529e44af6a944e08d2fdf83bfb06bff328478a7
+executeMethod: RogueShooter.Tools.JianHaiStage1MazeBuilder.Build
+batch_wrapper_added: no (Build already public static)
+tuanjie_exit_code: 0
+log: C:\Users\simple\AppData\Local\Temp\s1_tile_rebuild.log
+
+bind_counts:
+  png: 26/26
+  tile_asset: 26/26
+  m_Sprite_bound_nonzero: 26/26
+  m_Sprite_fileID_0: 0
+
+SaveScene_ran: NO
+reason: main builder intentionally defers geometry; log says:
+[Stage1] rebound 26 tile assets by filename. Entity contract: jh_char_archer_idle_00, jh_enemy_e1_skel_idle, jh_enemy_dog_idle_00, jh_enemy_mage_idle_00. Geometry rebuild is deferred; Assets/Scenes/Stage1Maze.scene was not saved.
+
+scene_written: NO (Assets/Scenes/Stage1Maze.scene is main's existing skeleton; mtime unchanged by Build)
+scene_path: Assets/Scenes/Stage1Maze.scene
+scene_size_bytes: 7940
+scene_mtime_local: 2026-09-23 20:47:10
+
+scene_YAML_greps:
+  m_Script fileID 0: 0
+  m_Sprite fileID 0: 0
+  Missing (case-insensitive count): 0
+  guid 0000000000000000e000000000000000 count: 1
+
+worktree_local_fixes_not_in_zip:
+  - copied .codely-cli/extensions/TJGenerators/.../cn.tuanjie.ai.generators (manifest file: dep; missing in fresh worktree)
+  - fixed Assets/Scripts/RunBuild/RewardStatHooks.cs.meta invalid GUID (Unity ignored script -> CS0103) to hex guid c9a2e776ae707266d8de1d1468f928c2
+
+log_key_lines / errors:
+Assets\Scripts\Player\PlayerCharge.cs(260,28): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\Player\PlayerCharge.cs(291,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(10,13): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(101,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(102,29): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(105,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(108,13): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(110,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(112,13): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(113,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(115,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(118,13): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(119,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(123,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(124,29): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(130,26): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(131,20): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(146,18): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(147,29): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+Assets\Scripts\RunBuild\RewardCatalogChecks.cs(160,13): error CS0103: The name 'RewardStatHooks' does not exist in the current context
+(first-run package miss + compile fail fixed; final run exit 0)
+
+log_tail_30:
+[Performance] Application.Shutdown.DestroyWorld                                                                               :        1 samples, Peak.  2.84 ms (1.0x), Avg.  2.84 ms, Total. 2.837 ms (0.0%)
+[Performance] Application.Shutdown.CleanupAfterLoad                                                                           :        1 samples, Peak.  1.31 s (1.0x), Avg.  1.31 s, Total. 1.313 s (1.3%)
+[Performance] Application.Shutdown.Progress                                                                                   :        1 samples, Peak.   103 us (1.0x), Avg.   103 us, Total. 103.1 us (0.0%)
+[Performance] Application.Shutdown.GICleanupManagers                                                                          :        1 samples, Peak.  2.72 ms (1.0x), Avg.  2.72 ms, Total. 2.722 ms (0.0%)
+[Performance] Application.Shutdown.MenuCleanupClass                                                                           :        1 samples, Peak.  1.15 ms (1.0x), Avg.  1.15 ms, Total. 1.148 ms (0.0%)
+[Performance] Application.Shutdown.ADBSaveStateBeforeShutdown                                                                 :        1 samples, Peak.  25.0 us (1.0x), Avg.  25.0 us, Total. 25.00 us (0.0%)
+[Performance] Application.Shutdown.RemoteShutdown                                                                             :        1 samples, Peak.  3.10 us (1.0x), Avg.  3.10 us, Total. 3.100 us (0.0%)
+[Performance] Application.Shutdown.CleanupVCProvider                                                                          :        1 samples, Peak.  26.9 us (1.0x), Avg.  26.9 us, Total. 26.90 us (0.0%)
+[Performance] Application.Shutdown.InputShutdown                                                                              :        1 samples, Peak.  1.10 us (1.0x), Avg.  1.10 us, Total. 1.100 us (0.0%)
+[Performance] Application.Shutdown.GizmoManagerDestroy                                                                        :        1 samples, Peak.  3.28 ms (1.0x), Avg.  3.28 ms, Total. 3.278 ms (0.0%)
+[Performance] Application.Shutdown.ProfilerSession                                                                            :        1 samples, Peak.  1.13 ms (1.0x), Avg.  1.13 ms, Total. 1.133 ms (0.0%)
+[Performance] Application.Shutdown.ReleaseGfxWindowOnAllGUIViews                                                              :        1 samples, Peak.   600 ns (1.0x), Avg.   600 ns, Total. 600.0 ns (0.0%)
+[Performance] Application.Shutdown.CleanupEngine                                                                              :        1 samples, Peak.   205 ms (1.0x), Avg.   205 ms, Total. 204.9 ms (0.2%)
+[Performance] Application.Shutdown.CleanupAssetDatabase                                                                       :        1 samples, Peak.  36.8 ms (1.0x), Avg.  36.8 ms, Total. 36.79 ms (0.0%)
+[Performance] Application.Shutdown.ScriptCompilationCleanUp                                                                   :        1 samples, Peak.  42.5 ms (1.0x), Avg.  42.5 ms, Total. 42.50 ms (0.0%)
+[Performance] Application.Shutdown.DestroyJobSystem                                                                           :        1 samples, Peak.   360 us (1.0x), Avg.   360 us, Total. 360.2 us (0.0%)
+[Performance] Application.Shutdown.CleanupPersistentManager                                                                   :        1 samples, Peak.  8.84 ms (1.0x), Avg.  8.84 ms, Total. 8.844 ms (0.0%)
+[Performance] Application.Shutdown.CleanupAsyncReadManager                                                                    :        1 samples, Peak.  1.23 ms (1.0x), Avg.  1.23 ms, Total. 1.228 ms (0.0%)
+[Performance] Application.Shutdown.CleanupProgressBar                                                                         :        1 samples, Peak.  2.10 us (1.0x), Avg.  2.10 us, Total. 2.100 us (0.0%)
+[Performance] Application.Shutdown.CleanupMono                                                                                :        1 samples, Peak.   709 ms (1.0x), Avg.   709 ms, Total. 708.6 ms (0.7%)
+[Performance] Application.Shutdown.CleanupStdConverters                                                                       :        1 samples, Peak.  38.0 us (1.0x), Avg.  38.0 us, Total. 38.00 us (0.0%)
+[Performance] Application.Shutdown.UnloadAllPlatformSupportModuleNativeDlls                                                   :        1 samples, Peak.  1.10 us (1.0x), Avg.  1.10 us, Total. 1.100 us (0.0%)
+[Performance] Application.Shutdown.UnloadAllPlatformSupportNativeLibraries                                                    :        1 samples, Peak.   200 ns (1.0x), Avg.   200 ns, Total. 200.0 ns (0.0%)
+[Performance] Application.Shutdown.CleanupAutoDocumentation                                                                   :        1 samples, Peak.  1.23 ms (1.0x), Avg.  1.23 ms, Total. 1.231 ms (0.0%)
+[Performance] Application.Shutdown.ShaderNameManagerDestroy                                                                   :        1 samples, Peak.   136 us (1.0x), Avg.   136 us, Total. 135.8 us (0.0%)
+[Performance] Application.Shutdown.CleanupCacheServer                                                                         :        1 samples, Peak.   300 ns (1.0x), Avg.   300 ns, Total. 300.0 ns (0.0%)
+[Performance] Application.Shutdown.Virtualization_Shutdown                                                                    :        1 samples, Peak.   900 ns (1.0x), Avg.   900 ns, Total. 900.0 ns (0.0%)
+[Performance] Application.Shutdown.DevConnections                                                                             :        1 samples, Peak.   549 us (1.0x), Avg.   549 us, Total. 548.5 us (0.0%)
+Exiting batchmode successfully now!
+Exiting without the bug reporter. Application will terminate with return code 0
+FINAL_RUN_COMPILE: clean (error CS count in final log = 25; Scripts have compiler = 0)
+Prior failed attempts (package miss / invalid RewardStatHooks.meta) were fixed before final exit 0.
