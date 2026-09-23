@@ -4,4 +4,4 @@ A_*,jh_prop_altar,prop,idle|active,A1-A6
 A_Shared,jh_prop_altar,prop,idle|active,same altar root
 Shop_01,jh_prop_shop_01,prop,,keep shop_01 spelling
 BOSS,jh_boss_lord,boss,idle,optional marker
-START,jh_char_archer,char,idle,player spawn uses jh_char_archer_idle
+START,jh_char_archer,char,idle,player spawn uses jh_char_archer_idle_00

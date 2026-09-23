@@ -35,8 +35,24 @@ namespace RogueShooter.Art
         public const string ChestLargeRoot = "jh_prop_chest_large";
         public const string AltarRoot = "jh_prop_altar";
         public const string ShopRoot = "jh_prop_shop_01";
-        public const string PlayerIdle = "jh_char_archer_idle";
+        /// <summary>
+        /// Framed archer idle (QA G06). Builders request this id.
+        /// Main's A-class drop is an unframed idle PNG; that file is not the builder id.
+        /// </summary>
+        public const string PlayerIdle = "jh_char_archer_idle_00";
+
+        /// <summary>
+        /// On-disk first skel frame (no numbered sibling under Enemies/).
+        /// This is the melee replacement. Do not request legacy s1 melee names.
+        /// </summary>
         public const string EnemyE1Idle = "jh_enemy_e1_skel_idle";
+
+        /// <summary>Framed dog idle. Not on main; do not substitute legacy s1 dog frames.</summary>
+        public const string EnemyDogIdle = "jh_enemy_dog_idle_00";
+
+        /// <summary>Framed mage idle. Not on main; do not substitute legacy s1 mage frames.</summary>
+        public const string EnemyMageIdle = "jh_enemy_mage_idle_00";
+
         public const string BossIdle = "jh_boss_lord_idle";
 
         public const string FxStringGlow = "jh_fx_charge_string_glow";
@@ -96,6 +112,10 @@ namespace RogueShooter.Art
                 return "";
             if (artRoot == ShopRoot)
                 return ShopRoot;
+            if (artRoot == "jh_char_archer" && state == "idle")
+                return PlayerIdle;
+            if ((artRoot == "jh_enemy_dog" || artRoot == "jh_enemy_mage") && state == "idle")
+                return artRoot + "_idle_00";
             if (string.IsNullOrEmpty(state))
                 return artRoot;
             return artRoot + "_" + state;

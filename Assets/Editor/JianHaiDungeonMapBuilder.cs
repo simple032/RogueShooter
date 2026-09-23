@@ -370,7 +370,7 @@ namespace RogueShooter.Tools
             var markersRoot = new GameObject("Markers").transform;
             markersRoot.SetParent(root.transform, false);
 
-            AddSpriteProp(propsRoot, "START", new Vector3(30.5f, 6.7f, 0f), "jh_char_archer_idle", JianHaiArtCatalog.EntityStubWorldScale, 0f, "Entity");
+            AddSpriteProp(propsRoot, "START", new Vector3(30.5f, 6.7f, 0f), JianHaiArtCatalog.PlayerIdle, JianHaiArtCatalog.EntityStubWorldScale, 0f, "Entity");
             AddSpriteProp(propsRoot, "BOSS", new Vector3(30.5f, 100.0f, 0f), "jh_boss_lord_idle", JianHaiArtCatalog.EntityStubWorldScale, 0f, "Entity");
 
             // 12 road chests: stage quota 1 / 2 / 1 per path, symmetric W/C/E
