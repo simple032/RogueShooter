@@ -218,6 +218,7 @@ namespace RogueShooter.Demo
             CameraFollow2D follow = cam.GetComponent<CameraFollow2D>();
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
+            follow.ConfigureIso(CameraFollow2D.IsoPitchDegrees, new Vector3(0f, -8f, -8f));
             follow.SetTarget(player.transform);
 
             _clock = gameObject.AddComponent<SpawnBandClock>();
@@ -476,13 +477,15 @@ namespace RogueShooter.Demo
             bool artOk = artErr == null;
             string deErr = DeadEndChecks.Run();
             bool deOk = deErr == null;
+            string roomErr = RogueShooter.RoomCombat.RoomCombatChecks.Run();
+            bool roomOk = roomErr == null;
             _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && offViewSpawn
                     && edgeSkip && capOk
-                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk && deOk;
+                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk && deOk && roomOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} edgeSkip={edgeSkip} coreSkip={coreSkip} offViewSpawn={offViewSpawn} capOk={capOk} pad={SpawnViewGate.EffectivePad:0.00} z1Eff={z1Eff:0.00}");
-            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk} deOk={deOk}");
+            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk} deOk={deOk} roomOk={roomOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
             if (!buildOk)
@@ -493,6 +496,8 @@ namespace RogueShooter.Demo
                 sb.Append(" artErr=" + artErr);
             if (!deOk)
                 sb.Append(" deErr=" + deErr);
+            if (!roomOk)
+                sb.Append(" roomErr=" + roomErr);
             _status = sb.ToString();
             if (_pass)
                 Debug.Log("[ThreeRouteScaffold] " + _status);

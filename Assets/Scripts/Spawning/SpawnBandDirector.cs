@@ -238,6 +238,79 @@ namespace RogueShooter.Spawning
             return spawned;
         }
 
+        /// <summary>
+        /// Combat-room wave at fixed level points. Bypasses view gate / screen cap / phase cooldown.
+        /// Count = points.Length; kinds from current band pool (same HP scale as event waves).
+        /// </summary>
+        public int SpawnRoomCombatWave(string id, Vector2[] points, string band)
+        {
+            if (points == null || points.Length == 0 || _stubPrefab == null)
+                return 0;
+            if (string.IsNullOrEmpty(band))
+                band = _clock != null ? _clock.BandId : "Z1";
+            if (string.IsNullOrEmpty(band) || band == "Pre")
+                band = "Z1";
+
+            SpawnClassId cls = SpawnWaveCatalog.ResolveClass(band, _build);
+            SpawnGroupDef[] pool = SpawnWaveCatalog.GroupsFor(cls);
+            SpawnGroupDef group = pool != null && pool.Length > 0 ? pool[0] : default(SpawnGroupDef);
+            if (group.Members == null || group.Members.Length == 0)
+            {
+                SpawnGroupDef[] fallback = SpawnWaveCatalog.GroupsFor(SpawnClassId.S1Pre);
+                if (fallback != null && fallback.Length > 0)
+                {
+                    group = fallback[0];
+                    cls = SpawnClassId.S1Pre;
+                }
+            }
+
+            float t = _clock != null ? _clock.WallMinutes : 0f;
+            int build = _build != null ? _build.BuildCount : 0;
+            float tm = SpawnWaveCatalog.TimeMul(t);
+            float bm = SpawnWaveCatalog.BuildMul(build);
+            LastClass = cls;
+            LastGroupLine = SpawnWaveCatalog.FormatGroup(group);
+
+            int spawned = 0;
+            string kind = "E1";
+            int memberIdx = 0;
+            int memberLeft = 0;
+            if (group.Members != null && group.Members.Length > 0)
+            {
+                kind = group.Members[0].KindId;
+                memberLeft = group.Members[0].Count;
+            }
+
+            for (int i = 0; i < points.Length; i++)
+            {
+                if (group.Members != null && group.Members.Length > 0)
+                {
+                    if (memberLeft <= 0)
+                    {
+                        memberIdx++;
+                        if (memberIdx >= group.Members.Length)
+                            memberIdx = 0;
+                        kind = group.Members[memberIdx].KindId;
+                        memberLeft = group.Members[memberIdx].Count;
+                        if (memberLeft <= 0)
+                            memberLeft = 1;
+                    }
+
+                    memberLeft--;
+                }
+
+                if (string.IsNullOrEmpty(kind))
+                    kind = "E1";
+                Vector3 stubPos = new Vector3(points[i].x, points[i].y, 0f);
+                SpawnStub(id, stubPos, band, spawned, points.Length, kind, tm, bm);
+                spawned++;
+            }
+
+            Debug.Log("[RoomCombat] SpawnWave " + id + " n=" + spawned + " " + SpawnWaveCatalog.ClassLabel(cls)
+                      + " → " + LastGroupLine + " Tm=" + tm.ToString("0.00") + " Bm=" + bm.ToString("0.00"));
+            return spawned;
+        }
+
         void TrySpawnOne()
         {
             string band = _clock.BandId;
