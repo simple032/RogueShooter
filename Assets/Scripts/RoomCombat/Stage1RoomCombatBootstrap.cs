@@ -1,60 +1,103 @@
+using System.Collections.Generic;
 using UnityEngine;
 using RogueShooter.Spawning;
+using RogueShooter.StageMap;
 
 namespace RogueShooter.RoomCombat
 {
     /// <summary>
-    /// Boots §4.5 combat on Stage1 layout (RM/CH/AL from JianHaiStage1MazeBuilder floors).
-    /// Does not change room geometry — only binds walk rects + packs spawn points by foot-circle rule.
+    /// Boots §4.5 combat from §6.8 StageMapGraph (START + FirstNormal + 4 shuffled slots).
+    /// Geometry is abstract module rects — level templates may replace positions later.
     /// </summary>
     public sealed class Stage1RoomCombatBootstrap : MonoBehaviour
     {
-        static readonly (string id, RoomCombatKind kind, Rect bounds)[] Rooms =
-        {
-            ("RoomA_Normal", RoomCombatKind.Normal, RectFromTiles(3, 2, 22, 17)),
-            ("RoomB_Chest", RoomCombatKind.SmallChest, RectFromTiles(29, 2, 48, 17)),
-            ("RoomD_Normal", RoomCombatKind.Normal, RectFromTiles(29, 22, 48, 37)),
-            ("RoomC_Altar", RoomCombatKind.Altar, RectFromTiles(3, 22, 22, 37)),
-        };
+        public const float RoomW = 20f;
+        public const float RoomH = 16f;
 
         RoomCombatDriver[] _drivers;
         Transform _player;
         RoomCombatDriver _activeLock;
+        StageMapGraph _graph;
 
         public RoomCombatDriver[] Drivers => _drivers;
         public RoomCombatDriver ActiveLock => _activeLock;
+        public StageMapGraph Graph => _graph;
 
         public void Bind(Transform player, SpawnBandDirector director, Transform roomsRoot)
         {
+            Bind(player, director, roomsRoot, runSeed: 20260923, stageIndex: 0);
+        }
+
+        public void Bind(Transform player, SpawnBandDirector director, Transform roomsRoot, int runSeed, int stageIndex)
+        {
             _player = player;
-            var list = new System.Collections.Generic.List<RoomCombatDriver>();
-            for (int i = 0; i < Rooms.Length; i++)
+            int seed = StageMapGenerator.StageSeed(runSeed, stageIndex);
+            _graph = StageMapGenerator.Generate(seed, stageIndex);
+
+            var list = new List<RoomCombatDriver>();
+            for (int i = 0; i < _graph.Nodes.Length; i++)
             {
-                var def = Rooms[i];
-                int w1 = def.kind == RoomCombatKind.Normal ? 3 : 2;
-                int w2 = RoomCombatRules.WantsSecondWave(def.kind) ? 2 : 0;
-                Rect inner = Shrink(def.bounds, 1.5f);
+                StageMapNode node = _graph.Nodes[i];
+                if (node == null || !node.IsCombatRoom)
+                    continue;
+
+                Rect bounds = BoundsFor(node);
+                int w1 = node.CombatKind == RoomCombatKind.Normal ? 3 : 2;
+                int w2 = RoomCombatRules.WantsSecondWave(node.CombatKind) ? 2 : 0;
+                Rect inner = Shrink(bounds, 1.5f);
                 if (!RoomCombatRules.TryPackPoints(inner, w1, RoomCombatRules.DefaultFootRadius, out Vector2[] p1))
-                    p1 = new[] { Center(def.bounds) };
+                    p1 = new[] { Center(bounds) };
                 Vector2[] p2 = System.Array.Empty<Vector2>();
                 if (w2 > 0)
                 {
-                    Rect inner2 = Shrink(def.bounds, 2.2f);
+                    Rect inner2 = Shrink(bounds, 2.2f);
                     if (!RoomCombatRules.TryPackPoints(inner2, w2, RoomCombatRules.DefaultFootRadius, out p2))
                         p2 = OffsetCopy(p1, new Vector2(0.7f, 0.7f));
                 }
 
-                var go = new GameObject("RoomCombat_" + def.id);
+                var go = new GameObject("RoomCombat_" + node.Id);
                 go.transform.SetParent(transform, false);
                 var drv = go.AddComponent<RoomCombatDriver>();
-                Transform interior = roomsRoot != null ? roomsRoot.Find(def.id) : null;
-                drv.Bind(def.id, def.kind, def.bounds, p1, p2, interior, null, null, director);
+                Transform interior = roomsRoot != null ? roomsRoot.Find(node.Id) : null;
+                drv.Bind(node.Id, node.CombatKind, bounds, p1, p2, interior, null, null, director);
                 drv.PreSpawnWave1("Z1");
                 list.Add(drv);
             }
 
             _drivers = list.ToArray();
-            Debug.Log("[RoomCombat] Stage1 bootstrap rooms=" + _drivers.Length);
+            Debug.Log("[RoomCombat] StageMap bootstrap rooms=" + _drivers.Length
+                      + " seed=" + seed + " slots=" + string.Join(",", _graph.SlotOrder)
+                      + " CONN=" + _graph.AltarConnId);
+        }
+
+        /// <summary>
+        /// Module layout: START at origin (no combat). FirstNormal east of START.
+        /// Four slots north/south/east/west of FirstNormal (star). CONN is a flag on altar, not a room.
+        /// </summary>
+        public static Rect BoundsFor(StageMapNode node)
+        {
+            if (node == null)
+                return new Rect(0f, 0f, RoomW, RoomH);
+
+            if (node.Role == StageNodeRole.FirstNormal)
+                return new Rect(RoomW + 4f, 0f, RoomW, RoomH);
+
+            if (node.Role == StageNodeRole.Slot)
+            {
+                float cx = RoomW + 4f + RoomW * 0.5f;
+                float cy = RoomH * 0.5f;
+                float gap = 4f;
+                switch (node.SlotIndex)
+                {
+                    case 0: return new Rect(cx - RoomW * 0.5f, cy + RoomH * 0.5f + gap, RoomW, RoomH);
+                    case 1: return new Rect(cx + RoomW * 0.5f + gap, cy - RoomH * 0.5f, RoomW, RoomH);
+                    case 2: return new Rect(cx - RoomW * 0.5f, cy - RoomH * 1.5f - gap, RoomW, RoomH);
+                    default: return new Rect(cx - RoomW * 1.5f - gap, cy - RoomH * 0.5f, RoomW, RoomH);
+                }
+            }
+
+            // START spawn pad (non-combat)
+            return new Rect(0f, (RoomH - 6f) * 0.5f, 6f, 6f);
         }
 
         void Update()
@@ -81,12 +124,6 @@ namespace RogueShooter.RoomCombat
 
             if (_activeLock != null && (_activeLock.Brain == null || !_activeLock.Brain.DoorLocked))
                 _activeLock = null;
-        }
-
-        static Rect RectFromTiles(int x0, int y0, int x1, int y1)
-        {
-            // inclusive tile indices → world AABB (1u/tile)
-            return Rect.MinMaxRect(x0, y0, x1 + 1f, y1 + 1f);
         }
 
         static Rect Shrink(Rect r, float pad)

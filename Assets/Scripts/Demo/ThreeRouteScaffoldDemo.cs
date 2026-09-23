@@ -479,13 +479,15 @@ namespace RogueShooter.Demo
             bool deOk = deErr == null;
             string roomErr = RogueShooter.RoomCombat.RoomCombatChecks.Run();
             bool roomOk = roomErr == null;
+            string stageErr = RogueShooter.StageMap.StageMapChecks.Run();
+            bool stageOk = stageErr == null;
             _pass = idsOk && configOk && csvOk && viewOk && inViewSkip && coreSkip && offViewSpawn
                     && edgeSkip && capOk
-                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk && deOk && roomOk;
+                    && z1Eff > 4.5f && z1Eff < 4.9f && buildOk && aiOk && altarsOn && powerOk && artOk && deOk && roomOk && stageOk;
             var sb = new StringBuilder();
             sb.Append(_pass ? "ACCEPTANCE PASS" : "ACCEPTANCE FAIL");
             sb.Append($" idsOk={idsOk} csvOk={csvOk} view={viewOk} inViewSkip={inViewSkip} edgeSkip={edgeSkip} coreSkip={coreSkip} offViewSpawn={offViewSpawn} capOk={capOk} pad={SpawnViewGate.EffectivePad:0.00} z1Eff={z1Eff:0.00}");
-            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk} deOk={deOk} roomOk={roomOk}");
+            sb.Append($" buildOk={buildOk} aiOk={aiOk} altarsOn={altarsOn} powerOk={powerOk} artOk={artOk} deOk={deOk} roomOk={roomOk} stageOk={stageOk}");
             if (!idsOk)
                 sb.Append(" missing=" + string.Join(",", missing.ToArray()));
             if (!buildOk)
@@ -498,6 +500,8 @@ namespace RogueShooter.Demo
                 sb.Append(" deErr=" + deErr);
             if (!roomOk)
                 sb.Append(" roomErr=" + roomErr);
+            if (!stageOk)
+                sb.Append(" stageErr=" + stageErr);
             _status = sb.ToString();
             if (_pass)
                 Debug.Log("[ThreeRouteScaffold] " + _status);
