@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using RogueShooter.Art;
@@ -9,8 +10,9 @@ namespace RogueShooter.Tools
 {
     /// <summary>
     /// Stage-1 tile asset gate. Missing PNG or an unloadable sprite aborts before any
-    /// tile-asset write and does not SaveScene. Geometry rebuild of Stage1Maze.scene
-    /// stays deferred until the outsourced tile PNGs land.
+    /// tile-asset write and does not SaveScene. After a successful rebind, SaveScene
+    /// writes Assets/Scenes/Stage1Maze.scene (opened first when it is not loaded).
+    /// Geometry paint of that scene is still not performed here.
     /// </summary>
     public static class JianHaiStage1MazeBuilder
     {
@@ -36,9 +38,39 @@ namespace RogueShooter.Tools
             if (tiles == null)
                 return;
 
+            if (!SaveStage1Scene())
+                return;
+
             Debug.Log("[Stage1] rebound " + tiles.Count
-                + " tile assets by filename. Entity contract: " + string.Join(", ", EntitySpriteIds)
-                + ". Geometry rebuild is deferred; " + ScenePath + " was not saved.");
+                + " tile assets by filename. PNGs have landed. Entity contract: "
+                + string.Join(", ", EntitySpriteIds)
+                + ". SaveScene " + ScenePath
+                + ". Geometry paint is still not in this builder (deferred painter was never restored); scene remains the runtime skeleton.");
+        }
+
+        /// <summary>
+        /// Producer order after the tile gate: open Stage1Maze if needed, then SaveScene.
+        /// Does not paint maze geometry.
+        /// </summary>
+        static bool SaveStage1Scene()
+        {
+            var scene = EditorSceneManager.GetSceneByPath(ScenePath);
+            if (!scene.IsValid() || !scene.isLoaded)
+                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                Debug.LogError("[Stage1] could not open " + ScenePath + " — scene not saved");
+                return false;
+            }
+
+            if (!EditorSceneManager.SaveScene(scene, ScenePath))
+            {
+                Debug.LogError("[Stage1] SaveScene failed: " + ScenePath);
+                return false;
+            }
+
+            Debug.Log("[Stage1] SaveScene " + ScenePath);
+            return true;
         }
 
         /// <summary>
