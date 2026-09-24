@@ -12,6 +12,7 @@ namespace RogueShooter.Build
         public string Price;
         public string Mark;
         public int Index;
+        public string Icon;
     }
 
     /// <summary>
@@ -134,9 +135,9 @@ namespace RogueShooter.Build
         {
             if (_canvas != null)
                 return;
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei UI", 32);
             if (_font == null)
-                _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
             var root = new GameObject("RewardScreen", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);
@@ -193,12 +194,26 @@ namespace RogueShooter.Build
                     if (_director != null)
                         _director.NotifyUiPick(index);
                 });
-                AddText(go.transform, card.Mark, 28, new Vector2(0f, cardH * 0.22f), cardW * 0.7f);
-                AddText(go.transform, card.Name, 18, new Vector2(0f, 8f), cardW * 0.8f);
-                AddText(go.transform, card.Desc, 14, new Vector2(0f, -cardH * 0.16f), cardW * 0.82f);
+                if (!string.IsNullOrEmpty(card.Icon))
+                {
+                    float iconW = cardW * (96f / 360f);
+                    float iconH = cardH * (96f / 520f);
+                    Image icon = MakeImage(go.transform, "Icon", new Vector2(0f, cardH * 0.25f), new Vector2(iconW, iconH));
+                    icon.sprite = Load(card.Icon);
+                    icon.raycastTarget = false;
+                }
+                AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
+                AddText(go.transform, card.Name, Scale(cardH, 0.062f), new Vector2(0f, cardH * 0.029f), cardW * (272f / 360f));
+                AddText(go.transform, card.Desc, Scale(cardH, 0.046f), new Vector2(0f, -cardH * 0.204f), cardW * (292f / 360f));
                 if (!string.IsNullOrEmpty(card.Price))
-                    AddText(go.transform, card.Price, 16, new Vector2(0f, -cardH * 0.36f), cardW * 0.6f);
+                    AddText(go.transform, card.Price, Scale(cardH, 0.05f), new Vector2(0f, -cardH * 0.402f), cardW * (176f / 360f));
             }
+        }
+
+        static int Scale(float cardH, float fraction)
+        {
+            int size = Mathf.RoundToInt(cardH * fraction);
+            return size < 10 ? 10 : size;
         }
 
         static string CardSprite(RewardTier tier)

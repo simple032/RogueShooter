@@ -549,22 +549,7 @@ namespace RogueShooter.Build
             {
                 RewardOption opt = offers[i];
                 RewardTier tier = TierOf(opt);
-                string name = opt.Id;
-                string desc = opt.Tag;
-                if (RewardCatalog.TryGet(opt.Id, out RewardRow row))
-                {
-                    tier = row.Tier;
-                    name = row.Name;
-                    desc = row.Desc;
-                }
-                cards[i] = new RewardCardData
-                {
-                    Tier = tier,
-                    Name = name,
-                    Desc = string.IsNullOrEmpty(desc) ? opt.Rarity : desc,
-                    Mark = MarkFor(tier, false),
-                    Index = i
-                };
+                cards[i] = RewardPresent.ToCard(opt.Id, tier, "", MarkFor(tier, false), i, false);
             }
             return cards;
         }
@@ -577,24 +562,7 @@ namespace RogueShooter.Build
             for (int i = 0; i < picks.Length; i++)
             {
                 AltarPick pick = picks[i];
-                string name = pick.Id;
-                string desc = pick.Effect;
-                RewardTier tier = pick.Tier;
-                if (RewardCatalog.TryGet(pick.Id, out RewardRow row))
-                {
-                    name = row.Name;
-                    if (!string.IsNullOrEmpty(row.Desc))
-                        desc = row.Desc;
-                    tier = row.Tier;
-                }
-                cards[i] = new RewardCardData
-                {
-                    Tier = tier,
-                    Name = name,
-                    Desc = desc,
-                    Mark = MarkFor(tier, false),
-                    Index = i
-                };
+                cards[i] = RewardPresent.ToCard(pick.Id, pick.Tier, "", MarkFor(pick.Tier, false), i, false);
             }
             return cards;
         }
@@ -607,18 +575,13 @@ namespace RogueShooter.Build
             for (int i = 0; i < shelves.Length; i++)
             {
                 ShopShelf shelf = shelves[i];
-                string name = shelf.Id;
-                if (RewardCatalog.TryGet(shelf.Id, out RewardRow row) && !string.IsNullOrEmpty(row.Name))
-                    name = row.Name;
-                cards[i] = new RewardCardData
-                {
-                    Tier = shelf.Tier,
-                    Name = shelf.Sold ? name + " 已售" : name,
-                    Desc = shelf.Effect,
-                    Price = shelf.Price + "金",
-                    Mark = shelf.IsHeal ? "回血" : MarkFor(shelf.Tier, false),
-                    Index = i
-                };
+                cards[i] = RewardPresent.ToCard(
+                    shelf.Id,
+                    shelf.Tier,
+                    shelf.Price + "金",
+                    shelf.IsHeal ? "回血" : MarkFor(shelf.Tier, false),
+                    i,
+                    shelf.Sold);
             }
             return cards;
         }
