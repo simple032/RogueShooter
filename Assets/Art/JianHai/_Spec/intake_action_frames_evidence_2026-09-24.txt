@@ -1,0 +1,259 @@
+jianhai action frames intake evidence
+=====================================
+time_local_CST: 2026-09-24 (Asia/Shanghai)
+base: origin/main @ 7a76e4764609c4a578fa9982fc32baa079912ffa
+source: LZD D:\Game Provide\RogueShooter untracked only (read/copy); dirty tree untouched
+zip: jianhai_action_frames_intake_20260924.zip
+
+## Inventory (PNG frame counts)
+archer: atk×5, charge×6, die×6, hurt×3, idle×4, roll×8, walk_s×6  total=38
+e1_skel: atk×8, die×2, hurt×3, idle×4, walk×6  total=23
+dog: atk×6, die×2, hurt×1, idle×4, walk×6  total=19
+mage: cast×8, die×2, hurt×3, idle×4, walk×6  total=23
+TOTAL PNG: 103  TOTAL META: 103
+
+## Meta check (PPU32 / filterMode 0 / alignment 9 / pivot 0.5,0.15)
+PASS: 103/103
+FAIL: 0
+19 catch-up metas rewritten from PPU100/Bilinear/pivot(0.5,0.5)/alignment0:
+  - jh_enemy_dog_die_00.png.meta
+  - jh_enemy_dog_die_01.png.meta
+  - jh_enemy_dog_hurt_00.png.meta
+  - jh_enemy_e1_skel_die_00.png.meta
+  - jh_enemy_e1_skel_die_01.png.meta
+  - jh_enemy_e1_skel_hurt_00.png.meta
+  - jh_enemy_e1_skel_hurt_01.png.meta
+  - jh_enemy_e1_skel_hurt_02.png.meta
+  - jh_enemy_mage_die_00.png.meta
+  - jh_enemy_mage_die_01.png.meta
+  - jh_enemy_mage_hurt_00.png.meta
+  - jh_enemy_mage_hurt_01.png.meta
+  - jh_enemy_mage_hurt_02.png.meta
+  - jh_enemy_mage_walk_00.png.meta
+  - jh_enemy_mage_walk_01.png.meta
+  - jh_enemy_mage_walk_02.png.meta
+  - jh_enemy_mage_walk_03.png.meta
+  - jh_enemy_mage_walk_04.png.meta
+  - jh_enemy_mage_walk_05.png.meta
+
+## GUID
+replaced_invalid_with_unique_32hex: 103/103
+all new frame metas: valid 32-hex, unique vs tree (no collisions)
+
+## name-status (filled after commit)
+(see git diff --name-status origin/main...HEAD)
+
+## name-status origin/main...HEAD
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_03.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_03.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_04.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_atk_04.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_03.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_03.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_04.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_04.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_05.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_charge_05.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_03.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_03.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_04.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_04.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_05.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_die_05.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_hurt_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_hurt_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_hurt_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_hurt_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_hurt_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_hurt_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_03.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_idle_03.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_03.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_03.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_04.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_04.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_05.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_05.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_06.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_06.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_07.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_roll_07.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_00.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_00.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_01.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_01.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_02.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_02.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_03.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_03.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_04.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_04.png.meta
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_05.png
+A	Assets/Art/JianHai/Characters/jh_char_archer_walk_s_05.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_04.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_04.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_05.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_atk_05.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_die_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_die_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_die_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_die_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_hurt_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_hurt_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_idle_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_04.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_04.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_05.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_dog_walk_05.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_04.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_04.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_05.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_05.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_06.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_06.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_07.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_atk_07.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_die_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_die_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_die_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_die_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_hurt_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_hurt_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_hurt_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_hurt_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_hurt_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_hurt_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_idle_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_04.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_04.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_05.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_e1_skel_walk_05.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_04.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_04.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_05.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_05.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_06.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_06.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_07.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_cast_07.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_die_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_die_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_die_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_die_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_hurt_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_hurt_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_hurt_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_hurt_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_hurt_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_hurt_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_idle_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_00.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_00.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_01.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_01.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_02.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_02.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_03.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_03.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_04.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_04.png.meta
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_05.png
+A	Assets/Art/JianHai/Enemies/jh_enemy_mage_walk_05.png.meta
+A	Assets/Art/JianHai/_Spec/intake_action_frames_evidence_2026-09-24.txt
+A	Assets/Art/JianHai/_Spec/intake_action_frames_evidence_2026-09-24.txt.meta
+
+A_count=0
+M_count=0
+D_count=0
+R_count=0
