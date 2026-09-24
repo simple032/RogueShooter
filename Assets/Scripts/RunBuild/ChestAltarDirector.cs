@@ -35,6 +35,7 @@ namespace RogueShooter.Build
         string _flash = "";
         float _flashUntil;
         readonly List<string> _emptyIds = new List<string>();
+        RewardScreenView _screen;
 
         public RunBuildState Build => _build;
         public int Seed => _seed;
@@ -286,9 +287,10 @@ namespace RogueShooter.Build
                 return;
             }
 
+            System.Array.Sort(_offers, (a, b) => TierOf(a).CompareTo(TierOf(b)));
             _offering = _nearest;
-            RunPause.InteractOpen = true;
-            Time.timeScale = 0f;
+            PauseForScreen();
+            RewardView().ShowChest(CardsFromOffers(_offers));
             Debug.Log($"[Offer] {_offering.Id} source={source} n={_offers.Length} paused");
         }
 
@@ -305,8 +307,8 @@ namespace RogueShooter.Build
             _altarPicks = Array.Empty<AltarPick>();
             _offers = Array.Empty<RewardOption>();
             _offering = _nearest;
-            RunPause.InteractOpen = true;
-            Time.timeScale = 0f;
+            PauseForScreen();
+            RewardView().ShowShop(CardsFromShop(_shopShelves));
             Debug.Log($"[Shop] open {_offering.Id} n={_shopShelves.Length} no-refresh shelves={ShopStock.FormatShelves(_shopShelves)} " +
                       $"gold={_build.Gold} B={_build.BuildCount}");
         }
@@ -369,11 +371,12 @@ namespace RogueShooter.Build
                 return;
             }
 
+            System.Array.Sort(_altarPicks, (a, b) => a.Tier.CompareTo(b.Tier));
             _altarOffer = true;
             _offers = Array.Empty<RewardOption>();
             _offering = altar;
-            RunPause.InteractOpen = true;
-            Time.timeScale = 0f;
+            PauseForScreen();
+            RewardView().ShowAltar(CardsFromAltar(_altarPicks));
             var order = new StringBuilder();
             for (int i = 0; i < _altarPicks.Length; i++)
             {
@@ -449,6 +452,13 @@ namespace RogueShooter.Build
 
         void HandleOfferInput()
         {
+            if (_screen != null && _screen.Session != null && _screen.Session.Open && !_screen.ChoicesVisible)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape))
+                    CancelCurrentOffer();
+                return;
+            }
+
             if (Input.GetKeyDown(KeyCode.Escape) || (!_shopOffer && Input.GetKeyDown(KeyCode.E)))
             {
                 CancelCurrentOffer();
@@ -489,9 +499,154 @@ namespace RogueShooter.Build
             _altarPicks = Array.Empty<AltarPick>();
             _altarOffer = false;
             _shopOffer = false;
+            if (_clock != null)
+                _clock.SetPaused(false);
+            if (_screen != null)
+                _screen.Hide();
             RunPause.InteractOpen = false;
             if (restoreTime)
                 Time.timeScale = 1f;
+        }
+
+        public void NotifyUiPick(int index)
+        {
+            if (_screen != null && !_screen.ChoicesVisible)
+                return;
+            ConfirmCurrentOffer(index);
+        }
+
+        public void NotifyUiCancel()
+        {
+            CancelCurrentOffer();
+        }
+
+        void PauseForScreen()
+        {
+            RunPause.InteractOpen = true;
+            Time.timeScale = 0f;
+            if (_clock != null)
+                _clock.SetPaused(true);
+        }
+
+        RewardScreenView RewardView()
+        {
+            if (_screen == null)
+            {
+                _screen = GetComponent<RewardScreenView>();
+                if (_screen == null)
+                    _screen = gameObject.AddComponent<RewardScreenView>();
+                _screen.Bind(this);
+            }
+            return _screen;
+        }
+
+        static RewardCardData[] CardsFromOffers(RewardOption[] offers)
+        {
+            if (offers == null)
+                return System.Array.Empty<RewardCardData>();
+            var cards = new RewardCardData[offers.Length];
+            for (int i = 0; i < offers.Length; i++)
+            {
+                RewardOption opt = offers[i];
+                RewardTier tier = TierOf(opt);
+                string name = opt.Id;
+                string desc = opt.Tag;
+                if (RewardCatalog.TryGet(opt.Id, out RewardRow row))
+                {
+                    tier = row.Tier;
+                    name = row.Name;
+                    desc = row.Desc;
+                }
+                cards[i] = new RewardCardData
+                {
+                    Tier = tier,
+                    Name = name,
+                    Desc = string.IsNullOrEmpty(desc) ? opt.Rarity : desc,
+                    Mark = MarkFor(tier, false),
+                    Index = i
+                };
+            }
+            return cards;
+        }
+
+        static RewardCardData[] CardsFromAltar(AltarPick[] picks)
+        {
+            if (picks == null)
+                return System.Array.Empty<RewardCardData>();
+            var cards = new RewardCardData[picks.Length];
+            for (int i = 0; i < picks.Length; i++)
+            {
+                AltarPick pick = picks[i];
+                string name = pick.Id;
+                string desc = pick.Effect;
+                RewardTier tier = pick.Tier;
+                if (RewardCatalog.TryGet(pick.Id, out RewardRow row))
+                {
+                    name = row.Name;
+                    if (!string.IsNullOrEmpty(row.Desc))
+                        desc = row.Desc;
+                    tier = row.Tier;
+                }
+                cards[i] = new RewardCardData
+                {
+                    Tier = tier,
+                    Name = name,
+                    Desc = desc,
+                    Mark = MarkFor(tier, false),
+                    Index = i
+                };
+            }
+            return cards;
+        }
+
+        static RewardCardData[] CardsFromShop(ShopShelf[] shelves)
+        {
+            if (shelves == null)
+                return System.Array.Empty<RewardCardData>();
+            var cards = new RewardCardData[shelves.Length];
+            for (int i = 0; i < shelves.Length; i++)
+            {
+                ShopShelf shelf = shelves[i];
+                string name = shelf.Id;
+                if (RewardCatalog.TryGet(shelf.Id, out RewardRow row) && !string.IsNullOrEmpty(row.Name))
+                    name = row.Name;
+                cards[i] = new RewardCardData
+                {
+                    Tier = shelf.Tier,
+                    Name = shelf.Sold ? name + " 已售" : name,
+                    Desc = shelf.Effect,
+                    Price = shelf.Price + "金",
+                    Mark = shelf.IsHeal ? "回血" : MarkFor(shelf.Tier, false),
+                    Index = i
+                };
+            }
+            return cards;
+        }
+
+        static RewardTier TierOf(RewardOption opt)
+        {
+            string rarity = opt.Rarity ?? "";
+            if (rarity.IndexOf("高", System.StringComparison.Ordinal) >= 0
+                || string.Equals(rarity, "E", System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(rarity, "High", System.StringComparison.OrdinalIgnoreCase))
+                return RewardTier.High;
+            if (rarity.IndexOf("中", System.StringComparison.Ordinal) >= 0
+                || string.Equals(rarity, "R", System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(rarity, "Mid", System.StringComparison.OrdinalIgnoreCase))
+                return RewardTier.Mid;
+            return RewardTier.Low;
+        }
+
+        static string MarkFor(RewardTier tier, bool heal)
+        {
+            if (heal)
+                return "回血";
+            switch (tier)
+            {
+                case RewardTier.Mid: return "中";
+                case RewardTier.High: return "高";
+                default: return "低";
+            }
         }
 
         void Flash(string msg)
