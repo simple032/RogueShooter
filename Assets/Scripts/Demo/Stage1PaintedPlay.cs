@@ -77,6 +77,22 @@ namespace RogueShooter.Demo
             // AddComponent auto-fits the circle to the sprite bounds (centre ~0.43u above the
             // feet with pivot y=0.15). Keep it on the feet so corridor clearance matches the floor.
             col.offset = new Vector2(0f, PlayerFootOffset / s);
+            // Zero friction so the circle slides along walls at steep angles instead of sticking.
+            col.sharedMaterial = NoFriction;
+            body.sharedMaterial = NoFriction;
+        }
+
+        static PhysicsMaterial2D _noFriction;
+
+        /// <summary>Runtime zero-friction / zero-bounce material (no asset).</summary>
+        public static PhysicsMaterial2D NoFriction
+        {
+            get
+            {
+                if (_noFriction == null)
+                    _noFriction = new PhysicsMaterial2D("PlayerNoFriction") { friction = 0f, bounciness = 0f };
+                return _noFriction;
+            }
         }
 
         /// <summary>

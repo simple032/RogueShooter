@@ -5,6 +5,8 @@ using RogueShooter.Demo;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
+using RogueShooter.Combat;
+using RogueShooter.Art;
 
 namespace RogueShooter.Ai
 {
@@ -56,11 +58,15 @@ namespace RogueShooter.Ai
         float _knockSpeed;
         float _rootUntil;
 
+        float _hurtUntil;
+
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
         public bool IsStaggered => Time.time < _staggerUntil;
+        public bool InWindup => _inWindup;
+        public bool IsHurting => Time.time < _hurtUntil;
         public StageId Stage => _stage;
         public bool ShieldRaised => _shieldRaised;
         public bool Elite => _elite;
@@ -141,6 +147,7 @@ namespace RogueShooter.Ai
             _lungeCd = 0f;
             _knockLeft = 0f;
             _rootUntil = 0f;
+            _hurtUntil = 0f;
             _orbs.Clear();
             EnsureLabel();
             _bang = GetComponent<MobBangMarker>();
@@ -157,6 +164,8 @@ namespace RogueShooter.Ai
             }
 
             ApplyVisual();
+            CollisionVolume.Add(gameObject, CollisionLayer.Mob, false, CollisionRules.MobHalfX, CollisionRules.MobHalfY);
+            EntityAnimView.Add(gameObject, false);
             Debug.Log($"[MobAI] {name} Patrol home={_home} stage={StageIdUtil.Label(_stage)} kind={kind} " +
                       $"elite={_elite} detect={detect:0.0} alert={alert:0.00}s attack={attack:0.00} DRAFT");
         }
@@ -185,6 +194,7 @@ namespace RogueShooter.Ai
         public void NotifyDamaged()
         {
             _pendingDamage = true;
+            _hurtUntil = Time.time + ActionSpecP1.EnemyHurt(CurrentKindId()).Duration;
             if (_player != null)
                 _lastKnown = _player.position;
         }
@@ -306,6 +316,10 @@ namespace RogueShooter.Ai
         void Update()
         {
             if (RunPause.IsPaused || _player == null)
+                return;
+
+            var stub = GetComponent<StubEnemy>();
+            if (stub != null && stub.IsDead)
                 return;
 
             if (_lungeCd > 0f)
@@ -509,6 +523,8 @@ namespace RogueShooter.Ai
                 _playerVitals.ApplyHit(dmg, CurrentKindId());
             else
                 Debug.Log($"[MobAI] {name} hit dmg={dmg:0.#} (no PlayerVitals)");
+            Debug.Log("[ActionSpec] OnHitOpen kind=" + CurrentKindId()
+                      + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
         }
 
         void FireOrbs(EnemyKindProfile profile)
@@ -540,20 +556,19 @@ namespace RogueShooter.Ai
 
                 float ox, oy;
                 EnemyCombatRules.RotateDeg(dir.x, dir.y, deg, out ox, out oy);
-                var go = new GameObject("Orb_" + CurrentKindId());
-                go.transform.position = origin + new Vector3(ox, oy, 0f) * 0.35f;
-                go.transform.localScale = new Vector3(0.28f, 0.28f, 1f);
                 Color col = CurrentKindId() == EnemyKindIds.GrandMage
                     ? new Color(0.25f, 0.95f, 1f)
                     : new Color(0.95f, 0.2f, 0.95f);
-                DemoPrimitives.AddSprite(go, col, 18);
-                var orb = go.AddComponent<MageOrbProjectile>();
+                var orb = MageOrbProjectile.SpawnVisual(origin + new Vector3(ox, oy, 0f) * 0.35f, col);
+                orb.gameObject.name = "Orb_" + CurrentKindId();
                 _orbs.Add(orb);
-                orb.Launch(go.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
+                orb.Launch(orb.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
             }
 
             _lastDealt = dmg;
             Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
+            Debug.Log("[ActionSpec] OnOrbSpawn kind=" + CurrentKindId()
+                      + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
         }
 
         void OnOrbDespawn(MageOrbProjectile orb, string reason)
@@ -584,7 +599,7 @@ namespace RogueShooter.Ai
             float max = _knockSpeed * _knockLeft;
             if (step > max)
                 step = max;
-            transform.position += _knockDir * step;
+            Shift(_knockDir * step);
             _knockLeft -= dt;
             if (_knockLeft < 0f)
                 _knockLeft = 0f;
@@ -605,7 +620,7 @@ namespace RogueShooter.Ai
             float step = EnemyCombatRules.LungeSpeedStub * dt;
             if (step > _lungeLeft)
                 step = _lungeLeft;
-            transform.position += _lungeDir * step;
+            Shift(_lungeDir * step);
             _lungeLeft -= step;
             if (DistToPlayer <= EnemyCombatRules.LungeContactRadiusStub)
             {
@@ -666,21 +681,36 @@ namespace RogueShooter.Ai
                 case MobAiState.Patrol:
                     _patrolT += dt * 0.85f;
                     Vector3 patrol = _home + new Vector3(Mathf.Cos(_patrolT), Mathf.Sin(_patrolT), 0f) * _patrolRadius;
-                    transform.position = Vector3.MoveTowards(transform.position, patrol, _patrolSpeed * mul * dt);
+                    ShiftTowards(patrol, _patrolSpeed * mul * dt);
                     break;
                 case MobAiState.Alert:
-                    transform.position = Vector3.MoveTowards(transform.position, _lastKnown, _patrolSpeed * 0.75f * mul * dt);
+                    ShiftTowards(_lastKnown, _patrolSpeed * 0.75f * mul * dt);
                     break;
                 case MobAiState.Chase:
                     if (DistToPlayer > 0.2f)
-                        transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
+                        Shift(toPlayer.normalized * (_chaseSpeed * mul * dt));
                     break;
                 case MobAiState.Attack:
                     break;
                 case MobAiState.Disengage:
-                    transform.position = Vector3.MoveTowards(transform.position, _home, _disengageSpeed * mul * dt);
+                    ShiftTowards(_home, _disengageSpeed * mul * dt);
                     break;
             }
+        }
+
+        void Shift(Vector3 delta)
+        {
+            CollisionWorld.TryMove(
+                transform,
+                CollisionRules.MobHalfX,
+                CollisionRules.MobHalfY,
+                delta.x, delta.y);
+        }
+
+        void ShiftTowards(Vector3 target, float maxDelta)
+        {
+            Vector3 next = Vector3.MoveTowards(transform.position, target, maxDelta);
+            Shift(next - transform.position);
         }
 
         void EnsureLabel()

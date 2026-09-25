@@ -12,6 +12,7 @@ using RogueShooter.Layout;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
+using RogueShooter.Combat;
 
 namespace RogueShooter.Demo
 {
@@ -183,7 +184,10 @@ namespace RogueShooter.Demo
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
             player.AddComponent<PlayerCharge>();
+            player.AddComponent<PlayerDodge>();
             player.AddComponent<GuaranteedCritActive>();
+            CollisionVolume.Add(player, CollisionLayer.Player, false, CollisionRules.PlayerHalfX, CollisionRules.PlayerHalfY);
+            EntityAnimView.Add(player, true);
             _player = player.transform;
             Debug.Log($"[MoveSpeed] player={playerSpeed:0.00000} charge×{MoveSpeeds.ChargeMul:0.0} " +
                       $"E1={MoveSpeeds.E1:0.00000} E2={MoveSpeeds.E2:0.00000} E3={MoveSpeeds.E3:0.00000} E4={MoveSpeeds.E4:0.00000}");
@@ -220,6 +224,8 @@ namespace RogueShooter.Demo
             stubPrefab.SetActive(false);
             JianHaiBind.ApplyTo(stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             stubPrefab.AddComponent<StubEnemy>();
+            CollisionVolume.Add(stubPrefab, CollisionLayer.Mob, false, CollisionRules.MobHalfX, CollisionRules.MobHalfY);
+            EntityAnimView.Add(stubPrefab, false);
 
             var slots = new List<SpawnBandDirector.Slot>();
             for (int i = 0; i < LockSiteCatalog.Corridors.Length; i++)
@@ -547,6 +553,9 @@ namespace RogueShooter.Demo
 
         void OnGUI()
         {
+            // Reward/shop panel open: hide the debug HUD so it never covers the left card.
+            if (RewardScreenView.PanelOpen)
+                return;
             const int pad = 8;
             int w = 580;
             int h = 360;

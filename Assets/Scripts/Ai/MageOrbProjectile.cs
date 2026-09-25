@@ -1,4 +1,6 @@
 using UnityEngine;
+using RogueShooter.Art;
+using RogueShooter.Combat;
 using RogueShooter.Player;
 using RogueShooter.Vision;
 
@@ -21,6 +23,20 @@ namespace RogueShooter.Ai
 
         public bool Alive => !_dead && isActiveAndEnabled;
 
+        public static MageOrbProjectile SpawnVisual(Vector3 origin, Color tint)
+        {
+            var go = new GameObject("Orb");
+            go.transform.position = origin;
+            JianHaiBind.ApplyTo(go, JianHaiArtCatalog.OrbFlight);
+            var sr = go.GetComponent<SpriteRenderer>();
+            if (sr != null)
+                sr.color = tint;
+            CollisionVolume.Add(go, CollisionLayer.Projectile, false, ProjectileRules.OrbHitRadius, ProjectileRules.OrbHitRadius);
+            go.AddComponent<ProjectileTrail>().Configure(
+                JianHaiArtCatalog.OrbFlight, 0.05f, 0.18f, 0.36f);
+            return go.AddComponent<MageOrbProjectile>();
+        }
+
         public void Launch(
             Vector3 origin,
             Vector3 direction,
@@ -42,6 +58,8 @@ namespace RogueShooter.Ai
             _player = player;
             _onDespawn = onDespawn;
             _dead = false;
+            if (GetComponent<CollisionVolume>() == null)
+                CollisionVolume.Add(gameObject, CollisionLayer.Projectile, false, ProjectileRules.OrbHitRadius, ProjectileRules.OrbHitRadius);
         }
 
         void Update()
@@ -50,7 +68,18 @@ namespace RogueShooter.Ai
                 return;
             float dt = Time.deltaTime;
             float step = _speed * dt;
-            transform.position += _dir * step;
+            Vector3 from = transform.position;
+            CollisionHit block = CollisionWorld.Trace(
+                from.x, from.y, _dir.x, _dir.y, step + 0.02f, ProjectileRules.OrbHitRadius,
+                CollisionLayer.Wall | CollisionLayer.Door, transform);
+            if (block.Hit)
+            {
+                transform.position = new Vector3(block.X, block.Y, from.z);
+                Despawn(block.Layer == CollisionLayer.Door ? "door" : "wall");
+                return;
+            }
+
+            transform.position = from + _dir * step;
             _traveled += step;
 
             if (_traveled >= _maxRange)
@@ -69,7 +98,7 @@ namespace RogueShooter.Ai
             {
                 Vector3 d = _player.position - transform.position;
                 d.z = 0f;
-                if (d.sqrMagnitude <= EnemyCombatRules.OrbHitRadiusStub * EnemyCombatRules.OrbHitRadiusStub)
+                if (d.sqrMagnitude <= ProjectileRules.OrbHitRadius * ProjectileRules.OrbHitRadius)
                 {
                     var vitals = _player.GetComponent<PlayerVitals>();
                     if (vitals != null)

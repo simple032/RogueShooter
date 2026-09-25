@@ -112,6 +112,31 @@ namespace RogueShooter.Art
                 return "shoot recovery must be 0.20s";
             if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
                 return "weak-spot stagger must be 0.50s";
+            if (JianHaiArtCatalog.ArrowFlight != "jh_proj_arrow_fly")
+                return "arrow flight PHASE1 jh_proj_arrow_fly";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ArrowFlight) != "Projectiles")
+                return "arrow projectile folder";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.OrbFlight) != "Projectiles")
+                return "mage orb projectile folder";
+            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.OrbFlight) != JianHaiArtCatalog.LayerFx)
+                return "mage orb fx layer";
+            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight)
+                != "Assets/Art/JianHai/Projectiles/jh_proj_orb_mage_fly.png")
+                return "mage orb path";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.TileFloorCorridor) != "Tiles")
+                return "floor tile folder";
+            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.WallStone) != "Tiles")
+                return "wall folder";
+            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.TileFloorCorridor) != JianHaiArtCatalog.LayerGround)
+                return "floor sorting";
+            // Arrow / orb projectile PNGs are not on main (placeholder until art lands).
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.PlayerIdle)
+                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.TileFloorCorridor)
+                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.WallStone))
+                return "Provide JianHai PNGs must exist on disk";
+            if (Math.Abs(JianHaiArtCatalog.PivotS1.y - 0.15f) > 0.001f
+                || JianHaiArtCatalog.Ppu != 32)
+                return "PHASE1 PPU32 / S1 pivot 0.15";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

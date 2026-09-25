@@ -245,8 +245,29 @@ namespace RogueShooter.Maze
         public const float StartDoorGap = 18f;
         public const float StartPitchY = 58f;
         public const float WavePacingEstimateSeconds = 28f;
-        /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
+        /// <summary>
+        /// Producer cadence table. PortalFx stays visible for the hold (clock starts at show).
+        /// Wave 1 (enter): 1.0s. Inter-wave (chest/altar after clear w1): 2.5s.
+        /// Inter-wave must be &gt;2.0s and ≤3.0s — not 1.0s and not 2.0s.
+        /// </summary>
         public const float PortalHoldSeconds = 1.0f;
+        public const float InterWavePortalHoldSeconds = 2.5f;
+        /// <summary>Exclusive lower bound: inter-wave hold must be greater than this.</summary>
+        public const float InterWavePortalHoldMinSeconds = 2.0f;
+        public const float InterWavePortalHoldMaxSeconds = 3.0f;
+
+        public static float PortalHoldForWave(int wave)
+        {
+            if (wave <= 1)
+                return PortalHoldSeconds;
+            float hold = InterWavePortalHoldSeconds;
+            if (hold > InterWavePortalHoldMaxSeconds)
+                hold = InterWavePortalHoldMaxSeconds;
+            if (hold < 0f)
+                hold = 0f;
+            return hold;
+        }
+
         public const int QuotaNormal = 2;
         public const int QuotaChest = 2;
         public const int QuotaAltar = 1;

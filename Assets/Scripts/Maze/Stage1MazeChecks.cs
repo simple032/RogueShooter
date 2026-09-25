@@ -5,6 +5,7 @@ using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
 using RogueShooter.Build;
+using RogueShooter.Combat;
 
 namespace RogueShooter.Maze
 {
@@ -23,6 +24,8 @@ namespace RogueShooter.Maze
             if (err != null) return err;
             err = CheckPoolRouting();
             if (err != null) return err;
+            err = Stage1PlayableChecks.Run();
+            if (err != null) return err;
             return null;
         }
 
@@ -32,10 +35,10 @@ namespace RogueShooter.Maze
             sb.Append("ACCEPTANCE PASS stage1-maze ");
             sb.Append("quota=Chest×2+Altar×1+Normal×2+CONN-stub ");
             sb.Append("seeded=1 corridors=noSpawn ");
-            sb.Append("combat=enter→lock→PortalFx→1.0s→spawn→clear→open ");
+            sb.Append("combat=enter→lock→PortalFx→1.0s→w1→clear→open ");
             sb.Append("everyWave=PortalFx-visible ");
-            sb.Append("chestAltar=2waves+[PortalFx] ");
-            sb.Append("normal=1wave+[PortalFx] ");
+            sb.Append("chestAltar=2waves clear-w1→PortalFx→2.5s(>2 ≤3)→w2 ");
+            sb.Append("normal=1wave+[PortalFx]1.0s ");
             sb.Append("pool=S1 Normal/Chest→N Altar→E ");
             sb.Append("ortho=6 move=6 ");
             sb.Append("rooms=52x40 pitch=82/70 gap=30u startDoor~18u ");
@@ -48,6 +51,7 @@ namespace RogueShooter.Maze
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("zhenshi=R15_C+20%/R15_R+40% mul-then-ws ");
             sb.Append("pacing=informational-walk combatEst-not-locked ");
+            sb.Append(Stage1PlayableChecks.FormatPass()).Append(' ');
             sb.Append("S2S3=not-built");
             return sb.ToString();
         }
@@ -66,7 +70,21 @@ namespace RogueShooter.Maze
                 || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.72f) > 0.001f)
                 return "weak window must stay 0.68–0.72";
             if (Math.Abs(MazeRules.PortalHoldSeconds - 1.0f) > 0.001f)
-                return "portal hold 1.0s";
+                return "first-wave portal hold 1.0s (enter→PortalFx→wave1)";
+            if (Math.Abs(MazeRules.InterWavePortalHoldMaxSeconds - 3.0f) > 0.001f)
+                return "inter-wave portal hold hard cap 3.0s";
+            if (MazeRules.InterWavePortalHoldSeconds <= MazeRules.InterWavePortalHoldMinSeconds + 0.0001f)
+                return "inter-wave portal hold must be >2.0s (not 1.0s or 2.0s)";
+            if (MazeRules.InterWavePortalHoldSeconds > MazeRules.InterWavePortalHoldMaxSeconds + 0.0001f)
+                return "inter-wave portal hold must be ≤3.0s";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - 2.5f) > 0.001f)
+                return "inter-wave portal hold must be 2.5s (from PortalFx show)";
+            if (Math.Abs(MazeRules.InterWavePortalHoldSeconds - MazeRules.PortalHoldSeconds) < 0.001f)
+                return "inter-wave must not reuse wave-1 1.0s";
+            if (Math.Abs(MazeRules.PortalHoldForWave(1) - 1.0f) > 0.001f)
+                return "wave 1 PortalFx hold 1.0s";
+            if (Math.Abs(MazeRules.PortalHoldForWave(2) - 2.5f) > 0.001f)
+                return "wave 2 PortalFx hold 2.5s";
             if (!MazeRules.UsesPortalFx(MazeNodeKind.Normal)
                 || !MazeRules.UsesPortalFx(MazeNodeKind.Chest)
                 || !MazeRules.UsesPortalFx(MazeNodeKind.Altar))
@@ -431,6 +449,14 @@ namespace RogueShooter.Maze
             string spawn = PortalFxHook.FormatSpawn("N1", 1);
             if (spawn != "[PortalFx] room=N1 wave=1 spawn after 1.0s")
                 return "portal spawn contract " + spawn;
+            string spawn2 = PortalFxHook.FormatSpawn("ALTAR", 2);
+            if (spawn2 != "[PortalFx] room=ALTAR wave=2 spawn after 2.5s")
+                return "inter-wave spawn contract " + spawn2;
+            if (!HoldMatches(dry, 1, MazeRules.PortalHoldSeconds)
+                || !HoldMatches(dry, 2, MazeRules.PortalHoldForWave(2)))
+                return "altar dry-run holds must be w1=1.0s w2=inter-wave table";
+            if (!HoldMatches(nd, 1, MazeRules.PortalHoldSeconds))
+                return "normal dry-run hold must be 1.0s";
             return null;
         }
 
@@ -444,12 +470,28 @@ namespace RogueShooter.Maze
                     return false;
                 if (!StartsWith(steps[i].Line, "[PortalFx] ") || steps[i].Line.IndexOf(" show", StringComparison.Ordinal) < 0)
                     return false;
+                int wave = steps[i].Wave > 0 ? steps[i].Wave : steps[i + 1].Wave;
+                string expect = " spawn after " + MazeRules.PortalHoldForWave(wave).ToString("0.0") + "s";
                 if (!StartsWith(steps[i + 1].Line, "[PortalFx] ")
-                    || steps[i + 1].Line.IndexOf(" spawn after 1.0s", StringComparison.Ordinal) < 0)
+                    || steps[i + 1].Line.IndexOf(expect, StringComparison.Ordinal) < 0)
+                    return false;
+                if (Math.Abs(steps[i + 1].HoldSeconds - MazeRules.PortalHoldForWave(wave)) > 0.001f)
                     return false;
             }
 
             return HasKind(steps, "portal");
+        }
+
+        static bool HoldMatches(CombatStep[] steps, int wave, float hold)
+        {
+            for (int i = 0; i < steps.Length; i++)
+            {
+                if (steps[i].Kind != "spawn" || steps[i].Wave != wave)
+                    continue;
+                return Math.Abs(steps[i].HoldSeconds - hold) < 0.001f;
+            }
+
+            return false;
         }
 
         static string CheckPoolRouting()
