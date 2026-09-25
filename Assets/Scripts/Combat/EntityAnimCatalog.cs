@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 using RogueShooter.Art;
 using RogueShooter.Spawning;
 
@@ -157,6 +159,78 @@ namespace RogueShooter.Combat
                 case EntityAnimState.Death: return ActionSpecP1.EnemyDeath(kindId);
                 default: return ActionSpecP1.EnemyIdle(kindId);
             }
+        }
+
+        static readonly HashSet<string> Warned = new HashSet<string>();
+
+        /// <summary>
+        /// Exact frame for a clip (root_dir_ff → root_ff → root_s_ff). When that frame is missing,
+        /// the entity's idle_00. Never the bare root (jh_enemy_e1_skel_idle.png is a solid red
+        /// square) and never a generated placeholder: null means "keep the current sprite".
+        /// </summary>
+        public static string ResolveFrame(string root, string dir, int frame, bool player, string kindId)
+        {
+            string exact = ExactFrame(root, dir, frame);
+            if (exact != null)
+                return exact;
+            string idle = IdleFrame0(player, kindId);
+            WarnOnce("frame " + root + " f" + frame + " dir=" + (dir ?? "-"),
+                "[Anim] missing frame " + root + "_" + Two(frame) + " (dir " + (dir ?? "-") + ") → " + (idle ?? "keep current"));
+            return idle;
+        }
+
+        public static string ExactFrame(string root, string dir, int frame)
+        {
+            if (string.IsNullOrEmpty(root))
+                return null;
+            string ff = Two(frame < 0 ? 0 : frame);
+            if (!string.IsNullOrEmpty(dir) && JianHaiSprites.HasSourceFile(root + "_" + dir + "_" + ff))
+                return root + "_" + dir + "_" + ff;
+            if (JianHaiSprites.HasSourceFile(root + "_" + ff))
+                return root + "_" + ff;
+            if (dir != "s" && JianHaiSprites.HasSourceFile(root + "_s_" + ff))
+                return root + "_s_" + ff;
+            return null;
+        }
+
+        /// <summary>idle_00 of this entity (framed), then the generic player / E1 idle_00; null if none on disk.</summary>
+        public static string IdleFrame0(bool player, string kindId)
+        {
+            string root = player ? ActionSpecP1.PlayerIdle.Root : ActionSpecP1.EnemyIdleRoot(kindId);
+            if (JianHaiSprites.HasSourceFile(root + "_00"))
+                return root + "_00";
+            if (JianHaiSprites.HasSourceFile(root + "_s_00"))
+                return root + "_s_00";
+            string generic = player ? JianHaiArtCatalog.PlayerIdle : JianHaiArtCatalog.EnemyE1Idle;
+            return JianHaiSprites.HasSourceFile(generic) ? generic : null;
+        }
+
+        /// <summary>Grip 1→2 transition art for this hold time, or null (outside the window or not delivered).</summary>
+        public static string GripArt(float heldSeconds)
+        {
+            int f = ActionSpecP1.GripFrameAt(heldSeconds);
+            if (f <= 0)
+                return null;
+            string id = ActionSpecP1.GripArtId(f);
+            if (JianHaiSprites.HasSourceFile(id))
+                return id;
+            WarnOnce("grip " + id, "[Anim] " + id + " not delivered — grip transition skipped (charge _01 → _02)");
+            return null;
+        }
+
+        /// <summary>Test hook: how many distinct missing-art warnings were issued.</summary>
+        public static int WarnedCount => Warned.Count;
+
+        static void WarnOnce(string key, string message)
+        {
+            if (!Warned.Add(key))
+                return;
+            Debug.LogWarning(message);
+        }
+
+        static string Two(int f)
+        {
+            return f < 10 ? "0" + f : f.ToString();
         }
 
         public static string GapNote()

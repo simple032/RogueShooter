@@ -24,6 +24,7 @@ namespace RogueShooter.Art
         float _facing = 1f;
         string _bound;
         string _dir = "s";
+        string _grip;
 
         public EntityAnimState State => _state;
         public float Facing => _facing;
@@ -132,6 +133,9 @@ namespace RogueShooter.Art
         {
             var ai = GetComponent<MobFourStateAi>();
             var stub = GetComponent<StubEnemy>();
+            // StubEnemy owns the kind (MobFourStateAi.Configure re-adds this view with the default kind).
+            if (stub != null && !string.IsNullOrEmpty(stub.KindId) && stub.KindId != kindId)
+                kindId = stub.KindId;
             if (ai != null && ai.Facing.sqrMagnitude > 0.0001f)
                 face = ai.Facing;
             if (stub != null && stub.IsDead)
@@ -161,7 +165,8 @@ namespace RogueShooter.Art
                     _state = EntityAnimState.Chase;
                     break;
                 case MobAiState.Attack:
-                    _state = EntityAnimState.Attack;
+                    // Mage attacks are casts (jh_enemy_mage_cast); melee/dog use atk.
+                    _state = ActionSpecP1.IsMageKind(kindId) ? EntityAnimState.Cast : EntityAnimState.Attack;
                     break;
                 case MobAiState.Disengage:
                     _state = EntityAnimState.Walk;
@@ -174,26 +179,32 @@ namespace RogueShooter.Art
 
         int FrameFor(ActionClipDef clip, EntityAnimState state)
         {
+            _grip = null;
             if (player && state == EntityAnimState.Charge)
             {
                 var charge = GetComponent<PlayerCharge>();
                 float held = charge != null ? charge.HeldSeconds : 0f;
+                // Stage 1→2 grip slot: grip_1to2_01/02 when delivered, otherwise skipped (warn once).
+                _grip = EntityAnimCatalog.GripArt(held);
                 return ActionSpecP1.ChargePoseFrame(held);
             }
 
             return clip.FrameAt(Time.time - _clipStart);
         }
 
+        /// <summary>Last bound art id (tests / debug).</summary>
+        public string BoundArt => _bound;
+
         void BindClip(EntityAnimState state, int frame, string dir)
         {
             ActionClipDef clip = player
                 ? EntityAnimCatalog.PlayerClip(state)
                 : EntityAnimCatalog.EnemyClip(state, kindId);
-            string fallback = player
-                ? EntityAnimCatalog.PlayerIdle
-                : EntityAnimCatalog.ResolveEnemyIdle(kindId);
-            string art = JianHaiSprites.ResolveClipArt(clip.Root, dir, frame, fallback);
-            if (_sr == null || art == _bound)
+            string art = player && state == EntityAnimState.Charge && _grip != null
+                ? _grip
+                : EntityAnimCatalog.ResolveFrame(clip.Root, dir, frame, player, kindId);
+            // null = nothing on disk: keep the current sprite rather than a generated red block.
+            if (_sr == null || string.IsNullOrEmpty(art) || art == _bound)
                 return;
             _bound = art;
             JianHaiSprites.Bind(_sr, art);
