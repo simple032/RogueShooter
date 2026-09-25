@@ -11,8 +11,11 @@ empty_soft_min,8,
 empty_soft_max,15,
 arrive_shop_p50,55,
 arrive_shop_p80,95,
-tier_low,25,
-tier_mid,45,
-tier_high,70,
-shelf_roll,2/2/1,低/中/高
-build_from_shop,1,制作人 2026-09-20 改口：店购计 Build
+shelf_count,6,1普+1中+1高+1回复+2灵活·裁定2026-09-22
+shelf_fixed,low/mid/high/heal,各1位
+shelf_flex_count,2,灵活位只出普/中/高·不出回复
+shelf_flex_w,56/32/12,普/中/高·同 offer_rules shop.flex_w
+build_per_shop_buy,1,每次成功购买+1·失败不计·Spec v0.5 §8
+build_heal_buy,1,回复品也计Build+1·制作人拍板P2 2026-09-25
+price_ref,balance_shop_prices_箭骸.csv,价格只读该表·20/40/60/回复40·旧25/45/70作废
+void,build_from_shop=0|shelf_roll=2/2/1|tier 25/45/70,旧锁版口径已废止 2026-09-25

@@ -11,8 +11,10 @@ using RogueShooter.Spawning;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// Run-start chest P_spawn rolls, always-on altars, E interact 3-pick, 6-shelf shop (ShopStock.ShelfCount; balance_shop_prices shelf_count=6).
-    /// Offers/shop render only through RewardScreenView (old IMGUI offer panel removed).
+    /// Run-start chest P_spawn rolls, always-on altars, E interact 3-pick.
+    /// Chest/altar offers render through RewardScreenView (old IMGUI offer panel removed).
+    /// Shop (商店购买界面 v0.2) opens the standalone <see cref="ShopScreenView"/>: one <see cref="ShopSession"/>
+    /// per shop site, shelves rolled on first open and kept (sold stays sold) until the next BeginRun.
     /// </summary>
     public class ChestAltarDirector : MonoBehaviour
     {
@@ -28,7 +30,9 @@ namespace RogueShooter.Build
         bool _deathNoted;
         RewardOption[] _offers = Array.Empty<RewardOption>();
         AltarPick[] _altarPicks = Array.Empty<AltarPick>();
-        ShopShelf[] _shopShelves = Array.Empty<ShopShelf>();
+        readonly Dictionary<string, ShopSession> _shops = new Dictionary<string, ShopSession>();
+        ShopSession _shopSession;
+        ShopScreenView _shopView;
         bool _altarOffer;
         bool _shopOffer;
         SiteRuntime _offering;
@@ -47,7 +51,13 @@ namespace RogueShooter.Build
         public int AltarCount { get; private set; }
         public SiteRuntime Nearest => _nearest;
         public bool Offering => _offering != null;
-        public IReadOnlyList<ShopShelf> ShopShelves => _shopShelves;
+        /// <summary>Shelves of the last opened shop (empty until a shop is first opened this run).</summary>
+        public IReadOnlyList<ShopShelf> ShopShelves => _shopSession != null ? _shopSession.Shelves : Array.Empty<ShopShelf>();
+        public ShopSession ShopSessionFor(string siteId)
+        {
+            ShopSession s;
+            return siteId != null && _shops.TryGetValue(siteId, out s) ? s : null;
+        }
         public IReadOnlyList<string> EmptyChestIds => _emptyIds;
 
         public void Bind(BalanceLockData data, Transform player, List<SiteRuntime> sites, int seed)
@@ -145,8 +155,10 @@ namespace RogueShooter.Build
             _deathNoted = false;
 
             RewardCatalog.BindPoolOwned(_build != null ? _build.OwnedRewardIds : null);
-            _shopShelves = ShopStock.RollShelves(_rng);
-            Debug.Log($"[Shop] stock n={_shopShelves.Length} no-refresh shelves={ShopStock.FormatShelves(_shopShelves)} gold={gold}");
+            // New run: forget every shop instance; shelves roll on each shop's first open (v0.2 §3.1).
+            _shops.Clear();
+            _shopSession = null;
+            ShopBalance.Reload(_lock);
 
             string empty = _emptyIds.Count == 0 ? "(none)" : string.Join(",", _emptyIds.ToArray());
             Debug.Log($"[ChestRoll] seed={_seed} P_spawn={p:0.00} present={ChestPresentCount}/{ChestSlotCount} empty={empty}");
@@ -176,7 +188,9 @@ namespace RogueShooter.Build
 
             if (Offering)
             {
-                HandleOfferInput();
+                // Shop screen owns its own input (ShopScreenView.Update).
+                if (!_shopOffer)
+                    HandleOfferInput();
                 return;
             }
 
@@ -305,52 +319,89 @@ namespace RogueShooter.Build
 
         void OpenShop()
         {
-            if (_nearest == null || _shopShelves == null || _shopShelves.Length != ShopStock.ShelfCount)
+            if (_nearest == null || _build == null)
             {
-                Debug.Log("[Shop] open FAIL shelves missing");
+                Debug.Log("[Shop] open FAIL no site/build");
                 return;
             }
 
+            ShopSession session;
+            if (!_shops.TryGetValue(_nearest.Id, out session))
+            {
+                session = new ShopSession(_nearest.Id);
+                _shops[_nearest.Id] = session;
+            }
+
+            bool rolled = session.EnsureStock(_rng, ShopBalance.Current, _build.OwnedRewardIds);
+            _shopSession = session;
             _shopOffer = true;
             _altarOffer = false;
             _altarPicks = Array.Empty<AltarPick>();
             _offers = Array.Empty<RewardOption>();
             _offering = _nearest;
             PauseForScreen();
-            RewardView().ShowShop(CardsFromShop(_shopShelves));
-            Debug.Log($"[Shop] open {_offering.Id} n={_shopShelves.Length} no-refresh shelves={ShopStock.FormatShelves(_shopShelves)} " +
-                      $"gold={_build.Gold} B={_build.BuildCount}");
+            ShopView().Open(session, _build, OnShopBought, OnShopResult, OnShopLeave);
+            Debug.Log($"[Shop] open {_offering.Id} #{session.OpenCount} {(rolled ? "GENERATED" : "kept (no refresh)")} " +
+                      $"shelves={session.FormatShelves()} gold={_build.Gold} B={_build.BuildCount}");
         }
 
-        void BuyShopShelf(int index)
+        void OnShopBought(ShopShelf shelf)
         {
-            if (_build == null || _shopShelves == null || index < 0 || index >= _shopShelves.Length)
+            if (shelf.IsHeal)
+                ApplyShopHeal(shelf.Id);
+            Debug.Log($"[Shop] buy ok {shelf.Id} role={ShopStock.RoleLabel(shelf.ContentRole)}{(shelf.IsElastic ? "(弹)" : "")} " +
+                      $"price={shelf.Price} B+{ShopStock.BuildEquivFor(shelf.ContentRole)} gold={_build.Gold} B={_build.BuildCount} buys={_build.ShopBuys}");
+            Flash("bought " + shelf.Id + " -" + shelf.Price + "g B+" + ShopStock.BuildEquivFor(shelf.ContentRole));
+        }
+
+        void OnShopResult(ShopShelf shelf, ShopBuyResult result)
+        {
+            if (result == ShopBuyResult.NoGold)
+                Debug.Log($"[Shop] buy FAIL {shelf.Id} need={shelf.Price} gold={_build.Gold} B={_build.BuildCount} (no charge, no Build)");
+            else if (result == ShopBuyResult.Sold)
+                Debug.Log($"[Shop] buy FAIL {shelf.Id} sold B={_build.BuildCount}");
+            else if (result == ShopBuyResult.Locked)
+                Debug.Log($"[Shop] confirm ignored {shelf.Id} (open lock {ShopSession.OpenInputLockSeconds:0.00}s)");
+        }
+
+        /// <summary>Heal shelf (R10 stat=heal percent_max_hp): heal Value × MaxHp now (v0.2 §6.4).</summary>
+        void ApplyShopHeal(string rewardId)
+        {
+            RewardRow row;
+            if (!RewardCatalog.TryGet(rewardId, out row) || !ShopStock.IsHealRow(row) || _player == null)
                 return;
-            ShopShelf shelf = _shopShelves[index];
-            if (shelf.Sold)
+            var vitals = _player.GetComponent<PlayerVitals>();
+            if (vitals == null)
             {
-                Debug.Log($"[Shop] buy FAIL {shelf.Id} already sold B={_build.BuildCount}");
-                Flash(shelf.Id + " sold");
+                Debug.Log("[Shop] heal " + rewardId + " no PlayerVitals");
                 return;
             }
 
-            int b = _build.BuildCount;
-            int equiv = ShopStock.BuildEquivFor(shelf.ContentRole);
-            bool ok = _build.TryShopBuy(shelf.Price, equiv, shelf.Id);
-            if (ok)
+            float amount = string.Equals(row.ValueType, "percent_max_hp", StringComparison.OrdinalIgnoreCase)
+                ? row.Value * vitals.MaxHp
+                : row.Value;
+            float gained = vitals.Heal(amount);
+            Debug.Log($"[Shop] heal {rewardId} +{gained:0.#} hp={vitals.Hp:0.#}/{vitals.MaxHp:0.#}");
+        }
+
+        void OnShopLeave()
+        {
+            if (_shopSession != null && _offering != null)
+                Debug.Log("[Shop] close " + _offering.Id + " shelves=" + _shopSession.FormatShelves()
+                    + " gold=" + _build.Gold + " B=" + _build.BuildCount + " (no refresh; re-enter keeps shelves)");
+            CloseOffer(restoreTime: true);
+        }
+
+        ShopScreenView ShopView()
+        {
+            if (_shopView == null)
             {
-                shelf.Sold = true;
-                _shopShelves[index] = shelf;
+                _shopView = GetComponent<ShopScreenView>();
+                if (_shopView == null)
+                    _shopView = gameObject.AddComponent<ShopScreenView>();
             }
 
-            string line = ok
-                ? $"[Shop] buy ok {shelf.Id} tier={AltarRewardRoll.TierLabel(shelf.Tier)} price={shelf.Price} equiv=+{equiv} " +
-                  $"effect={shelf.Effect} gold={_build.Gold} B={b}→{_build.BuildCount}"
-                : $"[Shop] buy FAIL {shelf.Id} need={shelf.Price} gold={_build.Gold} B={_build.BuildCount}";
-            Debug.Log(line);
-            Flash(ok
-                ? "bought " + shelf.Id + " -" + shelf.Price + "g B+" + equiv
-                : "shop: not enough gold");
+            return _shopView;
         }
 
         void TryLightAltar()
@@ -405,11 +456,6 @@ namespace RogueShooter.Build
                 Debug.Log("[Altar] cancel " + _offering.Id + " size=" + AltarRewardRoll.SizeLabel(_offering.AltarSize)
                     + " lit=" + _offering.Lit + " B=" + _build.BuildCount);
             }
-            else if (_shopOffer && _offering != null)
-            {
-                Debug.Log("[Shop] close " + _offering.Id + " shelves=" + ShopStock.FormatShelves(_shopShelves)
-                    + " B=" + _build.BuildCount + " (no refresh)");
-            }
 
             Flash("offer cancelled");
             CloseOffer(restoreTime: true);
@@ -418,10 +464,7 @@ namespace RogueShooter.Build
         void ConfirmCurrentOffer(int pick)
         {
             if (_shopOffer)
-            {
-                BuyShopShelf(pick);
-                return;
-            }
+                return; // shop buys go through ShopScreenView → ShopSession
 
             if (_altarOffer)
             {
@@ -468,13 +511,7 @@ namespace RogueShooter.Build
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape) || (!_shopOffer && Input.GetKeyDown(KeyCode.E)))
-            {
-                CancelCurrentOffer();
-                return;
-            }
-
-            if (_shopOffer && Input.GetKeyDown(KeyCode.E))
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
             {
                 CancelCurrentOffer();
                 return;
@@ -489,13 +526,6 @@ namespace RogueShooter.Build
             if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6)) pick = 5;
             if (pick < 0)
                 return;
-            if (_shopOffer)
-            {
-                if (pick < _shopShelves.Length)
-                    ConfirmCurrentOffer(pick);
-                return;
-            }
-
             if (pick > 2)
                 return;
             ConfirmCurrentOffer(pick);
@@ -512,6 +542,8 @@ namespace RogueShooter.Build
                 _clock.SetPaused(false);
             if (_screen != null)
                 _screen.Hide();
+            if (_shopView != null)
+                _shopView.HideSilently();
             RunPause.InteractOpen = false;
             if (restoreTime)
                 Time.timeScale = 1f;
@@ -519,6 +551,8 @@ namespace RogueShooter.Build
 
         public void NotifyUiPick(int index)
         {
+            if (_shopOffer)
+                return;
             if (_screen != null && !_screen.ChoicesVisible)
                 return;
             ConfirmCurrentOffer(index);
@@ -572,25 +606,6 @@ namespace RogueShooter.Build
             {
                 AltarPick pick = picks[i];
                 cards[i] = RewardPresent.ToCard(pick.Id, pick.Tier, "", MarkFor(pick.Tier, false), i, false);
-            }
-            return cards;
-        }
-
-        static RewardCardData[] CardsFromShop(ShopShelf[] shelves)
-        {
-            if (shelves == null)
-                return System.Array.Empty<RewardCardData>();
-            var cards = new RewardCardData[shelves.Length];
-            for (int i = 0; i < shelves.Length; i++)
-            {
-                ShopShelf shelf = shelves[i];
-                cards[i] = RewardPresent.ToCard(
-                    shelf.Id,
-                    shelf.Tier,
-                    shelf.Price + "金",
-                    shelf.IsHeal ? "回血" : MarkFor(shelf.Tier, false),
-                    i,
-                    shelf.Sold);
             }
             return cards;
         }

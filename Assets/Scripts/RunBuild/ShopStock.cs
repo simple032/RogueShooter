@@ -26,11 +26,17 @@ namespace RogueShooter.Build
         public string Effect;
         public bool IsHeal;
         public bool IsElastic;
+        /// <summary>True when no eligible item was left for this slot (shown as 售罄, never buyable).</summary>
+        public bool Empty;
     }
 
     /// <summary>
-    /// N38 shop: 6 shelves = 普/中/高/回血各1 + 弹性2. Never refresh.
-    /// Locked mid prices 20/40/60/40 (ratio 1:2:3; high band 54–66). Elastic 56/32/12, no heal.
+    /// 商店购买界面 v0.2: 6 shelves = 普/中/高/回复各1 + 灵活2, generated once per shop instance, never refreshed.
+    /// Prices, flex weights, shelf counts and Build per buy come from <see cref="ShopBalance"/> (tables).
+    /// The constants below only mirror the tables at f1793ff and are used when the tables are unreadable
+    /// (ShopBalance.Fallback) and by the legacy slice checks.
+    /// Flex shelves roll only 普/中/高 (heal weight forced 0) and never duplicate an item on the same shelf set.
+    /// Heal items (stat=heal, e.g. R10 which is tier mid) only ever appear on the heal shelf (dedupe,heal_max=1).
     /// </summary>
     public static class ShopStock
     {
@@ -51,12 +57,13 @@ namespace RogueShooter.Build
         public const int ElasticWMid = 32;
         public const int ElasticWHigh = 12;
         public const int ElasticWHeal = 0;
+        /// <summary>Mirror of balance_shop_gold_locked build_per_shop_buy / build_heal_buy (both 1).</summary>
+        public const int MirrorBuildPerBuy = 1;
 
-        /// <summary>每次成功店购固定 +1 Build（制作人 2026-09-20 裁定，不用分层当量）。</summary>
+        /// <summary>Build per successful shop buy: build_per_shop_buy, heal shelf build_heal_buy (制作人 P2: 1).</summary>
         public static int BuildEquivFor(ShopSlotRole role)
         {
-            _ = role;
-            return 1;
+            return ShopBalance.Current.BuildFor(role);
         }
 
         public static int PriceBaseFor(ShopSlotRole role)
@@ -112,28 +119,51 @@ namespace RogueShooter.Build
 
         public static ShopShelf[] RollShelves(Random rng)
         {
+            return RollShelves(rng, ShopBalance.Current);
+        }
+
+        /// <summary>
+        /// Fixed 普/中/高/回复 then <see cref="ShopBalance.FlexCount"/> flex shelves (each rolls its tier on flex_w).
+        /// Call <see cref="RewardCatalog.BindPoolOwned"/> first so capped rewards (pierce Σ≥100%) stay out.
+        /// </summary>
+        public static ShopShelf[] RollShelves(Random rng, ShopBalance bal)
+        {
             if (rng == null)
                 rng = new Random();
-            int low = RollLowAnchor(rng);
-            var shelves = new ShopShelf[ShelfCount];
+            if (bal == null)
+                bal = ShopBalance.Fallback();
+            int flexCount = bal.FlexCount > 0 ? bal.FlexCount : ElasticCount;
+            var shelves = new ShopShelf[FixedCount + flexCount];
             var used = new HashSet<string>();
-            shelves[0] = FillSlot(ShopSlotRole.Low, false, low, used, rng);
-            shelves[1] = FillSlot(ShopSlotRole.Mid, false, low, used, rng);
-            shelves[2] = FillSlot(ShopSlotRole.High, false, low, used, rng);
-            shelves[3] = FillSlot(ShopSlotRole.Heal, false, low, used, rng);
-            shelves[4] = FillSlot(RollElasticRole(rng), true, low, used, rng);
-            shelves[5] = FillSlot(RollElasticRole(rng), true, low, used, rng);
+            shelves[0] = FillSlot(ShopSlotRole.Low, false, bal, used, rng);
+            shelves[1] = FillSlot(ShopSlotRole.Mid, false, bal, used, rng);
+            shelves[2] = FillSlot(ShopSlotRole.High, false, bal, used, rng);
+            shelves[3] = FillSlot(ShopSlotRole.Heal, false, bal, used, rng);
+            for (int i = 0; i < flexCount; i++)
+                shelves[FixedCount + i] = FillSlot(RollElasticRole(rng, bal), true, bal, used, rng);
             return shelves;
         }
 
         public static ShopSlotRole RollElasticRole(Random rng)
         {
+            return RollElasticRole(rng, ShopBalance.Current);
+        }
+
+        /// <summary>offer_rules shop.flex_w 普/中/高. Heal is never a flex outcome.</summary>
+        public static ShopSlotRole RollElasticRole(Random rng, ShopBalance bal)
+        {
             if (rng == null)
                 rng = new Random();
-            int roll = rng.Next(100);
-            if (roll < ElasticWLow)
+            int wl = bal != null ? bal.FlexWLow : ElasticWLow;
+            int wm = bal != null ? bal.FlexWMid : ElasticWMid;
+            int wh = bal != null ? bal.FlexWHigh : ElasticWHigh;
+            int total = wl + wm + wh;
+            if (total <= 0)
                 return ShopSlotRole.Low;
-            if (roll < ElasticWLow + ElasticWMid)
+            int roll = rng.Next(total);
+            if (roll < wl)
+                return ShopSlotRole.Low;
+            if (roll < wl + wm)
                 return ShopSlotRole.Mid;
             return ShopSlotRole.High;
         }
@@ -174,49 +204,147 @@ namespace RogueShooter.Build
             }
         }
 
-        static ShopShelf FillSlot(ShopSlotRole role, bool elastic, int lowAnchor, HashSet<string> used, Random rng)
+        public static bool IsHealRow(RewardRow row)
+        {
+            return string.Equals(row.Stat, "heal", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static ShopSlotRole RoleForTier(RewardTier tier)
+        {
+            switch (tier)
+            {
+                case RewardTier.Mid: return ShopSlotRole.Mid;
+                case RewardTier.High: return ShopSlotRole.High;
+                default: return ShopSlotRole.Low;
+            }
+        }
+
+        static RewardTier TierForRole(ShopSlotRole role)
+        {
+            return role == ShopSlotRole.High ? RewardTier.High
+                : role == ShopSlotRole.Mid ? RewardTier.Mid
+                : RewardTier.Low;
+        }
+
+        static ShopShelf FillSlot(ShopSlotRole role, bool elastic, ShopBalance bal, HashSet<string> used, Random rng)
         {
             RewardRow row;
+            bool ok;
+            ShopSlotRole content = role;
             if (role == ShopSlotRole.Heal)
             {
-                if (!TryPickHeal(used, rng, out row))
-                    RewardCatalog.TryPickEqual(RewardTier.Mid, used, rng, out row);
+                ok = TryPickHeal(used, rng, out row);
             }
             else
             {
-                RewardTier tier = role == ShopSlotRole.High ? RewardTier.High
-                    : role == ShopSlotRole.Mid ? RewardTier.Mid
-                    : RewardTier.Low;
-                if (!RewardCatalog.TryPickEqual(tier, used, rng, out row))
+                ok = TryPickTier(TierForRole(role), used, bal.RerollSameTier, rng, out row);
+                if (!ok)
                 {
-                    for (int r = 0; r < RewardCatalog.All.Length; r++)
-                    {
-                        RewardRow cand = RewardCatalog.All[r];
-                        if (used.Contains(cand.Id))
-                            continue;
-                        if (!RewardCatalog.CanOffer(cand, tier))
-                            continue;
-                        row = cand;
-                        break;
-                    }
+                    // Tier pool exhausted on this shelf set: 从未出现池 = any unused non-heal item.
+                    ok = TryPickAnyUnused(used, rng, out row);
                 }
+
+                if (ok)
+                    content = RoleForTier(row.Tier);
+            }
+
+            if (!ok)
+            {
+                return new ShopShelf
+                {
+                    Id = "",
+                    Tier = TierForRole(role == ShopSlotRole.Heal ? ShopSlotRole.Mid : role),
+                    Role = elastic ? ShopSlotRole.Elastic : role,
+                    ContentRole = role,
+                    Price = 0,
+                    PriceBase = 0,
+                    LowAnchor = bal.Low.Mid,
+                    Sold = true,
+                    Effect = "",
+                    IsHeal = role == ShopSlotRole.Heal,
+                    IsElastic = elastic,
+                    Empty = true
+                };
             }
 
             used.Add(row.Id);
+            int price = bal.PriceFor(content);
             return new ShopShelf
             {
                 Id = row.Id,
                 Tier = row.Tier,
                 Role = elastic ? ShopSlotRole.Elastic : role,
-                ContentRole = role,
-                Price = PriceFromLow(role, lowAnchor),
-                PriceBase = PriceBaseFor(role),
-                LowAnchor = lowAnchor,
+                ContentRole = content,
+                Price = price,
+                PriceBase = price,
+                LowAnchor = bal.Low.Mid,
                 Sold = false,
                 Effect = row.Desc,
-                IsHeal = role == ShopSlotRole.Heal || string.Equals(row.Stat, "heal", StringComparison.OrdinalIgnoreCase),
-                IsElastic = elastic
+                IsHeal = content == ShopSlotRole.Heal,
+                IsElastic = elastic,
+                Empty = false
             };
+        }
+
+        static bool ShopEligible(RewardRow row, RewardTier tier)
+        {
+            return !IsHealRow(row) && RewardCatalog.CanOffer(row, tier);
+        }
+
+        /// <summary>
+        /// dedupe,reroll_same_tier: draw from the tier pool; a duplicate is re-drawn in the same tier up to N times,
+        /// then taken from the not-yet-shown part of that tier.
+        /// </summary>
+        static bool TryPickTier(RewardTier tier, HashSet<string> used, int rerolls, Random rng, out RewardRow row)
+        {
+            row = default(RewardRow);
+            var pool = new List<RewardRow>();
+            var fresh = new List<RewardRow>();
+            for (int i = 0; i < RewardCatalog.All.Length; i++)
+            {
+                RewardRow r = RewardCatalog.All[i];
+                if (!ShopEligible(r, tier))
+                    continue;
+                pool.Add(r);
+                if (!used.Contains(r.Id))
+                    fresh.Add(r);
+            }
+
+            if (fresh.Count == 0)
+                return false;
+            int attempts = 1 + (rerolls > 0 ? rerolls : 0);
+            for (int a = 0; a < attempts; a++)
+            {
+                RewardRow pick = pool[rng.Next(pool.Count)];
+                if (!used.Contains(pick.Id))
+                {
+                    row = pick;
+                    return true;
+                }
+            }
+
+            row = fresh[rng.Next(fresh.Count)];
+            return true;
+        }
+
+        static bool TryPickAnyUnused(HashSet<string> used, Random rng, out RewardRow row)
+        {
+            row = default(RewardRow);
+            var fresh = new List<RewardRow>();
+            for (int i = 0; i < RewardCatalog.All.Length; i++)
+            {
+                RewardRow r = RewardCatalog.All[i];
+                if (used.Contains(r.Id))
+                    continue;
+                if (!ShopEligible(r, r.Tier))
+                    continue;
+                fresh.Add(r);
+            }
+
+            if (fresh.Count == 0)
+                return false;
+            row = fresh[rng.Next(fresh.Count)];
+            return true;
         }
 
         static bool TryPickHeal(HashSet<string> usedIds, Random rng, out RewardRow row)
