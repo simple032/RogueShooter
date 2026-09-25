@@ -618,7 +618,7 @@ namespace RogueShooter.Build
             inset.color = new Color(0.05f, 0.05f, 0.05f, 1f);
             if (!string.IsNullOrEmpty(card.Icon))
             {
-                r.Icon = MakeImage(r.Root, "Icon", iconPos, new Vector2(RowIcon - 6f, RowIcon - 6f));
+                r.Icon = MakeImage(r.Root, "Icon", iconPos, new Vector2(RowIcon, RowIcon));
                 r.Icon.sprite = RewardScreenView.Load(card.Icon);
                 r.Icon.raycastTarget = false;
             }
