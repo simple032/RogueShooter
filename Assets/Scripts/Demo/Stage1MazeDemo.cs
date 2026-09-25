@@ -25,7 +25,7 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class Stage1MazeDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize;
+        [SerializeField] float orthographicSize = CameraViewService.OrthoPlaySize;
         [Tooltip("Play default ~6. 0 = MoveSpeeds.Player (L=22 lock)")]
         [SerializeField] float moveSpeed = MazeRules.PlayMoveSpeed;
         [SerializeField] int seed = 42;
@@ -42,6 +42,16 @@ namespace RogueShooter.Demo
         readonly List<GameObject> _live = new List<GameObject>();
         readonly List<GameObject> _portals = new List<GameObject>();
         readonly List<GameObject> _world = new List<GameObject>();
+        readonly List<PendingSpawn> _pending = new List<PendingSpawn>();
+
+        /// <summary>L5 fallback unit waiting for its spawn warning.</summary>
+        sealed class PendingSpawn
+        {
+            public Coroutine Co;
+            public SpawnWarnFx Fx;
+            public Action Spawn;
+            public bool Done;
+        }
         readonly Dictionary<string, GameObject> _covers = new Dictionary<string, GameObject>();
         readonly HashSet<string> _revealed = new HashSet<string>();
         static Sprite _coverSprite;
@@ -236,7 +246,7 @@ namespace RogueShooter.Demo
             _lastGood = startPos;
             _world.Add(player);
             Debug.Log("[MoveSpeed] player=" + PlaySpeed().ToString("0.000")
-                      + " ortho=" + orthographicSize.ToString("0")
+                      + " ortho=" + CameraViewService.PlayOrthoSize.ToString("0.##")
                       + " seed=" + seed);
 
             Camera cam = Camera.main;
@@ -632,29 +642,33 @@ namespace RogueShooter.Demo
             int n = drawn.Units != null ? drawn.Units.Length : 0;
             MazeNode node = _maze.Find(session.RoomId);
             string roomId = node != null ? node.Id : session.RoomId;
-            spots = EnforceSpawnSpots(node, drawn, wave, spots);
+            float[] warns;
+            spots = EnforceSpawnSpots(node, drawn, wave, spots, out warns);
             for (int i = 0; i < n; i++)
             {
                 DrawnUnit u = drawn.Units[i];
                 Vector3 pos = spots != null && i < spots.Length
                     ? spots[i]
                     : new Vector3(node != null ? node.Center.X : 0f, node != null ? node.Center.Y : 0f, 0f);
-                GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
-                go.name = "S1_" + roomId + "_w" + wave + "_" + i + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
-                JianHaiBind.ApplyTo(go, EntityAnimCatalog.ResolveEnemyIdle(u.KindId));
-                var enemy = go.GetComponent<StubEnemy>();
-                if (enemy == null)
-                    enemy = go.AddComponent<StubEnemy>();
-                enemy.ConfigureKind(u.KindId, u.Hp, u.Elite);
-                var ai = go.GetComponent<MobFourStateAi>();
-                if (ai == null)
-                    ai = go.AddComponent<MobFourStateAi>();
-                ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
-                EntityAnimView.Add(go, false, u.KindId);
-                string capturedId = roomId;
-                enemy.Died += _ => OnEnemyDied(capturedId);
-                go.SetActive(true);
-                _live.Add(go);
+                float warn = warns != null && i < warns.Length ? warns[i] : 0f;
+                if (warn > 0f)
+                {
+                    // L5 fallback: visible warning, unit appears after 1.0s (1.5s when closer than SpawnMinU).
+                    int idx = i;
+                    DrawnUnit uu = u;
+                    Vector3 pp = pos;
+                    var ps = new PendingSpawn();
+                    ps.Fx = SpawnWarnFx.SpawnAt("SpawnWarn_" + roomId + "_w" + wave + "_" + i, pos, warn, transform);
+                    _world.Add(ps.Fx.gameObject);
+                    ps.Spawn = () => SpawnUnit(roomId, wave, idx, uu, pp);
+                    _pending.Add(ps);
+                    ps.Co = StartCoroutine(WarnThenSpawn(ps, warn));
+                    Debug.Log("[L5Spawn] warn " + ps.Fx.name + " " + warn.ToString("0.0") + "s at "
+                              + pos.x.ToString("0.0") + "," + pos.y.ToString("0.0"));
+                    continue;
+                }
+
+                SpawnUnit(roomId, wave, i, u, pos);
             }
 
             session.MarkSpawned(n);
@@ -663,14 +677,79 @@ namespace RogueShooter.Demo
                 ApplySteps(session, session.NotifyKilled());
         }
 
+        IEnumerator WarnThenSpawn(PendingSpawn ps, float seconds)
+        {
+            float t = 0f;
+            while (t < seconds)
+            {
+                t += Time.deltaTime;
+                yield return null;
+            }
+
+            ps.Co = null;
+            FinishPending(ps);
+        }
+
+        void FinishPending(PendingSpawn ps)
+        {
+            if (ps == null || ps.Done)
+                return;
+            ps.Done = true;
+            if (ps.Co != null)
+                StopCoroutine(ps.Co);
+            ps.Co = null;
+            if (ps.Fx != null)
+                Destroy(ps.Fx.gameObject);
+            _pending.Remove(ps);
+            ps.Spawn?.Invoke();
+        }
+
+        void CancelPending()
+        {
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                PendingSpawn ps = _pending[i];
+                ps.Done = true;
+                if (ps.Co != null)
+                    StopCoroutine(ps.Co);
+                if (ps.Fx != null)
+                    Destroy(ps.Fx.gameObject);
+            }
+
+            _pending.Clear();
+        }
+
+        void SpawnUnit(string roomId, int wave, int i, DrawnUnit u, Vector3 pos)
+        {
+            GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
+            go.name = "S1_" + roomId + "_w" + wave + "_" + i + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
+            JianHaiBind.ApplyTo(go, EntityAnimCatalog.ResolveEnemyIdle(u.KindId));
+            var enemy = go.GetComponent<StubEnemy>();
+            if (enemy == null)
+                enemy = go.AddComponent<StubEnemy>();
+            enemy.ConfigureKind(u.KindId, u.Hp, u.Elite);
+            var ai = go.GetComponent<MobFourStateAi>();
+            if (ai == null)
+                ai = go.AddComponent<MobFourStateAi>();
+            ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
+            EntityAnimView.Add(go, false, u.KindId);
+            string capturedId = roomId;
+            enemy.Died += _ => OnEnemyDied(capturedId);
+            go.SetActive(true);
+            _live.Add(go);
+        }
+
         /// <summary>
         /// Spots are rolled when the portal shows; the player keeps moving during the hold. Re-check
         /// MinPlayerDist against the player's position now and keep PackSep between mobs.
         /// </summary>
-        Vector3[] EnforceSpawnSpots(MazeNode node, DrawnComposition drawn, int wave, Vector3[] spots)
+        Vector3[] EnforceSpawnSpots(MazeNode node, DrawnComposition drawn, int wave, Vector3[] spots, out float[] warns)
         {
+            warns = null;
             if (node == null || spots == null || _player == null)
                 return spots;
+            if (L5Rules.SpawnRuleEnabled)
+                return EnforceL5(node, wave, spots, out warns);
             var ss = new SpawnSpot[spots.Length];
             for (int i = 0; i < spots.Length; i++)
             {
@@ -701,11 +780,72 @@ namespace RogueShooter.Demo
             return outSpots;
         }
 
+        readonly Vector2[] _l5Quad = new Vector2[4];
+
+        Vector2[] CurrentQuad()
+        {
+            return ViewSpace.TryGetViewQuad(_l5Quad) ? _l5Quad : null;
+        }
+
+        /// <summary>L5 spots when the portals show: 14–22u, ≥2u outside the view quad, walkable room cell.</summary>
+        Vector3[] PlaceL5(MazeNode node, int n, int wave)
+        {
+            float px = _player != null ? _player.position.x : node.Center.X;
+            float py = _player != null ? _player.position.y : node.Center.Y;
+            L5Spot[] l5 = L5Spawn.PlaceWave(node, px, py, n, CollectAvoids(node), CurrentQuad(),
+                new System.Random(seed * 17 + wave * 5 + node.Id.GetHashCode()));
+            var vs = new Vector3[l5.Length];
+            for (int i = 0; i < l5.Length; i++)
+                vs[i] = new Vector3(l5[i].X, l5[i].Y, 0f);
+            Debug.Log("[L5Spawn] place " + L5Line(node, wave, l5));
+            return vs;
+        }
+
+        Vector3[] EnforceL5(MazeNode node, int wave, Vector3[] spots, out float[] warns)
+        {
+            var l5 = new L5Spot[spots.Length];
+            for (int i = 0; i < spots.Length; i++)
+                l5[i] = new L5Spot { X = spots[i].x, Y = spots[i].y };
+            Vector3 p = _player.position;
+            int moved = L5Spawn.EnforceAtSpawn(node, p.x, p.y, l5, CollectAvoids(node), CurrentQuad(),
+                new System.Random(seed * 31 + wave * 7 + node.Id.GetHashCode()));
+            warns = new float[l5.Length];
+            var outSpots = new Vector3[l5.Length];
+            for (int i = 0; i < l5.Length; i++)
+            {
+                outSpots[i] = new Vector3(l5[i].X, l5[i].Y, 0f);
+                warns[i] = l5[i].WarnSeconds;
+            }
+
+            Debug.Log("[L5Spawn] enforce moved=" + moved + " " + L5Line(node, wave, l5));
+            return outSpots;
+        }
+
+        static string L5Line(MazeNode node, int wave, L5Spot[] l5)
+        {
+            int fb = 0;
+            float minD = float.MaxValue, maxD = 0f, minOut = float.MaxValue;
+            for (int i = 0; i < l5.Length; i++)
+            {
+                if (l5[i].Fallback) fb++;
+                minD = Mathf.Min(minD, l5[i].DistPlayer);
+                maxD = Mathf.Max(maxD, l5[i].DistPlayer);
+                minOut = Mathf.Min(minOut, l5[i].OutsideQuad);
+            }
+
+            return "room=" + node.Id + " w" + wave + " n=" + l5.Length + " fallback=" + fb
+                   + " dist=" + (l5.Length > 0 ? minD.ToString("0.0") + ".." + maxD.ToString("0.0") : "-")
+                   + " minOutsideQuad=" + (l5.Length > 0 ? minOut.ToString("0.0") : "-")
+                   + " iso=" + (ViewSpace.IsoOn ? 1 : 0) + " " + L5Rules.Describe();
+        }
+
         Vector3[] PlaceWaveSpots(MazeNode node, DrawnComposition drawn, int wave)
         {
             int n = drawn.Units != null ? drawn.Units.Length : 0;
             if (n < 1)
                 n = 1;
+            if (L5Rules.SpawnRuleEnabled)
+                return PlaceL5(node, n, wave);
             var kinds = new string[n];
             for (int i = 0; i < n; i++)
                 kinds[i] = drawn.Units != null && i < drawn.Units.Length
@@ -797,6 +937,11 @@ namespace RogueShooter.Demo
                 Flash("skip portal wait");
                 return;
             }
+
+            // L5 fallback units still in their warning: spawn them now so the kill covers them.
+            var pending = _pending.ToArray();
+            for (int i = 0; i < pending.Length; i++)
+                FinishPending(pending[i]);
 
             var snapshot = _live.ToArray();
             for (int i = 0; i < snapshot.Length; i++)
@@ -1242,7 +1387,7 @@ namespace RogueShooter.Demo
         void RunAcceptance()
         {
             bool viewOk = _view != null
-                && Mathf.Abs(orthographicSize - CameraViewService.PlayOrthoSize) < 0.01f
+                && Mathf.Abs(orthographicSize - CameraViewService.OrthoPlaySize) < 0.01f // serialized ortho authoring size; applied size below
                 && Mathf.Abs(_view.OrthographicSize - CameraViewService.PlayOrthoSize) < 0.01f;
             bool speedOk = Mathf.Abs(PlaySpeed() - MazeRules.PlayMoveSpeed) < 0.01f;
             string mazeErr = Stage1MazeChecks.Run();
@@ -1281,6 +1426,7 @@ namespace RogueShooter.Demo
 
         void ClearLive()
         {
+            CancelPending();
             for (int i = 0; i < _live.Count; i++)
             {
                 if (_live[i] != null)

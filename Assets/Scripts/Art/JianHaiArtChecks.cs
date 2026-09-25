@@ -13,8 +13,8 @@ namespace RogueShooter.Art
                 return "PPU must be 32";
             if (JianHaiArtCatalog.EntityStubWorldScale != 0.62f)
                 return "entity stub world scale must stay 0.62 (play ortho 6)";
-            if (Math.Abs(CameraViewService.PlayOrthoSize - 6f) > 0.001f)
-                return "play ortho must stay 6 (producer retune)";
+            if (!L5VisionChecks.OrthoMatchesMode(CameraViewService.PlayOrthoSize))
+                return "play ortho must be 6 ortho / 5.25 iso (CameraViewService.PlayOrthoSize)";
             if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
                 != JianHaiArtCatalog.EntityStubWorldScale)
                 return "player stub scale";

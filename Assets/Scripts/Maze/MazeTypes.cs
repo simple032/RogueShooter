@@ -1,5 +1,6 @@
 using System;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Maze
 {
@@ -228,7 +229,8 @@ namespace RogueShooter.Maze
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
-        public const float PlayOrtho = 6f;
+        /// <summary>Forwards to <see cref="CameraViewService.PlayOrthoSize"/> (6 ortho / 5.25 iso).</summary>
+        public static float PlayOrtho => CameraViewService.PlayOrthoSize;
         /// <summary>v2e. Pitch = room + 30u gap. START door is a shorter feel hop (~18u), not a clock lock.</summary>
         public const float CombatWidth = 52f;
         public const float CombatHeight = 40f;

@@ -1,5 +1,6 @@
 using RogueShooter.Player;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Ai
 {
@@ -9,10 +10,10 @@ namespace RogueShooter.Ai
     /// </summary>
     public static class EnemyCombatRules
     {
-        public const float PlayOrthoSize = 6f; // producer retune; keep in sync with CameraViewService
+        /// <summary>Forwards to the single source <see cref="CameraViewService.PlayOrthoSize"/>.</summary>
+        public static float PlayOrthoSize => CameraViewService.PlayOrthoSize;
         public const float DefaultAspect = 16f / 9f;
         public const float OrbSpeedWalkMul = 2f; // player_move × 2 → orb 12 (not mage walk × 2)
-        public const float OrbRangeCameraWidthFrac = 0.7f;
         public const float ShieldRaiseDelaySeconds = 1f;
         public const float ShieldMoveMul = 0.50f; // 4.5 → 2.25 (−50%)
         public const float ShieldFrontDamageMul = 0.50f;
@@ -53,9 +54,13 @@ namespace RogueShooter.Ai
             return 2f * orthographicSize * aspect;
         }
 
-        public static float OrbMaxRange(float orthographicSize, float aspect)
+        /// <summary>
+        /// L5: orb max travel in logic units = min(<see cref="L5Rules.OrbRangeU"/>, speed × flight time).
+        /// Replaces camera_width × 0.7 (14.9u at ortho 6); independent of the camera.
+        /// </summary>
+        public static float OrbMaxRange(float orbSpeed)
         {
-            return CameraWidth(orthographicSize, aspect) * OrbRangeCameraWidthFrac;
+            return L5Rules.OrbMaxRange(orbSpeed);
         }
 
         public static float OrbSpeed(float walkSpeed)
