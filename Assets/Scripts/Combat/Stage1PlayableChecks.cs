@@ -232,7 +232,7 @@ namespace RogueShooter.Combat
                 start.Center.Y,
                 0f, 1f,
                 40f,
-                ProjectileRules.ArrowHitRadius,
+                ProjectileRules.ArrowBlockRadius,
                 CollisionLayer.Wall | CollisionLayer.Door);
             if (!wallHit.Hit || wallHit.Layer != CollisionLayer.Wall)
                 return "arrow must hit north wall off-opening";
@@ -242,10 +242,20 @@ namespace RogueShooter.Combat
                 door.X, door.Y - 2f,
                 0f, 1f,
                 8f,
-                ProjectileRules.ArrowHitRadius,
+                ProjectileRules.ArrowBlockRadius,
                 CollisionLayer.Door);
             if (!doorHit.Hit || doorHit.Layer != CollisionLayer.Door)
                 return "arrow/orb must hit locked door";
+
+            // PR#19 retest (N1): a sideways shot from just inside a closed door must not graze the
+            // door strip. Shaft radius clears it; the old 0.40 disc did not.
+            float sideY = door.Y - door.Height * 0.5f - 0.2f;
+            CollisionHit side = locked.Trace(door.X - door.Width * 0.5f - 0.5f, sideY, 1f, 0f,
+                door.Width + 1f, ProjectileRules.ArrowBlockRadius, CollisionLayer.Wall | CollisionLayer.Door);
+            if (side.Hit && side.Layer == CollisionLayer.Door)
+                return "sideways arrow beside a closed door must not hit the door";
+            if (!(ProjectileRules.ArrowBlockRadius < ProjectileRules.ArrowHitRadius))
+                return "arrow block (shaft) radius must be below the mob hit radius";
 
             CollisionSpace open = Fill(solids, false);
             CollisionHit openHit = open.Trace(
@@ -266,6 +276,14 @@ namespace RogueShooter.Combat
                 ProjectileRules.ArrowHitRadius, CollisionLayer.Mob);
             if (!mobHit.Hit || mobHit.Layer != CollisionLayer.Mob)
                 return "arrow trajectory must hit mob volume";
+            // Stop point == settlement point: the arrow stops where it enters the mob volume inflated by
+            // ArrowHitRadius and damages that mob; there is no second radius test (was 0.80 stop vs 0.75 hit).
+            float expect = 3f - CollisionRules.MobHalfX - ProjectileRules.ArrowHitRadius;
+            float sweep = CollisionSpace.SweepDistance(start.Center.X, start.Center.Y, 1f, 0f,
+                new CollisionAabb(start.Center.X + 3f, start.Center.Y, CollisionRules.MobHalfX, CollisionRules.MobHalfY)
+                    .Inflated(ProjectileRules.ArrowHitRadius));
+            if (Math.Abs(mobHit.Distance - expect) > 0.001f || Math.Abs(sweep - mobHit.Distance) > 0.001f)
+                return "arrow mob contact distance must equal volume+hit radius (" + sweep.ToString("0.00") + ")";
             return null;
         }
 
