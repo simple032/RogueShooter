@@ -34,6 +34,44 @@ namespace RogueShooter.Art
             t.localScale = new Vector3(s, s, 1f);
         }
 
+        /// <summary>
+        /// Tiled JianHai PNG at localScale=1. Collision volumes must pass explicit hx/hy
+        /// (do not derive AABB from sprite scale).
+        /// </summary>
+        public static GameObject SpawnTiled(
+            string name,
+            Vector3 position,
+            Vector2 worldSize,
+            string artId,
+            Transform parent,
+            int order,
+            Quaternion rotation,
+            Color tint)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = position;
+            go.transform.rotation = rotation;
+            go.transform.localScale = Vector3.one;
+            var sr = go.AddComponent<SpriteRenderer>();
+            JianHaiSprites.BindTiled(sr, artId, worldSize, order, tint);
+            return go;
+        }
+
+        public static GameObject SpawnCorridorTiled(
+            string name, Vector3 a, Vector3 b, float width, string artId, Transform parent, int order)
+        {
+            Vector3 delta = b - a;
+            delta.z = 0f;
+            float length = Mathf.Max(0.1f, delta.magnitude);
+            Vector3 mid = (a + b) * 0.5f;
+            mid.z = 1f;
+            float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
+            return SpawnTiled(
+                name, mid, new Vector2(length + 0.6f, width), artId, parent, order,
+                Quaternion.Euler(0f, 0f, angle), Color.white);
+        }
+
         public static void SetLayer(GameObject go, string layer, int order)
         {
             if (go == null)

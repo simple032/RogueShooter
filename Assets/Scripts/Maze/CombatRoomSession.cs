@@ -19,6 +19,8 @@ namespace RogueShooter.Maze
         public bool ShouldSpawn;
         public bool ShouldOpen;
         public bool Portal;
+        /// <summary>PortalFx visible hold before this spawn. Wave 1 = 1.0s; later waves use inter-wave table.</summary>
+        public float HoldSeconds;
     }
 
     /// <summary>
@@ -129,22 +131,26 @@ namespace RogueShooter.Maze
 
         CombatStep PortalStep(int wave)
         {
+            float hold = MazeRules.PortalHoldForWave(wave);
             return new CombatStep
             {
                 Kind = "portal",
                 Wave = wave,
                 Portal = true,
+                HoldSeconds = hold,
                 Line = PortalFxHook.Format(RoomId, wave)
             };
         }
 
         CombatStep SpawnStep(int wave)
         {
+            float hold = MazeRules.PortalHoldForWave(wave);
             return new CombatStep
             {
                 Kind = "spawn",
                 Wave = wave,
                 ShouldSpawn = true,
+                HoldSeconds = hold,
                 Line = PortalFxHook.FormatSpawn(RoomId, wave)
             };
         }

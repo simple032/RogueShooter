@@ -4,6 +4,7 @@ using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Boss;
 using RogueShooter.Build;
+using RogueShooter.Combat;
 using RogueShooter.Demo;
 using RogueShooter.Vision;
 
@@ -12,23 +13,35 @@ namespace RogueShooter.Player
     /// <summary>
     /// Hold-to-charge bow. Ring full at 0.70s; fire if held over 0.2s;
     /// weak under 0.4s x0.50; weak-spot 0.68-0.72s. After a shot, 0.2s recovery.
-    /// Movement x0.5 while charging.
+    /// Movement x0.5 while charging. Release queues an ArrowProjectile at the
+    /// ActionSpecP1 OnFire frame; damage resolves on arrow impact (PR#10 port) through
+    /// the reward-aware HitMob / boss path below (A's rules: ModifyOutgoing, pierce, lifesteal).
+    /// Dodge roll cancels charge / pending fire / recovery (DodgeRules).
     /// </summary>
     public class PlayerCharge : MonoBehaviour
     {
-        [SerializeField] float hitRange = 8f;
+        [SerializeField] float hitRange = ProjectileRules.ArrowMaxRange;
 
         float _held;
         bool _charging;
         bool _mid;
         bool _green;
         bool _exited;
+        bool _fullPose;
         float _recoverUntil;
+        float _atkUntil;
+        bool _pendingFire;
+        float _fireAt;
+        float _queuedDmg;
+        ChargeShotKind _queuedKind;
+        float _queuedHeld;
+        Vector3 _queuedDir;
         ChargeFxView _fx;
         GuaranteedCritActive _guaranteed;
         IList<string> _ownedRewards;
 
         public bool IsCharging => _charging;
+        public bool IsFiring => Time.time < _atkUntil;
         public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
         public ChargeShotKind LastShot { get; private set; }
@@ -49,10 +62,27 @@ namespace RogueShooter.Player
 
         void Update()
         {
+            var dodge = GetComponent<PlayerDodge>();
+            if (dodge != null && dodge.IsRolling)
+            {
+                CancelIntoRoll();
+                return;
+            }
+
+            TickQueuedFire();
             if (RunPause.IsPaused)
             {
                 if (_charging)
                     CancelCharge();
+                return;
+            }
+
+            var vitals = GetComponent<PlayerVitals>();
+            if (vitals != null && vitals.IsDead)
+            {
+                if (_charging)
+                    CancelCharge();
+                _pendingFire = false;
                 return;
             }
 
@@ -95,6 +125,13 @@ namespace RogueShooter.Player
                 ChargeFxHooks.ChargeExitGreen();
                 Debug.Log("[ChargeFx] OnChargeExitGreen");
             }
+
+            if (!_fullPose && _held >= ActionSpecP1.ChargeFullPoseSeconds)
+            {
+                _fullPose = true;
+                ChargeFxHooks.ChargeFull();
+                Debug.Log("[ChargeFx] OnChargeFull pose t=" + ActionSpecP1.ChargeFullPoseSeconds.ToString("0.00"));
+            }
         }
 
         void BeginCharge()
@@ -104,10 +141,13 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             LastShot = ChargeShotKind.None;
             LastDamage = 0f;
             if (_fx != null)
                 _fx.SetChargeProgress(0f, false);
+            ChargeFxHooks.ChargeStart();
+            Debug.Log("[ChargeFx] OnChargeStart");
         }
 
         void ReleaseCharge()
@@ -118,6 +158,7 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             Fire(held);
         }
 
@@ -129,6 +170,7 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             return Fire(heldSeconds);
         }
 
@@ -162,92 +204,109 @@ namespace RogueShooter.Player
                 _fx.HideAll();
 
             _recoverUntil = Time.time + ChargeShotRules.RecoverSeconds;
+            _atkUntil = Time.time + ActionSpecP1.PlayerFire.Duration;
+            float onFire = ActionSpecP1.PlayerOnFireSeconds;
+            if (onFire < 0.001f)
+                onFire = 1f / ActionSpecP1.Fps;
+            _queuedDmg = dmg;
+            _queuedKind = kind;
+            _queuedHeld = heldSeconds;
+            _queuedDir = AimDirection();
+            _pendingFire = true;
+            _fireAt = Time.time + onFire;
             Debug.Log($"[ChargeShot] {kind} dmg={dmg:0.0} held={heldSeconds:0.000}s p={p:0.00} " +
-                      $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
+                      $"recover={ChargeShotRules.RecoverSeconds:0.00}s OnFire@{onFire:0.000}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
-
-            ApplyHit(dmg, kind, heldSeconds);
             return kind;
         }
 
-        void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds)
+        void TickQueuedFire()
         {
-            RewardStatHooks.SyncClock(Time.time);
-            Vector3 origin = transform.position;
-            Vector3 aim = AimDirection();
-            MobFourStateAi best = null;
-            MobFourStateAi back = null;
-            float bestDot = 0.35f;
-            float bestD = hitRange;
-            float backD = hitRange;
-            IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
-            for (int i = 0; i < all.Count; i++)
+            if (DodgeRules.BlockFireWhileRolling)
             {
-                MobFourStateAi mob = all[i];
-                if (mob == null || !mob.isActiveAndEnabled)
-                    continue;
-                Vector3 to = mob.transform.position - origin;
-                to.z = 0f;
-                float d = to.magnitude;
-                if (d < 0.01f || d > hitRange)
-                    continue;
-                float dot = Vector3.Dot(aim, to.normalized);
-                if (dot < bestDot)
-                    continue;
-                if (d < bestD)
+                var dodge = GetComponent<PlayerDodge>();
+                if (dodge != null && dodge.IsRolling)
                 {
-                    back = best;
-                    backD = bestD;
-                    bestD = d;
-                    best = mob;
-                }
-                else if (best != null && d < backD)
-                {
-                    backD = d;
-                    back = mob;
-                }
-            }
-
-            BossFightDriver boss = BossFightDriver.Live;
-            if (boss != null && boss.FightStarted && !boss.FightSettled)
-            {
-                Vector3 toBoss = boss.transform.position - origin;
-                toBoss.z = 0f;
-                float bossDist = toBoss.magnitude;
-                bool pointBlank = bossDist < 0.01f;
-                float bossDot = pointBlank ? 1f : Vector3.Dot(aim, toBoss.normalized);
-                if (bossDist <= hitRange && bossDot >= 0.35f && (best == null || bossDist <= bestD))
-                {
-                    bool bossFull = boss.Brain != null && boss.Brain.Hp >= boss.Brain.MaxHp - 0.001f;
-                    float scaled = RewardStatHooks.ModifyOutgoing(_ownedRewards, damage, bossFull, Time.time);
-                    boss.DealDamage(scaled);
-                    ApplyLifesteal(scaled);
-                    bool bossWeak = kind == ChargeShotKind.Crit;
-                    if (bossWeak)
-                        boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
-                    if (FullChargeKnockback.Applies(kind, heldSeconds))
-                    {
-                        float kb = FullChargeKnockback.HitDistance(
-                            null, false, true, bossWeak, _ownedRewards);
-                        boss.ApplyKnockback(aim, kb);
-                    }
-                    Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={scaled:0.0} dist={bossDist:0.00} " +
-                              $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
+                    _pendingFire = false;
                     return;
                 }
             }
 
-            if (best == null)
-            {
-                Debug.Log($"[ChargeShot] miss kind={kind}");
+            if (!_pendingFire || Time.time < _fireAt)
                 return;
-            }
+            _pendingFire = false;
+            Debug.Log("[ActionSpec] OnFire frame=_01 art=" + ActionSpecP1.PlayerFire.Root);
+            Vector3 origin = transform.position;
+            Vector3 aim = _queuedDir.sqrMagnitude > 0.0001f ? _queuedDir : AimDirection();
+            ArrowProjectile.Spawn(origin + aim * 0.45f, aim, _queuedDmg, _queuedKind, _queuedHeld,
+                _ownedRewards, transform, hitRange);
+        }
 
+        /// <summary>Arrow impact on a mob: A's reward-aware hit + 穿透后排 + lifesteal.</summary>
+        public void ResolveArrowHitMob(MobFourStateAi best, Vector3 origin, Vector3 aim,
+            float damage, ChargeShotKind kind, float heldSeconds)
+        {
+            if (best == null)
+                return;
+            RewardStatHooks.SyncClock(Time.time);
             float dealt = HitMob(best, damage, kind, heldSeconds, origin, aim, false);
             float pierceAdd = RewardStatHooks.PierceBackAdd(_ownedRewards);
-            if (back != null && pierceAdd > 0f)
-                dealt += HitMob(back, damage * pierceAdd, kind, heldSeconds, origin, aim, true);
+            if (pierceAdd > 0f)
+            {
+                MobFourStateAi back = FindBehind(best, aim);
+                if (back != null)
+                    dealt += HitMob(back, damage * pierceAdd, kind, heldSeconds, origin, aim, true);
+            }
             ApplyLifesteal(dealt);
+        }
+
+        MobFourStateAi FindBehind(MobFourStateAi first, Vector3 aim)
+        {
+            MobFourStateAi back = null;
+            float backD = hitRange;
+            Vector3 from = first.transform.position;
+            IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                MobFourStateAi mob = all[i];
+                if (mob == null || mob == first || !mob.isActiveAndEnabled)
+                    continue;
+                Vector3 to = mob.transform.position - from;
+                to.z = 0f;
+                float d = to.magnitude;
+                if (d < 0.01f || d > backD)
+                    continue;
+                if (Vector3.Dot(aim, to.normalized) < 0.35f)
+                    continue;
+                backD = d;
+                back = mob;
+            }
+            return back;
+        }
+
+        /// <summary>Arrow impact on the boss: A's reward-aware boss hit + lifesteal.</summary>
+        public void ResolveArrowHitBoss(BossFightDriver boss, Vector3 origin, Vector3 aim,
+            float damage, ChargeShotKind kind, float heldSeconds)
+        {
+            if (boss == null || !boss.FightStarted || boss.FightSettled)
+                return;
+            RewardStatHooks.SyncClock(Time.time);
+            float bossDist = Vector3.Distance(origin, boss.transform.position);
+            bool bossFull = boss.Brain != null && boss.Brain.Hp >= boss.Brain.MaxHp - 0.001f;
+            float scaled = RewardStatHooks.ModifyOutgoing(_ownedRewards, damage, bossFull, Time.time);
+            boss.DealDamage(scaled);
+            ApplyLifesteal(scaled);
+            bool bossWeak = kind == ChargeShotKind.Crit;
+            if (bossWeak)
+                boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
+            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            {
+                float kb = FullChargeKnockback.HitDistance(
+                    null, false, true, bossWeak, _ownedRewards);
+                boss.ApplyKnockback(aim, kb);
+            }
+            Debug.Log($"[ChargeShot] hit BOSS kind={kind} dmg={scaled:0.0} dist={bossDist:0.00} " +
+                      $"hp={boss.Brain.Hp:0}/{boss.Brain.MaxHp:0}");
         }
 
         float HitMob(MobFourStateAi best, float damage, ChargeShotKind kind, float heldSeconds,
@@ -296,6 +355,11 @@ namespace RogueShooter.Player
                 vitals.Heal(heal);
         }
 
+        public Vector3 AimDirectionPublic()
+        {
+            return AimDirection();
+        }
+
         Vector3 AimDirection()
         {
             Camera cam = Camera.main;
@@ -311,6 +375,24 @@ namespace RogueShooter.Player
             return Vector3.right;
         }
 
+        public void CancelChargePublic()
+        {
+            CancelCharge();
+        }
+
+        /// <summary>Roll interrupt: drop charge, pending OnFire, and shot recovery.</summary>
+        public void CancelIntoRoll()
+        {
+            if (DodgeRules.CancelCharge)
+                CancelCharge();
+            _pendingFire = false;
+            if (DodgeRules.CancelShotRecovery)
+            {
+                _recoverUntil = 0f;
+                _atkUntil = 0f;
+            }
+        }
+
         void CancelCharge()
         {
             _charging = false;
@@ -318,6 +400,7 @@ namespace RogueShooter.Player
             _mid = false;
             _green = false;
             _exited = false;
+            _fullPose = false;
             if (_fx != null)
                 _fx.HideAll();
         }

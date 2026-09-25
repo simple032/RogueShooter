@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
+using RogueShooter.Combat;
 
 namespace RogueShooter.Maze
 {
@@ -40,6 +41,7 @@ namespace RogueShooter.Maze
             WritePacingTo(PacingPath());
             WriteLayoutTo(Path.Combine(DefaultDirectory(), "stage1_maze_layout_seed42.txt"), 42);
             WriteTemplatesTo(TemplatesPath());
+            Stage1PlayableSampler.WriteDefault();
             return WriteTo(DefaultPath(), 42);
         }
 
@@ -360,7 +362,9 @@ namespace RogueShooter.Maze
             sb.Append(" conn=").Append(pace.ConnectorReachable ? 1 : 0);
             sb.Append(" move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" ortho=").Append(MazeRules.PlayOrtho.ToString("0"));
-            sb.Append(" portalHold=").Append(MazeRules.PortalHoldSeconds.ToString("0.0")).Append("s");
+            sb.Append(" portalHold=w1-").Append(MazeRules.PortalHoldSeconds.ToString("0.0")).Append("s");
+            sb.Append(" w2-").Append(MazeRules.PortalHoldForWave(2).ToString("0.0")).Append("s");
+            sb.Append("(≤").Append(MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0")).Append(")");
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
             sb.Append(" altar=").Append(MazeRules.AltarWidth.ToString("0")).Append("x")
@@ -423,6 +427,8 @@ namespace RogueShooter.Maze
             string err = Stage1MazeChecks.Run();
             sb.Append("# ").Append(err == null ? Stage1MazeChecks.FormatPass() : "ACCEPTANCE FAIL " + err);
             sb.AppendLine();
+            sb.AppendLine("# playable");
+            sb.Append(Stage1PlayableSampler.Csv());
             return sb.ToString();
         }
     }

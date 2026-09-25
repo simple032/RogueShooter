@@ -15,10 +15,17 @@ namespace RogueShooter.Art
 
         public static float GreenWindowSeconds => GreenExit - GreenEnter;
 
+        public static event Action OnChargeStart;
         public static event Action OnChargeMid;
         public static event Action OnChargeEnterGreen;
         public static event Action OnChargeExitGreen;
+        public static event Action OnChargeFull;
         public static event Action OnCritConfirm;
+
+        public static void ChargeStart()
+        {
+            OnChargeStart?.Invoke();
+        }
 
         public static void ChargeMid()
         {
@@ -33,6 +40,11 @@ namespace RogueShooter.Art
         public static void ChargeExitGreen()
         {
             OnChargeExitGreen?.Invoke();
+        }
+
+        public static void ChargeFull()
+        {
+            OnChargeFull?.Invoke();
         }
 
         public static void CritConfirm()

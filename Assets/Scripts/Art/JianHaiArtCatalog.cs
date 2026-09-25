@@ -4,8 +4,8 @@ using RogueShooter.Layout;
 namespace RogueShooter.Art
 {
     /// <summary>
-    /// STYLE_SPEC_v01 import contract. Hook IDs stay Chest_01 / A_Shared / Shop_01;
-    /// sprites resolve through art roots so PNG drop-in does not rewrite interact IDs.
+    /// STYLE_SPEC_v01 + PHASE1_PLAYABLE_SPEC_v01 import contract.
+    /// Hook IDs stay Chest_01 / A_Shared / Shop_01; sprites resolve through art roots.
     /// </summary>
     public static class JianHaiArtCatalog
     {
@@ -13,6 +13,8 @@ namespace RogueShooter.Art
         public const string Filter = "Point";
         public const string RootFolder = "Assets/Art/JianHai/";
         public const string Naming = "jh_<cat>_<name>[_action][_dir][_frame]";
+        /// <summary>placeholders_p1 numbered 64×64 jh_ PNGs (Characters + Enemies). Unnumbered idle.png aliases are extra.</summary>
+        public const int PlaceholderP1Count = 132;
 
         /// <summary>
         /// Play Mode localScale vs imported PPU=32 canvas (1.0 = full canvas).
@@ -62,14 +64,39 @@ namespace RogueShooter.Art
         public const string FxTipWarm = "jh_fx_charge_arrow_tip";
         public const string FxTipIdle = "jh_fx_charge_arrow_tip_idle";
         public const string FxCritFlash = "jh_fx_crit_flash";
+        /// <summary>PHASE1 flying arrow. Charge tip stays on the string, not the projectile.</summary>
+        public const string ArrowFlight = "jh_proj_arrow_fly";
+        public const string ArrowFlightAlias = "jh_proj_arrow";
+        /// <summary>PHASE1 cult-mage orb 32×32 center pivot. Alias jh_proj_mage_orb / old jh_fx_mage_orb.</summary>
+        public const string OrbFlight = "jh_proj_orb_mage_fly";
+        public const string OrbFlightAlias = "jh_proj_mage_orb";
+        public const string FxMageOrb = OrbFlight;
+        public const string FxMageOrbLegacy = "jh_fx_mage_orb";
+        public const string PlayerRollRoot = "jh_char_archer_roll";
+        public const string FxRollAfterimage = "jh_fx_roll_afterimage";
+        public const string FxWarnBang = "jh_fx_warn_bang";
+        public const string TileFloorSpawn = "jh_tile_floor_spawn";
+        public const string TileFloorCorridor = "jh_tile_floor_corridor";
+        public const string TileFloorAltar = "jh_tile_floor_altar";
+        public const string TileFloorHub = "jh_tile_floor_hub";
+        public const string TileFloorDeadend = "jh_tile_floor_deadend";
+        public const string WallStone = "jh_wall_stone_s";
+        public const string PropGateHub = "jh_prop_gate_hub";
         public const string ReticleChargeIdle = "jh_ui_reticle_charge_idle";
         public const string ReticleChargeGreen = "jh_ui_reticle_charge_green";
 
         public static readonly Vector2Like PivotPlayer = new Vector2Like(0.5f, 0.15f);
+        public static readonly Vector2Like PivotS1 = new Vector2Like(0.5f, 0.15f);
         public static readonly Vector2Like PivotBoss = new Vector2Like(0.5f, 0.12f);
         public static readonly Vector2Like PivotProp = new Vector2Like(0.5f, 0.2f);
         public static readonly Vector2Like PivotTile = new Vector2Like(0.5f, 0.5f);
         public static readonly Vector2Like PivotWall = new Vector2Like(0.5f, 0.0f);
+        /// <summary>PHASE1 arrow: mid-rear of shaft, art faces +X.</summary>
+        public static readonly Vector2Like PivotArrow = new Vector2Like(0.2f, 0.5f);
+        public static readonly Vector2Like PivotOrb = new Vector2Like(0.5f, 0.5f);
+
+        public const int SortingOrderEntity = 20;
+        public const int SortingOrderProjectile = 30;
 
         public struct Vector2Like
         {
@@ -137,6 +164,8 @@ namespace RogueShooter.Art
                 return "Enemies";
             if (artId.StartsWith("jh_boss_", StringComparison.Ordinal))
                 return "Boss";
+            if (artId.StartsWith("jh_proj_", StringComparison.Ordinal))
+                return "Projectiles";
             if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
                 return "Props";
             if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
@@ -176,7 +205,8 @@ namespace RogueShooter.Art
                 return LayerEntity;
             if (artId.StartsWith("jh_prop_", StringComparison.Ordinal))
                 return LayerProp;
-            if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+            if (artId.StartsWith("jh_proj_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_fx_", StringComparison.Ordinal))
                 return LayerFx;
             if (artId.StartsWith("jh_ui_", StringComparison.Ordinal))
                 return LayerUi;
@@ -187,17 +217,50 @@ namespace RogueShooter.Art
             return LayerDecal;
         }
 
+        public static int SortingOrderForArtId(string artId)
+        {
+            if (string.IsNullOrEmpty(artId))
+                return 0;
+            if (artId.StartsWith("jh_proj_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_fx_", StringComparison.Ordinal))
+                return SortingOrderProjectile;
+            if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_enemy_", StringComparison.Ordinal)
+                || artId.StartsWith("jh_boss_", StringComparison.Ordinal))
+                return SortingOrderEntity;
+            return 0;
+        }
+
+        public static string[] ArtSearchIds(string artId)
+        {
+            if (artId == ArrowFlight || artId == ArrowFlightAlias)
+                return new[] { ArrowFlight, ArrowFlightAlias };
+            if (artId == OrbFlight || artId == OrbFlightAlias || artId == FxMageOrbLegacy)
+                return new[] { OrbFlight, OrbFlightAlias, FxMageOrbLegacy };
+            return new[] { artId };
+        }
+
         public static Vector2Like PivotForArtId(string artId)
         {
             if (string.IsNullOrEmpty(artId))
                 return PivotProp;
+            if (artId.StartsWith("jh_proj_arrow", StringComparison.Ordinal))
+                return PivotArrow;
+            if (artId.StartsWith("jh_proj_", StringComparison.Ordinal))
+                return PivotOrb;
+            if (artId.StartsWith("jh_fx_roll_afterimage", StringComparison.Ordinal))
+                return new Vector2Like(0.5f, 0.2f);
+            if (artId.StartsWith("jh_fx_roll_dust", StringComparison.Ordinal))
+                return new Vector2Like(0.5f, 0.1f);
+            if (artId.StartsWith("jh_fx_warn", StringComparison.Ordinal))
+                return new Vector2Like(0.5f, 0f);
             if (artId.StartsWith("jh_boss_", StringComparison.Ordinal))
                 return PivotBoss;
             if (artId.StartsWith("jh_fx_", StringComparison.Ordinal))
                 return PivotTile;
             if (artId.StartsWith("jh_char_", StringComparison.Ordinal)
                 || artId.StartsWith("jh_enemy_", StringComparison.Ordinal))
-                return PivotPlayer;
+                return PivotS1;
             if (artId.StartsWith("jh_wall_", StringComparison.Ordinal))
                 return PivotWall;
             if (artId.StartsWith("jh_tile_", StringComparison.Ordinal)
@@ -212,6 +275,19 @@ namespace RogueShooter.Art
             height = 64;
             if (string.IsNullOrEmpty(artId))
                 return;
+            if (artId.StartsWith("jh_proj_arrow", StringComparison.Ordinal))
+            {
+                width = 32;
+                height = 8;
+                return;
+            }
+            if (artId.StartsWith("jh_proj_", StringComparison.Ordinal)
+                || artId == FxMageOrbLegacy)
+            {
+                width = 32;
+                height = 32;
+                return;
+            }
             if (artId.StartsWith("jh_boss_", StringComparison.Ordinal))
             {
                 width = 128;
