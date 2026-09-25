@@ -42,6 +42,9 @@ namespace RogueShooter.Demo
         readonly List<GameObject> _live = new List<GameObject>();
         readonly List<GameObject> _portals = new List<GameObject>();
         readonly List<GameObject> _world = new List<GameObject>();
+        readonly Dictionary<string, GameObject> _covers = new Dictionary<string, GameObject>();
+        readonly HashSet<string> _revealed = new HashSet<string>();
+        static Sprite _coverSprite;
         CombatRoomSession _active;
         Vector3 _lastGood;
         bool _pass;
@@ -74,6 +77,8 @@ namespace RogueShooter.Demo
         {
             HandleHotkeys();
             ContainPlayer();
+            RevealRoomAtPlayer();
+            LiftPlayerInDoorway();
             TryEnterRoom();
             SweepDead();
         }
@@ -197,6 +202,7 @@ namespace RogueShooter.Demo
             }
 
             SpawnCollisionSolids(root);
+            BuildRoomCovers(root);
 
             MazeNode start = _maze.Find("START");
             Vector3 startPos = start != null
@@ -520,7 +526,7 @@ namespace RogueShooter.Demo
                 return;
             if (_portalWaiting)
                 return;
-            MazeNode inside = RoomAt(_player.position.x, _player.position.y, 1.15f);
+            MazeNode inside = RoomAt(_player.position.x, _player.position.y, LockTriggerInset);
             if (inside == null || !inside.SpawnsEnemies)
                 return;
             CombatRoomSession session;
@@ -560,6 +566,7 @@ namespace RogueShooter.Demo
                     Flash("open " + session.RoomId);
                     if (_active == session)
                         _active = null;
+                    StartCoroutine(AutoOpenAfterClear(session.RoomId));
                 }
             }
 
@@ -834,6 +841,190 @@ namespace RogueShooter.Demo
             Flash("interact " + n.Id);
         }
 
+        /// <summary>
+        /// Chest / altar (and shop, if a room ever has one) open their RewardScreenView as soon as
+        /// the room is cleared — no E. One frame later so the last kill / door open settle first.
+        /// Same ChestAltarDirector offer rules as E; E still reopens after Esc.
+        /// </summary>
+        IEnumerator AutoOpenAfterClear(string roomId)
+        {
+            yield return null;
+            SiteRuntime site = SiteInRoom(roomId);
+            if (site == null || _buildDir == null)
+            {
+                Debug.Log("[AutoOpen] room=" + roomId + " no chest/altar/shop site");
+                yield break;
+            }
+
+            var vitals = _player != null ? _player.GetComponent<PlayerVitals>() : null;
+            if (vitals != null && vitals.IsDead)
+            {
+                Debug.Log("[AutoOpen] room=" + roomId + " skipped: player dead");
+                yield break;
+            }
+
+            bool opened = _buildDir.AutoOpen(site, "clear " + roomId);
+            Debug.Log("[AutoOpen] room=" + roomId + " site=" + site.Id + " kind=" + site.Kind
+                      + " opened=" + opened + (opened ? "" : " (empty chest / claimed altar / already offering)"));
+        }
+
+        SiteRuntime SiteInRoom(string roomId)
+        {
+            for (int i = 0; i < _sites.Count; i++)
+            {
+                SiteRuntime s = _sites[i];
+                if (s == null)
+                    continue;
+                if (s.Kind != SiteKind.Chest && s.Kind != SiteKind.Altar && s.Kind != SiteKind.Shop)
+                    continue;
+                if (s.Def.Note == roomId)
+                    return s;
+            }
+
+            return null;
+        }
+
+        /// <summary>Test hook: invoke the clear → auto-open path for a room.</summary>
+        public void DebugAutoOpen(string roomId)
+        {
+            StartCoroutine(AutoOpenAfterClear(roomId));
+        }
+
+        // ---- §4.5-1/2 room visibility: covered until the player is inside -----------------
+
+        /// <summary>Inset past the room edge (player centre) that counts as "through the door".</summary>
+        public const float RevealInset = 0.3f;
+        /// <summary>
+        /// Lock / wave-start trigger: player centre this far inside the room (PM 2026-09-25, was 1.15).
+        /// Order on entry: reveal at RevealInset (0.3u) → lock + PortalFx at 2.0u, so the room is
+        /// always visible before the doors close and the player is clear of the door strip.
+        /// </summary>
+        public const float LockTriggerInset = 2.0f;
+        /// <summary>Above entities (Entity 20) and props; walls/floor (Ground) sit below anyway.</summary>
+        public const int CoverSortingOrder = 90;
+
+        void BuildRoomCovers(Transform root)
+        {
+            _covers.Clear();
+            _revealed.Clear();
+            for (int i = 0; i < _maze.Nodes.Length; i++)
+            {
+                MazeNode n = _maze.Nodes[i];
+                if (n.Kind == MazeNodeKind.Start)
+                {
+                    _revealed.Add(n.Id);
+                    continue;
+                }
+
+                var go = new GameObject("RoomCover_" + n.Id);
+                go.transform.SetParent(root, false);
+                go.transform.position = new Vector3(n.Center.X, n.Center.Y, -0.5f);
+                go.transform.localScale = new Vector3(n.Width, n.Height, 1f);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = CoverSprite();
+                sr.color = CoverColor();
+                sr.sortingLayerName = JianHaiArtCatalog.LayerEntity;
+                sr.sortingOrder = CoverSortingOrder;
+                _covers[n.Id] = go;
+                _world.Add(go);
+            }
+
+            Debug.Log("[RoomCover] covered=" + _covers.Count + " visible=" + string.Join(",", new List<string>(_revealed).ToArray())
+                      + " inset=" + RevealInset.ToString("0.00") + " layer=" + JianHaiArtCatalog.LayerEntity + "/" + CoverSortingOrder);
+        }
+
+        void RevealRoomAtPlayer()
+        {
+            if (_player == null || _maze == null || _covers.Count == 0)
+                return;
+            MazeNode n = RoomAt(_player.position.x, _player.position.y, RevealInset);
+            if (n == null || _revealed.Contains(n.Id))
+                return;
+            RevealRoom(n.Id);
+        }
+
+        void RevealRoom(string roomId)
+        {
+            if (!_revealed.Add(roomId))
+                return;
+            GameObject cover;
+            if (_covers.TryGetValue(roomId, out cover) && cover != null)
+                cover.SetActive(false);
+            Debug.Log("[RoomCover] reveal " + roomId + " at " + (_player != null ? _player.position.ToString() : "-"));
+        }
+
+        /// <summary>
+        /// Player order while its sprite overlaps a still-covered room (the doorway band: from the
+        /// sprite first poking through the door until the centre is RevealInset inside). Covers stay
+        /// at CoverSortingOrder so mobs / props inside stay hidden; only the player draws above.
+        /// </summary>
+        public const int PlayerDoorwayOrder = CoverSortingOrder + 1;
+
+        bool _playerLifted;
+
+        /// <summary>True while the player is drawn above a covered room's mask (tests).</summary>
+        public bool PlayerLiftedOverCover => _playerLifted;
+
+        void LiftPlayerInDoorway()
+        {
+            if (_player == null)
+                return;
+            var view = _player.GetComponent<EntityAnimView>();
+            var sr = _player.GetComponent<SpriteRenderer>();
+            if (view == null || sr == null)
+                return;
+            bool lift = PlayerOverlapsCover(sr.bounds);
+            if (lift != _playerLifted)
+                Debug.Log("[RoomCover] player " + (lift ? "lifted above" : "back under") + " covers at " + _player.position);
+            _playerLifted = lift;
+            view.SortingOverride = lift ? PlayerDoorwayOrder : 0;
+        }
+
+        /// <summary>Any active cover rect intersecting these bounds (XY only).</summary>
+        public bool PlayerOverlapsCover(Bounds b)
+        {
+            foreach (KeyValuePair<string, GameObject> kv in _covers)
+            {
+                GameObject c = kv.Value;
+                if (c == null || !c.activeSelf)
+                    continue;
+                Vector3 cp = c.transform.position;
+                Vector3 cs = c.transform.localScale;
+                if (b.max.x > cp.x - cs.x * 0.5f && b.min.x < cp.x + cs.x * 0.5f
+                    && b.max.y > cp.y - cs.y * 0.5f && b.min.y < cp.y + cs.y * 0.5f)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>True while the room's interior is still hidden (tests / HUD).</summary>
+        public bool IsRoomCovered(string roomId)
+        {
+            GameObject cover;
+            return _covers.TryGetValue(roomId, out cover) && cover != null && cover.activeSelf;
+        }
+
+        /// <summary>Same as the camera clear colour set in BuildWorld, so a covered room reads as void.</summary>
+        static Color CoverColor()
+        {
+            return new Color(0.04f, 0.045f, 0.06f, 1f);
+        }
+
+        static Sprite CoverSprite()
+        {
+            if (_coverSprite != null)
+                return _coverSprite;
+            var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            tex.SetPixel(0, 0, Color.white);
+            tex.filterMode = FilterMode.Point;
+            tex.Apply(false, false);
+            tex.name = "RoomCover";
+            _coverSprite = Sprite.Create(tex, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+            _coverSprite.name = "RoomCover";
+            return _coverSprite;
+        }
+
         void SetDoors(string roomId, bool locked)
         {
             for (int i = 0; i < _doors.Count; i++)
@@ -1100,6 +1291,8 @@ namespace RogueShooter.Demo
             _roomFloors.Clear();
             _doors.Clear();
             _sites.Clear();
+            _covers.Clear();
+            _revealed.Clear();
             CollisionWorld.Clear();
             _active = null;
             if (_player != null)
@@ -1184,9 +1377,9 @@ namespace RogueShooter.Demo
             var rich = new GUIStyle(style) { richText = true };
             GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 22), "Stage-1 maze · playable combat (v2e)", title);
             GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 78),
-                "WASD · hold LMB/C charge (flying arrow) · Space/LShift dodge i-frame · F strike · E chest/altar\n" +
+                "WASD · hold LMB/C charge (flying arrow) · Space/LShift dodge i-frame · F strike · chest/altar reward auto-opens on clear (E reopens)\n" +
                 "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock → [PortalFx] 1.0s → wave1 → clear → open  |  Chest/Altar: clear w1 → [PortalFx] 2.5s (>2 ≤3) → wave2\n" +
+                "rooms hidden until entered · enter combat → lock → [PortalFx] 1.0s → wave1 → clear → open  |  Chest/Altar: clear w1 → [PortalFx] 2.5s (>2 ≤3) → wave2\n" +
                 "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
                 "dodge DRAFT DodgeRules dur=0.40s iframe=0.04–0.28s (len=0.24 未锁) cd=1.00s dist=6u cancel charge/recover · JianHai PNG · layers Player/Mob/Wall/Door/Projectile",
                 style);
