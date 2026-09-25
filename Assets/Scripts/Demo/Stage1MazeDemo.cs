@@ -19,8 +19,10 @@ namespace RogueShooter.Demo
 {
     /// <summary>
     /// Playable Stage-1 maze skeleton (Spec v0.5). Seeded rooms + lock/clear/open.
-    /// Floors/walls/doors bind Provide-sourced JianHai PNGs under Assets/Art/JianHai/.
-    /// Connector is a stub — S2/S3 mazes are not built.
+    /// Geometry always comes from <see cref="Stage1MazeGen"/> (52×40 rooms, pitch 82/70, ortho and iso):
+    /// <see cref="Stage1GenWorld"/> rasterizes it at runtime into the Floor / Walls / Decor tilemaps, the
+    /// Rigidbody wall footprints and the CollisionWorld wall volumes (ring walls only). The hand-painted
+    /// 52×40 Grid path is gone. Connector is a stub — S2/S3 mazes are not built.
     /// </summary>
     [DefaultExecutionOrder(50)]
     public class Stage1MazeDemo : MonoBehaviour
@@ -37,7 +39,6 @@ namespace RogueShooter.Demo
         BalanceLockData _lock;
         GameObject _stubPrefab;
         readonly Dictionary<string, CombatRoomSession> _sessions = new Dictionary<string, CombatRoomSession>();
-        readonly Dictionary<string, GameObject> _roomFloors = new Dictionary<string, GameObject>();
         readonly List<GameObject> _doors = new List<GameObject>();
         readonly List<GameObject> _live = new List<GameObject>();
         readonly List<GameObject> _portals = new List<GameObject>();
@@ -66,11 +67,9 @@ namespace RogueShooter.Demo
         string _flash = "";
         float _flashUntil;
         RunBuildState _build;
-        Stage1PaintedPlay _painted;
+        Stage1GenWorld _gen;
         Rigidbody2D _playerBody;
-
-        /// <summary>True when the scene's painted tilemap drives geometry (Stage1PaintedPlay + Grid).</summary>
-        bool Painted => _painted != null && _painted.HasPaintedGrid;
+        CameraFollow2D _follow;
         ChestAltarDirector _buildDir;
         readonly List<SiteRuntime> _sites = new List<SiteRuntime>();
 
@@ -97,11 +96,11 @@ namespace RogueShooter.Demo
         {
             ClearWorld();
             seed = newSeed;
-            if (_painted == null)
-                _painted = GetComponent<Stage1PaintedPlay>();
-            _maze = Painted ? _painted.BuildMaze(seed) : Stage1MazeGen.Generate(seed);
-            if (Painted)
-                Debug.Log("[S1Maze] painted layout " + _maze.Signature + " (tilemap geometry, Demo runtime)");
+            if (_gen == null)
+                _gen = GetComponent<Stage1GenWorld>();
+            if (_gen == null)
+                _gen = gameObject.AddComponent<Stage1GenWorld>();
+            _maze = Stage1MazeGen.Generate(seed);
             _pace = Stage1MazeGen.MeasurePacing(_maze, PlaySpeed());
             Debug.Log("[S1Maze] " + Stage1MazeGen.FormatGraph(_maze));
             Debug.Log("[S1Maze] " + Stage1MazeGen.FormatQuota(_maze));
@@ -164,47 +163,12 @@ namespace RogueShooter.Demo
         void BuildWorld()
         {
             Transform root = transform;
-            bool painted = Painted;
-            if (painted)
-            {
-                int wallCells = _painted.BuildWallFootprints();
-                Debug.Log("[S1Maze] wall footprints cells=" + wallCells
-                          + " (1x1 per wall cell; overhang art not solid) playerR=" + Stage1PaintedPlay.PlayerRadius
-                          + " footOffset=" + Stage1PaintedPlay.PlayerFootOffset);
-            }
-            for (int i = 0; !painted && i < _maze.Edges.Length; i++)
-            {
-                MazeEdge e = _maze.Edges[i];
-                MazeVec2[] pts = e.Points;
-                if (pts == null || pts.Length < 2)
-                {
-                    pts = new[] { e.From, e.To };
-                }
-
-                for (int s = 0; s < pts.Length - 1; s++)
-                {
-                    GameObject cor = JianHaiBind.SpawnCorridorTiled(
-                        "Corridor_" + e.FromId + "_" + e.ToId + "_" + s,
-                        new Vector3(pts[s].X, pts[s].Y, 0f),
-                        new Vector3(pts[s + 1].X, pts[s + 1].Y, 0f),
-                        e.Width, JianHaiArtCatalog.TileFloorCorridor, root, 1);
-                    _world.Add(cor);
-                }
-            }
-
+            _gen.Build(_maze, seed);
+            Debug.Log(_gen.PerfLine() + " playerR=" + Stage1GenWorld.PlayerRadius
+                      + " footOffset=" + Stage1GenWorld.PlayerFootOffset + " seed=" + seed);
             for (int i = 0; i < _maze.Nodes.Length; i++)
             {
                 MazeNode n = _maze.Nodes[i];
-                if (!painted)
-                {
-                    GameObject go = JianHaiBind.SpawnTiled(
-                        "Room_" + n.Id,
-                        new Vector3(n.Center.X, n.Center.Y, 1.1f),
-                        new Vector2(n.Width, n.Height),
-                        FloorArt(n.Kind), root, 0, Quaternion.identity, FloorTint(n.Kind));
-                    _roomFloors[n.Id] = go;
-                    _world.Add(go);
-                }
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
                     new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
                 AddProp(n, root);
@@ -223,16 +187,9 @@ namespace RogueShooter.Demo
             player.transform.position = startPos;
             JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
             JianHaiBind.SetLayer(player, JianHaiArtCatalog.LayerEntity, 20);
-            if (painted)
-            {
-                // Single player: physics lives on the Demo-spawned player (before the motor caches it).
-                Stage1PaintedPlay.AttachPhysics(player);
-                _playerBody = player.GetComponent<Rigidbody2D>();
-            }
-            else
-            {
-                _playerBody = null;
-            }
+            // Single player: physics lives on the Demo-spawned player (before the motor caches it).
+            Stage1GenWorld.AttachPhysics(player);
+            _playerBody = player.GetComponent<Rigidbody2D>();
             player.AddComponent<PlayerMotor2D>().Configure(PlaySpeed());
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
@@ -272,7 +229,9 @@ namespace RogueShooter.Demo
             CameraFollow2D follow = cam.GetComponent<CameraFollow2D>();
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
+            follow.RoomBounds = CameraRoomAt;
             follow.SetTarget(player.transform);
+            _follow = follow;
 
             _stubPrefab = new GameObject("StubEnemyPrefab");
             _stubPrefab.transform.SetParent(root, false);
@@ -284,51 +243,31 @@ namespace RogueShooter.Demo
             _world.Add(_stubPrefab);
         }
 
+        /// <summary>
+        /// Lock strips only: MazeCollisionBuilder door volumes (3u on DoorAxis, on the room edge line). Walls —
+        /// room and corridor — come from Stage1GenWorld (ring wall rects in CollisionWorld + Rigidbody footprints).
+        /// </summary>
         void SpawnCollisionSolids(Transform root)
         {
-            bool painted = Painted;
-            List<MazeSolid> solids = painted
-                ? MazeCollisionBuilder.Build(_maze, Stage1PaintedPlay.CorridorWidth)
-                : MazeCollisionBuilder.Build(_maze);
+            List<MazeSolid> solids = MazeCollisionBuilder.Build(_maze);
             for (int i = 0; i < solids.Count; i++)
             {
                 MazeSolid s = solids[i];
-                GameObject go;
-                if (painted && !s.Door)
-                {
-                    // Painted walls: tilemap visual + Stage1PaintedPlay wall footprints for the rigidbody
-                    // player. Keep an invisible AABB so arrows / mobs (CollisionWorld) stop too.
-                    go = new GameObject(s.Name);
-                    go.transform.SetParent(root, false);
-                    go.transform.position = new Vector3(s.X, s.Y, 1f);
-                }
-                else
-                {
-                    string art = s.Door ? JianHaiArtCatalog.PropGateHub : JianHaiArtCatalog.WallStone;
-                    Color tint = s.Door ? new Color(1f, 0.62f, 0.58f, 1f) : Color.white;
-                    int order = s.Door ? 6 : 2;
-                    go = JianHaiBind.SpawnTiled(
-                        s.Name,
-                        new Vector3(s.X, s.Y, s.Door ? 0f : 1f),
-                        new Vector2(s.Width, s.Height),
-                        art, root, order, Quaternion.identity, tint);
-                    if (painted)
-                        JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerProp, order);
-                }
-
-                CollisionVolume.Add(go, s.Layer, !s.Door, s.Width * 0.5f, s.Height * 0.5f);
-                if (s.Door)
-                {
-                    if (painted)
-                    {
-                        // Rigidbody player: a locked door must block physics as well.
-                        var box = go.AddComponent<BoxCollider2D>();
-                        box.size = new Vector2(s.Width, s.Height);
-                    }
-                    go.SetActive(false);
-                    _doors.Add(go);
-                }
-
+                if (!s.Door)
+                    continue;
+                const int order = 6;
+                GameObject go = JianHaiBind.SpawnTiled(
+                    s.Name,
+                    new Vector3(s.X, s.Y, 0f),
+                    new Vector2(s.Width, s.Height),
+                    JianHaiArtCatalog.PropGateHub, root, order, Quaternion.identity, new Color(1f, 0.62f, 0.58f, 1f));
+                JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerProp, order);
+                CollisionVolume.Add(go, s.Layer, false, s.Width * 0.5f, s.Height * 0.5f);
+                // Rigidbody player: a locked door must block physics as well.
+                var box = go.AddComponent<BoxCollider2D>();
+                box.size = new Vector2(s.Width, s.Height);
+                go.SetActive(false);
+                _doors.Add(go);
                 _world.Add(go);
             }
         }
@@ -817,6 +756,7 @@ namespace RogueShooter.Demo
                 warns[i] = l5[i].WarnSeconds;
             }
 
+            NoteL5(l5);
             Debug.Log("[L5Spawn] enforce moved=" + moved + " " + L5Line(node, wave, l5));
             return outSpots;
         }
@@ -1200,20 +1140,6 @@ namespace RogueShooter.Demo
                     vol.SetSolid(locked);
                 d.SetActive(locked);
             }
-
-            GameObject floor;
-            if (_roomFloors.TryGetValue(roomId, out floor) && floor != null)
-            {
-                var sr = floor.GetComponent<SpriteRenderer>();
-                MazeNode room = _maze.Find(roomId);
-                if (sr != null && room != null)
-                {
-                    Color baseC = FloorTint(room.Kind);
-                    sr.color = locked
-                        ? new Color(baseC.r * 0.55f, baseC.g * 0.35f, baseC.b * 0.35f, 1f)
-                        : baseC;
-                }
-            }
         }
 
         void ContainPlayer()
@@ -1325,6 +1251,116 @@ namespace RogueShooter.Demo
             }
 
             return best;
+        }
+
+        /// <summary>Camera clamp box: the room the player centre is in (past RevealInset), else none (corridor).</summary>
+        Rect? CameraRoomAt(Vector3 logic)
+        {
+            if (_maze == null)
+                return null;
+            MazeNode n = RoomAt(logic.x, logic.y, RevealInset);
+            if (n == null)
+                return null;
+            return new Rect(n.Center.X - n.Width * 0.5f, n.Center.Y - n.Height * 0.5f, n.Width, n.Height);
+        }
+
+        // ---- probe / self-check hooks (Stage1GenFlowProbe) ---------------------------------------
+
+        public Stage1Maze Maze => _maze;
+        public int Seed => seed;
+        public Transform PlayerTransform => _player;
+        public Rigidbody2D PlayerBody => _playerBody;
+        public Stage1GenWorld GenWorld => _gen;
+        public CameraFollow2D Follow => _follow;
+        public bool PortalWaiting => _portalWaiting;
+        public int PendingSpawnCount => _pending.Count;
+        public string ActiveRoomId => _active != null ? _active.RoomId : null;
+        public int L5Placed { get; private set; }
+        public int L5Fallbacks { get; private set; }
+        public float L5MinDist { get; private set; } = float.MaxValue;
+        public float L5MinOutside { get; private set; } = float.MaxValue;
+
+        public int LiveCount
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < _live.Count; i++)
+                    if (_live[i] != null) n++;
+                return n;
+            }
+        }
+
+        public IReadOnlyList<GameObject> LiveMobs => _live;
+
+        public void DebugBuild(int newSeed)
+        {
+            L5Placed = 0;
+            L5Fallbacks = 0;
+            L5MinDist = float.MaxValue;
+            L5MinOutside = float.MaxValue;
+            BuildRun(newSeed);
+        }
+
+        public void DebugMovePlayer(Vector3 p)
+        {
+            MovePlayer(p);
+            _lastGood = p;
+        }
+
+        public void DebugKillWave()
+        {
+            KillLiveWave();
+        }
+
+        public bool HasSession(string roomId, out CombatRoomPhase phase)
+        {
+            CombatRoomSession s;
+            if (_sessions.TryGetValue(roomId, out s) && s != null)
+            {
+                phase = s.Phase;
+                return true;
+            }
+
+            phase = CombatRoomPhase.Vacant;
+            return false;
+        }
+
+        /// <summary>True while any lock strip of the room is up.</summary>
+        public bool DoorsUp(string roomId)
+        {
+            for (int i = 0; i < _doors.Count; i++)
+            {
+                GameObject d = _doors[i];
+                if (d != null && d.activeSelf && d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public int DoorCount(string roomId)
+        {
+            int n = 0;
+            for (int i = 0; i < _doors.Count; i++)
+                if (_doors[i] != null && _doors[i].name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
+                    n++;
+            return n;
+        }
+
+        void NoteL5(L5Spot[] l5)
+        {
+            for (int i = 0; i < l5.Length; i++)
+            {
+                L5Placed++;
+                if (l5[i].Fallback)
+                    L5Fallbacks++;
+                else
+                {
+                    L5MinDist = Mathf.Min(L5MinDist, l5[i].DistPlayer);
+                    L5MinOutside = Mathf.Min(L5MinOutside, l5[i].OutsideQuad);
+                }
+            }
         }
 
         void Teleport(string id)
@@ -1448,7 +1484,6 @@ namespace RogueShooter.Demo
             ClearPortals();
             ClearLive();
             _sessions.Clear();
-            _roomFloors.Clear();
             _doors.Clear();
             _sites.Clear();
             _covers.Clear();
@@ -1479,32 +1514,6 @@ namespace RogueShooter.Demo
         float PlaySpeed()
         {
             return moveSpeed > 0.0001f ? moveSpeed : MoveSpeeds.Player;
-        }
-
-        static string FloorArt(MazeNodeKind kind)
-        {
-            switch (kind)
-            {
-                case MazeNodeKind.Start: return JianHaiArtCatalog.TileFloorSpawn;
-                case MazeNodeKind.Altar: return JianHaiArtCatalog.TileFloorAltar;
-                case MazeNodeKind.Chest:
-                case MazeNodeKind.LargeChest: return JianHaiArtCatalog.TileFloorHub;
-                case MazeNodeKind.Connector: return JianHaiArtCatalog.TileFloorCorridor;
-                default: return JianHaiArtCatalog.TileFloorCorridor;
-            }
-        }
-
-        static Color FloorTint(MazeNodeKind kind)
-        {
-            switch (kind)
-            {
-                case MazeNodeKind.Start: return new Color(0.95f, 0.97f, 1f, 1f);
-                case MazeNodeKind.Altar: return new Color(1f, 0.92f, 1f, 1f);
-                case MazeNodeKind.Chest: return new Color(1f, 0.96f, 0.88f, 1f);
-                case MazeNodeKind.LargeChest: return new Color(1f, 0.94f, 0.80f, 1f);
-                case MazeNodeKind.Connector: return new Color(0.88f, 1f, 0.96f, 1f);
-                default: return Color.white;
-            }
         }
 
         void AddWorldLabel(Transform root, string text, Vector3 world)

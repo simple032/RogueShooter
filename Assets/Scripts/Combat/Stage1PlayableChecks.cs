@@ -592,7 +592,8 @@ namespace RogueShooter.Combat
         /// 走廊宽度_建议_v02 + PR#19: every door strip is exactly MazeRules.DoorWidth (corridor − 2 × stub),
         /// centred on MazeRules.DoorAxis, on whole cells, sealed by the wall segments on both sides; the room
         /// cover edge lies on the door strip centre plane and spans the opening; reveal (0.3) is past the
-        /// strip and lock (2.0) is past strip + player box. Procedural seeds and the painted layout.
+        /// strip and lock (2.0) is past strip + player box. Generator seeds 1–12 (the hand-painted layout is gone:
+        /// Stage1 always runs Stage1MazeGen). Then <see cref="CheckGenRaster"/> on the same seeds.
         /// </summary>
         static string CheckDoorGeometry()
         {
@@ -612,14 +613,10 @@ namespace RogueShooter.Combat
             var mazes = new List<Stage1Maze>();
             for (int s = 1; s <= 12; s++)
                 mazes.Add(Stage1MazeGen.Generate(s));
-            mazes.Add(RogueShooter.Demo.Stage1PaintedPlay.BuildPaintedMaze(42));
             for (int m = 0; m < mazes.Count; m++)
             {
                 Stage1Maze maze = mazes[m];
-                bool painted = m == mazes.Count - 1;
-                List<MazeSolid> solids = painted
-                    ? MazeCollisionBuilder.Build(maze, RogueShooter.Demo.Stage1PaintedPlay.CorridorWidth)
-                    : MazeCollisionBuilder.Build(maze);
+                List<MazeSolid> solids = MazeCollisionBuilder.Build(maze, MazeRules.CorridorWidth);
                 for (int i = 0; i < solids.Count; i++)
                 {
                     MazeSolid d = solids[i];
@@ -678,6 +675,136 @@ namespace RogueShooter.Combat
 
                     if (!sealLo || !sealHi)
                         return "lock strip must meet the wall on both sides " + tag;
+                }
+            }
+
+            return CheckGenRaster(mazes);
+        }
+
+        // ---- measured by CheckGenRaster (report) ----
+        public static int GenSeedsChecked;
+        public static int GenMaxWallCells;
+        public static int GenMaxFullFill;
+        public static int GenMaxRasterW;
+        public static int GenMaxRasterH;
+        public static int GenMaxWallRects;
+        public static int GenCorridorProbes;
+
+        /// <summary>
+        /// Runtime geometry = Stage1MazeRaster of the generator: rooms 52×40 on whole cells; every door is a 3-cell
+        /// door line on DoorAxis touching the room with wall stubs on both sides and the lock strip on its room
+        /// edge; walls are exactly the 8-neighbour ring (no gap, nothing else) and the merged wall rects cover
+        /// them; corridor walls are CollisionWorld Wall solids — a mob box cannot step into them and an arrow /
+        /// orb trace across the corridor stops on them (fix: corridor walls were missing from the mob/arrow layer).
+        /// </summary>
+        public static string CheckGenRaster(List<Stage1Maze> mazes)
+        {
+            GenSeedsChecked = 0;
+            GenMaxWallCells = GenMaxFullFill = GenMaxRasterW = GenMaxRasterH = GenMaxWallRects = GenCorridorProbes = 0;
+            for (int m = 0; m < mazes.Count; m++)
+            {
+                Stage1Maze maze = mazes[m];
+                Stage1MazeRaster r = Stage1MazeRaster.Build(maze);
+                string tag = "seed " + maze.Seed + " ";
+                string err = r.CheckRing();
+                if (err != null)
+                    return tag + err;
+                for (int i = 0; i < maze.Nodes.Length; i++)
+                {
+                    MazeNode n = maze.Nodes[i];
+                    if (Math.Abs(n.Width - MazeRules.CombatWidth) > 0.001f || Math.Abs(n.Height - MazeRules.CombatHeight) > 0.001f)
+                        return tag + "room must be " + MazeRules.CombatWidth + "x" + MazeRules.CombatHeight + " " + n.Id;
+                    int x0 = (int)Math.Round(n.Center.X - n.Width * 0.5f), y0 = (int)Math.Round(n.Center.Y - n.Height * 0.5f);
+                    if (Math.Abs(n.Center.X - n.Width * 0.5f - x0) > 0.001f || Math.Abs(n.Center.Y - n.Height * 0.5f - y0) > 0.001f)
+                        return tag + "room edges must be whole cells " + n.Id;
+                    if (r.Get(x0, y0) != MazeCell.Room || r.Get(x0 + (int)n.Width - 1, y0 + (int)n.Height - 1) != MazeCell.Room)
+                        return tag + "room floor missing " + n.Id;
+                }
+
+                List<MazeSolid> solids = MazeCollisionBuilder.Build(maze, MazeRules.CorridorWidth);
+                int doors = 0;
+                for (int i = 0; i < solids.Count; i++)
+                {
+                    MazeSolid d = solids[i];
+                    if (!d.Door)
+                        continue;
+                    doors++;
+                    MazeNode room = maze.Find(d.RoomId), other = maze.Find(d.OtherId);
+                    int side;
+                    float along;
+                    MazeCollisionBuilder.DoorOnWall(room, other, out side, out along);
+                    bool horiz = side == MazeCollisionBuilder.SideN || side == MazeCollisionBuilder.SideS;
+                    int c = Stage1MazeRaster.CellOf(along);
+                    // Door line = the gap cells just outside the room edge.
+                    int line = side == MazeCollisionBuilder.SideN ? (int)Math.Round(room.Center.Y + room.Height * 0.5f)
+                        : side == MazeCollisionBuilder.SideS ? (int)Math.Round(room.Center.Y - room.Height * 0.5f) - 1
+                        : side == MazeCollisionBuilder.SideE ? (int)Math.Round(room.Center.X + room.Width * 0.5f)
+                        : (int)Math.Round(room.Center.X - room.Width * 0.5f) - 1;
+                    int half = (int)Math.Round(MazeRules.DoorWidth) / 2;
+                    for (int k = -half - 1; k <= half + 1; k++)
+                    {
+                        int x = horiz ? c + k : line, y = horiz ? line : c + k;
+                        bool inDoor = Math.Abs(k) <= half;
+                        if (inDoor && !r.IsMouth(x, y))
+                            return tag + "door line must be " + MazeRules.DoorWidth + " floor cells on DoorAxis " + d.Name;
+                        if (!inDoor && !r.IsWall(x, y))
+                            return tag + "door stub must be wall " + d.Name + " at " + x + "," + y;
+                    }
+                }
+
+                if (r.MouthCount != doors * (int)Math.Round(MazeRules.DoorWidth))
+                    return tag + "mouth cells " + r.MouthCount + " != doors " + doors + " × " + MazeRules.DoorWidth;
+
+                err = CheckCorridorWallsBlock(maze, r);
+                if (err != null)
+                    return tag + err;
+                GenSeedsChecked++;
+                GenMaxWallCells = Math.Max(GenMaxWallCells, r.WallCount);
+                GenMaxFullFill = Math.Max(GenMaxFullFill, r.FullFillWallCount);
+                GenMaxRasterW = Math.Max(GenMaxRasterW, r.W);
+                GenMaxRasterH = Math.Max(GenMaxRasterH, r.H);
+                GenMaxWallRects = Math.Max(GenMaxWallRects, r.WallRects.Count);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Corridor wall rects in a CollisionSpace (what Stage1GenWorld registers in CollisionWorld): from each
+        /// corridor segment midpoint a mob box pushed sideways stops at the corridor edge, and arrow / orb traces
+        /// sideways hit a Wall within the half corridor.
+        /// </summary>
+        static string CheckCorridorWallsBlock(Stage1Maze maze, Stage1MazeRaster r)
+        {
+            var space = new CollisionSpace();
+            for (int i = 0; i < r.WallRects.Count; i++)
+            {
+                CellRect rc = r.WallRects[i];
+                space.Add(new CollisionAabb(rc.CenterX, rc.CenterY, rc.W * 0.5f, rc.H * 0.5f), CollisionLayer.Wall, true, "GenWall_" + i);
+            }
+
+            float halfC = MazeRules.CorridorWidth * 0.5f;
+            for (int e = 0; e < maze.Edges.Length; e++)
+            {
+                MazeEdge edge = maze.Edges[e];
+                MazeVec2 a = edge.Points[0], b = edge.Points[edge.Points.Length - 1];
+                bool horiz = Math.Abs(b.X - a.X) >= Math.Abs(b.Y - a.Y);
+                float mx = (a.X + b.X) * 0.5f, my = (a.Y + b.Y) * 0.5f;
+                for (int sgn = -1; sgn <= 1; sgn += 2)
+                {
+                    float dx = horiz ? 0f : sgn, dy = horiz ? sgn : 0f;
+                    float x = mx, y = my;
+                    space.TryMove(ref x, ref y, CollisionRules.MobHalfX, CollisionRules.MobHalfY, dx * 6f, dy * 6f, CollisionRules.SolidMask);
+                    float off = horiz ? Math.Abs(y - my) : Math.Abs(x - mx);
+                    if (off > halfC - CollisionRules.MobHalfX + 0.01f)
+                        return "mob walked into corridor wall " + edge.FromId + "-" + edge.ToId + " off=" + off.ToString("0.00");
+                    CollisionHit arrow = space.Trace(mx, my, dx, dy, 10f, ProjectileRules.ArrowBlockRadius, CollisionLayer.Wall | CollisionLayer.Door);
+                    if (!arrow.Hit || arrow.Layer != CollisionLayer.Wall || arrow.Distance > halfC + 0.01f)
+                        return "arrow must stop on corridor wall " + edge.FromId + "-" + edge.ToId;
+                    CollisionHit orb = space.Trace(mx, my, dx, dy, 10f, ProjectileRules.OrbHitRadius, CollisionLayer.Wall | CollisionLayer.Door);
+                    if (!orb.Hit || orb.Layer != CollisionLayer.Wall || orb.Distance > halfC + 0.01f)
+                        return "orb must stop on corridor wall " + edge.FromId + "-" + edge.ToId;
+                    GenCorridorProbes++;
                 }
             }
 
