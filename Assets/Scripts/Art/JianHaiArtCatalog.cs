@@ -42,10 +42,10 @@ namespace RogueShooter.Art
         public const string PlayerIdle = "jh_char_archer_idle_00";
 
         /// <summary>
-        /// On-disk first skel frame (no numbered sibling under Enemies/).
-        /// This is the melee replacement. Do not request legacy s1 melee names.
+        /// Framed skel idle. The bare jh_enemy_e1_skel_idle.png is a 166-byte solid-colour
+        /// placeholder (red square in play); never request it. Melee replacement; no legacy s1 melee.
         /// </summary>
-        public const string EnemyE1Idle = "jh_enemy_e1_skel_idle";
+        public const string EnemyE1Idle = "jh_enemy_e1_skel_idle_00";
 
         /// <summary>Framed dog idle. Not on main; do not substitute legacy s1 dog frames.</summary>
         public const string EnemyDogIdle = "jh_enemy_dog_idle_00";
@@ -114,7 +114,8 @@ namespace RogueShooter.Art
                 return ShopRoot;
             if (artRoot == "jh_char_archer" && state == "idle")
                 return PlayerIdle;
-            if ((artRoot == "jh_enemy_dog" || artRoot == "jh_enemy_mage") && state == "idle")
+            if ((artRoot == "jh_enemy_dog" || artRoot == "jh_enemy_mage" || artRoot == "jh_enemy_e1_skel")
+                && state == "idle")
                 return artRoot + "_idle_00";
             if (string.IsNullOrEmpty(state))
                 return artRoot;

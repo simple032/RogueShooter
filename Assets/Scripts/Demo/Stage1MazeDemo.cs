@@ -49,6 +49,11 @@ namespace RogueShooter.Demo
         string _flash = "";
         float _flashUntil;
         RunBuildState _build;
+        Stage1PaintedPlay _painted;
+        Rigidbody2D _playerBody;
+
+        /// <summary>True when the scene's painted tilemap drives geometry (Stage1PaintedPlay + Grid).</summary>
+        bool Painted => _painted != null && _painted.HasPaintedGrid;
 
         IEnumerator Start()
         {
@@ -71,7 +76,11 @@ namespace RogueShooter.Demo
         {
             ClearWorld();
             seed = newSeed;
-            _maze = Stage1MazeGen.Generate(seed);
+            if (_painted == null)
+                _painted = GetComponent<Stage1PaintedPlay>();
+            _maze = Painted ? _painted.BuildMaze(seed) : Stage1MazeGen.Generate(seed);
+            if (Painted)
+                Debug.Log("[S1Maze] painted layout " + _maze.Signature + " (tilemap geometry, Demo runtime)");
             _pace = Stage1MazeGen.MeasurePacing(_maze, PlaySpeed());
             Debug.Log("[S1Maze] " + Stage1MazeGen.FormatGraph(_maze));
             Debug.Log("[S1Maze] " + Stage1MazeGen.FormatQuota(_maze));
@@ -135,7 +144,15 @@ namespace RogueShooter.Demo
         {
             Transform root = transform;
             Color floor = new Color(0.165f, 0.188f, 0.220f);
-            for (int i = 0; i < _maze.Edges.Length; i++)
+            bool painted = Painted;
+            if (painted)
+            {
+                int wallCells = _painted.BuildWallFootprints();
+                Debug.Log("[S1Maze] wall footprints cells=" + wallCells
+                          + " (1x1 per wall cell; overhang art not solid) playerR=" + Stage1PaintedPlay.PlayerRadius
+                          + " footOffset=" + Stage1PaintedPlay.PlayerFootOffset);
+            }
+            for (int i = 0; painted == false && i < _maze.Edges.Length; i++)
             {
                 MazeEdge e = _maze.Edges[i];
                 MazeVec2[] pts = e.Points;
@@ -159,16 +176,19 @@ namespace RogueShooter.Demo
             for (int i = 0; i < _maze.Nodes.Length; i++)
             {
                 MazeNode n = _maze.Nodes[i];
-                Color c = FloorColor(n.Kind);
-                GameObject go = DemoPrimitives.Quad(
-                    "Room_" + n.Id,
-                    new Vector3(n.Center.X, n.Center.Y, 1.1f),
-                    new Vector2(n.Width, n.Height),
-                    c, 0, root);
-                JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerGround, 0);
-                _roomFloors[n.Id] = go;
-                _world.Add(go);
-                AddWalls(n, root);
+                if (!painted)
+                {
+                    Color c = FloorColor(n.Kind);
+                    GameObject go = DemoPrimitives.Quad(
+                        "Room_" + n.Id,
+                        new Vector3(n.Center.X, n.Center.Y, 1.1f),
+                        new Vector2(n.Width, n.Height),
+                        c, 0, root);
+                    JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerGround, 0);
+                    _roomFloors[n.Id] = go;
+                    _world.Add(go);
+                    AddWalls(n, root);
+                }
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
                     new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
                 AddProp(n, root);
@@ -185,6 +205,17 @@ namespace RogueShooter.Demo
             GameObject player = new GameObject("Player");
             player.transform.position = startPos;
             JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
+            JianHaiBind.SetLayer(player, JianHaiArtCatalog.LayerEntity, 20);
+            if (painted)
+            {
+                // Single player: physics lives on the Demo-spawned player (before the motor caches it).
+                Stage1PaintedPlay.AttachPhysics(player);
+                _playerBody = player.GetComponent<Rigidbody2D>();
+            }
+            else
+            {
+                _playerBody = null;
+            }
             player.AddComponent<PlayerMotor2D>().Configure(PlaySpeed());
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
@@ -304,6 +335,12 @@ namespace RogueShooter.Demo
                 new Color(0.72f, 0.16f, 0.16f), 6, root);
             if (Mathf.Abs(dir.x) > Mathf.Abs(dir.y))
                 door.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+            if (Painted)
+            {
+                // Physics player: locked doors must also block the rigidbody.
+                JianHaiBind.SetLayer(door, JianHaiArtCatalog.LayerProp, 6);
+                door.AddComponent<BoxCollider2D>();
+            }
             door.SetActive(false);
             _doors.Add(door);
             _world.Add(door);
@@ -644,6 +681,20 @@ namespace RogueShooter.Demo
             if (_player == null || _maze == null)
                 return;
             Vector3 p = _player.position;
+            if (_playerBody != null)
+            {
+                // Physics player: walls and locked doors collide. No per-frame pull-back;
+                // only recover when the player is clearly off the level (teleport / tunnelling).
+                if (IsInsideLevel(p.x, p.y, SafetyMargin))
+                    _lastGood = p;
+                else
+                {
+                    Debug.LogWarning("[S1Maze] safety recover player off-level at " + p + " -> " + _lastGood);
+                    MovePlayer(_lastGood);
+                }
+                return;
+            }
+
             if (_active != null && _active.DoorsLocked)
             {
                 MazeNode room = _maze.Find(_active.RoomId);
@@ -651,7 +702,7 @@ namespace RogueShooter.Demo
                 {
                     p.x = Mathf.Clamp(p.x, room.Center.X - room.Width * 0.5f + 0.45f, room.Center.X + room.Width * 0.5f - 0.45f);
                     p.y = Mathf.Clamp(p.y, room.Center.Y - room.Height * 0.5f + 0.45f, room.Center.Y + room.Height * 0.5f - 0.45f);
-                    _player.position = p;
+                    MovePlayer(p);
                 }
 
                 _lastGood = _player.position;
@@ -664,7 +715,39 @@ namespace RogueShooter.Demo
                 return;
             }
 
-            _player.position = _lastGood;
+            MovePlayer(_lastGood);
+        }
+
+        void MovePlayer(Vector3 p)
+        {
+            if (_player == null)
+                return;
+            _player.position = p;
+            if (_playerBody != null)
+            {
+                _playerBody.position = p;
+                _playerBody.velocity = Vector2.zero;
+            }
+        }
+
+        const float SafetyMargin = 1.0f;
+
+        /// <summary>Rooms/corridors grown by <paramref name="margin"/> (safety fallback only).</summary>
+        bool IsInsideLevel(float x, float y, float margin)
+        {
+            for (int i = 0; i < _maze.Nodes.Length; i++)
+            {
+                if (_maze.Nodes[i].Contains(x, y, -margin))
+                    return true;
+            }
+
+            for (int i = 0; i < _maze.Edges.Length; i++)
+            {
+                if (_maze.Edges[i].Contains(x, y, margin))
+                    return true;
+            }
+
+            return false;
         }
 
         bool IsWalkable(float x, float y)
@@ -715,7 +798,7 @@ namespace RogueShooter.Demo
             MazeNode n = _maze != null ? _maze.Find(id) : null;
             if (n == null || _player == null)
                 return;
-            _player.position = new Vector3(n.Center.X, n.Center.Y, 0f);
+            MovePlayer(new Vector3(n.Center.X, n.Center.Y, 0f));
             _lastGood = _player.position;
             Debug.Log("[Teleport] " + id + " " + n.Center);
         }

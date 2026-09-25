@@ -62,8 +62,8 @@ namespace RogueShooter.Art
             if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.PlayerIdle)
                 != "Assets/Art/JianHai/Characters/jh_char_archer_idle_00.png")
                 return "player idle path";
-            if (JianHaiArtCatalog.EnemyE1Idle != "jh_enemy_e1_skel_idle")
-                return "skel idle";
+            if (JianHaiArtCatalog.EnemyE1Idle != "jh_enemy_e1_skel_idle_00")
+                return "skel idle must be framed _00 (bare idle is a solid placeholder)";
             if (JianHaiArtCatalog.EnemyDogIdle != "jh_enemy_dog_idle_00")
                 return "dog idle";
             if (JianHaiArtCatalog.EnemyMageIdle != "jh_enemy_mage_idle_00")

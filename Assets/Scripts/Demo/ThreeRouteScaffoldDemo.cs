@@ -631,8 +631,6 @@ namespace RogueShooter.Demo
 
             DrawIdPanel();
             DrawViewBorder();
-            if (_buildDir != null)
-                _buildDir.DrawOfferGui();
         }
 
         static void DrawMobStates(int x, int y, int w, GUIStyle style)
