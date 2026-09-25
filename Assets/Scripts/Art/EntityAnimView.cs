@@ -25,6 +25,29 @@ namespace RogueShooter.Art
         string _bound;
         string _dir = "s";
         string _grip;
+        int _attackCycleSeen = -1;
+        int _naturalOrder;
+        int _sortingOverride;
+        float _movingUntil;
+
+        /// <summary>Non-AI fallback: counts as walking above this speed (u/s), held MoveHoldSeconds.</summary>
+        public const float WalkSpeedThreshold = 0.3f;
+
+        /// <summary>
+        /// Sorting-order override (0 = none). Re-applied after every frame bind, because
+        /// JianHaiSprites.Bind resets the order from the art id. Stage1 uses it to lift the player above
+        /// a still-covered room's mask while it stands in that doorway.
+        /// </summary>
+        public int SortingOverride
+        {
+            get => _sortingOverride;
+            set => _sortingOverride = value;
+        }
+
+        /// <summary>Clip restarts caused by a new attack cycle (tests).</summary>
+        public int AttackRestarts { get; private set; }
+        /// <summary>Time the current clip started (tests).</summary>
+        public float ClipStart => _clipStart;
 
         public EntityAnimState State => _state;
         public float Facing => _facing;
@@ -78,17 +101,34 @@ namespace RogueShooter.Art
             ActionClipDef clip = player
                 ? EntityAnimCatalog.PlayerClip(_state)
                 : EntityAnimCatalog.EnemyClip(_state, kindId);
-            int frame = FrameFor(clip, _state);
-            if (_state != _clipState)
+            bool restart = _state != _clipState;
+            // Attack/cast: replay from frame 0 at the start of EVERY attack cycle (windup), not only
+            // on the state change — otherwise the one-shot clip holds its last frame (mage cast_07)
+            // while the AI keeps firing every interval.
+            int cycle = AttackCycleNow();
+            if (cycle != _attackCycleSeen)
+            {
+                if (!restart && IsAttackState(_state) && _attackCycleSeen >= 0)
+                {
+                    restart = true;
+                    AttackRestarts++;
+                }
+                _attackCycleSeen = cycle;
+            }
+
+            if (restart)
             {
                 _clipState = _state;
                 _clipStart = Time.time;
-                frame = FrameFor(clip, _state);
             }
 
+            int frame = FrameFor(clip, _state);
             BindClip(_state, frame, _dir);
             if (_sr != null)
             {
+                int want = _sortingOverride != 0 ? _sortingOverride : _naturalOrder;
+                if (_sr.sortingOrder != want)
+                    _sr.sortingOrder = want;
                 // Only skip flip when east/west frames exist. walk_s (and missing n/e/w)
                 // falls back to south art — ACTION 缺向先镜像.
                 bool bakedSide = _bound != null
@@ -96,6 +136,28 @@ namespace RogueShooter.Art
                         || _bound.IndexOf("_w_", System.StringComparison.Ordinal) >= 0);
                 _sr.flipX = !bakedSide && _facing < 0f;
             }
+        }
+
+        static bool IsAttackState(EntityAnimState s)
+        {
+            return s == EntityAnimState.Attack || s == EntityAnimState.Cast;
+        }
+
+        int AttackCycleNow()
+        {
+            if (player)
+                return 0;
+            var ai = GetComponent<MobFourStateAi>();
+            return ai != null ? ai.AttackCycle : 0;
+        }
+
+        /// <summary>Velocity-based moving test with a short hold (no single-frame displacement threshold).</summary>
+        bool MovingByVelocity(Vector3 delta)
+        {
+            float dt = Time.deltaTime;
+            if (dt > 0.00001f && delta.magnitude / dt >= WalkSpeedThreshold)
+                _movingUntil = Time.time + MobFourStateAi.MoveHoldSeconds;
+            return Time.time <= _movingUntil;
         }
 
         void TickPlayer(Vector3 delta, ref Vector3 face)
@@ -123,7 +185,7 @@ namespace RogueShooter.Art
                 _state = EntityAnimState.Charge;
             else if (motor != null && motor.HasMoveInput)
                 _state = EntityAnimState.Walk;
-            else if (delta.sqrMagnitude > 0.0004f)
+            else if (MovingByVelocity(delta))
                 _state = EntityAnimState.Walk;
             else
                 _state = EntityAnimState.Idle;
@@ -152,7 +214,7 @@ namespace RogueShooter.Art
 
             if (ai == null)
             {
-                _state = delta.sqrMagnitude > 0.0004f ? EntityAnimState.Walk : EntityAnimState.Idle;
+                _state = MovingByVelocity(delta) ? EntityAnimState.Walk : EntityAnimState.Idle;
                 return;
             }
 
@@ -172,7 +234,8 @@ namespace RogueShooter.Art
                     _state = EntityAnimState.Walk;
                     break;
                 default:
-                    _state = delta.sqrMagnitude > 0.0004f ? EntityAnimState.Walk : EntityAnimState.Idle;
+                    // Patrol: movement intent from the AI (held MoveHoldSeconds), not per-frame displacement.
+                    _state = ai.IsMoving ? EntityAnimState.Walk : EntityAnimState.Idle;
                     break;
             }
         }
@@ -209,12 +272,17 @@ namespace RogueShooter.Art
                 return;
             _bound = art;
             JianHaiSprites.Bind(_sr, art);
+            _naturalOrder = _sr.sortingOrder;
         }
 
         void Ensure()
         {
             if (_sr == null)
+            {
                 _sr = GetComponent<SpriteRenderer>();
+                if (_sr != null)
+                    _naturalOrder = _sr.sortingOrder;
+            }
         }
 
         public static EntityAnimView Add(GameObject go, bool isPlayer)

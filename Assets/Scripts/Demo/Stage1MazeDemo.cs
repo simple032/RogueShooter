@@ -78,6 +78,7 @@ namespace RogueShooter.Demo
             HandleHotkeys();
             ContainPlayer();
             RevealRoomAtPlayer();
+            LiftPlayerInDoorway();
             TryEnterRoom();
             SweepDead();
         }
@@ -950,6 +951,51 @@ namespace RogueShooter.Demo
             if (_covers.TryGetValue(roomId, out cover) && cover != null)
                 cover.SetActive(false);
             Debug.Log("[RoomCover] reveal " + roomId + " at " + (_player != null ? _player.position.ToString() : "-"));
+        }
+
+        /// <summary>
+        /// Player order while its sprite overlaps a still-covered room (the doorway band: from the
+        /// sprite first poking through the door until the centre is RevealInset inside). Covers stay
+        /// at CoverSortingOrder so mobs / props inside stay hidden; only the player draws above.
+        /// </summary>
+        public const int PlayerDoorwayOrder = CoverSortingOrder + 1;
+
+        bool _playerLifted;
+
+        /// <summary>True while the player is drawn above a covered room's mask (tests).</summary>
+        public bool PlayerLiftedOverCover => _playerLifted;
+
+        void LiftPlayerInDoorway()
+        {
+            if (_player == null)
+                return;
+            var view = _player.GetComponent<EntityAnimView>();
+            var sr = _player.GetComponent<SpriteRenderer>();
+            if (view == null || sr == null)
+                return;
+            bool lift = PlayerOverlapsCover(sr.bounds);
+            if (lift != _playerLifted)
+                Debug.Log("[RoomCover] player " + (lift ? "lifted above" : "back under") + " covers at " + _player.position);
+            _playerLifted = lift;
+            view.SortingOverride = lift ? PlayerDoorwayOrder : 0;
+        }
+
+        /// <summary>Any active cover rect intersecting these bounds (XY only).</summary>
+        public bool PlayerOverlapsCover(Bounds b)
+        {
+            foreach (KeyValuePair<string, GameObject> kv in _covers)
+            {
+                GameObject c = kv.Value;
+                if (c == null || !c.activeSelf)
+                    continue;
+                Vector3 cp = c.transform.position;
+                Vector3 cs = c.transform.localScale;
+                if (b.max.x > cp.x - cs.x * 0.5f && b.min.x < cp.x + cs.x * 0.5f
+                    && b.max.y > cp.y - cs.y * 0.5f && b.min.y < cp.y + cs.y * 0.5f)
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>True while the room's interior is still hidden (tests / HUD).</summary>
