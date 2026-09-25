@@ -22,7 +22,8 @@ namespace RogueShooter.Vision
         {
             if (target == null)
                 return;
-            transform.position = target.position + offset;
+            // Iso on: the camera frames the isometric view plane (logic → view). Iso off: identity.
+            transform.position = ViewSpace.LogicToCamera(target.position) + offset;
         }
 
         void LateUpdate()

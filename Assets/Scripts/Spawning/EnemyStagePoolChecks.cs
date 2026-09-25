@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using RogueShooter.Ai;
 using RogueShooter.Player;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Spawning
 {
@@ -81,8 +82,9 @@ namespace RogueShooter.Spawning
                 return "cult mage orb must be 12, not walk×2=7.2";
             if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.GrandMage, 3.3f) - 12f) > 0.001f)
                 return "grand orb must be 12";
-            if (Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
-                return "orb range ≤ camera width×0.7";
+            if (Math.Abs(EnemyCombatRules.OrbMaxRange(12f) - L5Rules.OrbRangeU) > 0.001f
+                || Math.Abs(L5Rules.DefaultOrbRangeU - 12f) > 0.001f)
+                return "L5 orb range 12u / 1.0s (replaces camera width×0.7)";
             if (EnemyCombatRules.LungeDamageMinEasyStub != 30
                 || EnemyCombatRules.LungeDamageMaxEasyStub != 40)
                 return "lunge easy DRAFT [30,40]";
@@ -112,8 +114,8 @@ namespace RogueShooter.Spawning
                 return "ring full @0.70";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
                 return "shot recovery 0.2s";
-            if (Math.Abs(EnemyCombatRules.PlayOrthoSize - 6f) > 0.001f)
-                return "play ortho 6";
+            if (!L5VisionChecks.OrthoMatchesMode(EnemyCombatRules.PlayOrthoSize))
+                return "play ortho 6 ortho / 5.25 iso";
 
             if (EnemyKindCatalog.StubHp(EnemyKindIds.Normal) != 39)
                 return "DRAFT HP normal mid 39";
@@ -301,8 +303,8 @@ namespace RogueShooter.Spawning
             if (EnemyCombatRules.OrbCount(EnemyKindIds.CultMage) != 1)
                 return "S2 cult mage same as S1: single linear orb";
             if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f
-                || Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
-                return "S2 cult mage orb player×2=12 / camWidth×0.7 (same as S1)";
+                || Math.Abs(EnemyCombatRules.OrbMaxRange(12f) - L5Rules.OrbRangeU) > 0.001f)
+                return "S2 cult mage orb player×2=12 / L5 range 12u (same as S1)";
             if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2))
                 return "S2 cult mage must not lunge";
 

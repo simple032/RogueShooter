@@ -1,5 +1,6 @@
 using System;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Maze
 {
@@ -228,7 +229,8 @@ namespace RogueShooter.Maze
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
-        public const float PlayOrtho = 6f;
+        /// <summary>Forwards to <see cref="CameraViewService.PlayOrthoSize"/> (6 ortho / 5.25 iso).</summary>
+        public static float PlayOrtho => CameraViewService.PlayOrthoSize;
         /// <summary>v2e. Pitch = room + 30u gap. START door is a shorter feel hop (~18u), not a clock lock.</summary>
         public const float CombatWidth = 52f;
         public const float CombatHeight = 40f;
@@ -238,7 +240,13 @@ namespace RogueShooter.Maze
         public const float HubHeight = 40f;
         public const float AltarWidth = 52f;
         public const float AltarHeight = 40f;
-        public const float CorridorWidth = 8f;
+        /// <summary>
+        /// 走廊宽度_建议_v02 (定稿 2026-09-25): corridor 5u, door opening 3u, 1u wall stub on
+        /// each side (3 + 1 + 1 = 5). All whole cells (1 cell = 1u = 32px).
+        /// </summary>
+        public const float CorridorWidth = 5f;
+        public const float DoorWidth = 3f;
+        public const float DoorStub = 1f;
         public const float CorridorSegMax = 30f;
         public const float CorridorSegMaxSeconds = 5f;
         /// <summary>START→N口 door gap feel (~3s @ 6). Not an ACCEPTANCE clock.</summary>
@@ -266,6 +274,26 @@ namespace RogueShooter.Maze
             if (hold < 0f)
                 hold = 0f;
             return hold;
+        }
+
+        /// <summary>
+        /// Door / corridor centreline on the wall axis (Y for E/W walls, X for N/S walls).
+        /// Odd widths (5u corridor, 3u door) sit on a cell centre so every corridor edge,
+        /// door edge and stub lands on a whole cell: an integer room centre shifts +0.5.
+        /// </summary>
+        public static float DoorAxis(float roomCentre)
+        {
+            bool odd = ((int)Math.Round(CorridorWidth) & 1) == 1;
+            return odd
+                ? (float)Math.Floor(roomCentre) + 0.5f
+                : (float)Math.Round(roomCentre);
+        }
+
+        /// <summary>Door opening for a corridor of <paramref name="corridorWidth"/>: corridor − 2 × stub.</summary>
+        public static float DoorOpeningFor(float corridorWidth)
+        {
+            float d = corridorWidth - 2f * DoorStub;
+            return d > 0.5f ? d : corridorWidth;
         }
 
         public const int QuotaNormal = 2;

@@ -394,14 +394,18 @@ namespace RogueShooter.Player
         {
             Camera cam = Camera.main;
             if (cam != null)
-            {
-                Vector3 world = CameraViewMath.ScreenToWorldOnPlayPlane(cam, Input.mousePosition);
-                Vector3 dir = world - transform.position;
-                dir.z = 0f;
-                if (dir.sqrMagnitude > 0.01f)
-                    return dir.normalized;
-            }
+                return AimFrom(ViewSpace.ScreenPixelToLogic(cam, Input.mousePosition), transform.position);
 
+            return Vector3.right;
+        }
+
+        /// <summary>Logic-space unit aim from <paramref name="origin"/> to a logic ground point.</summary>
+        public static Vector3 AimFrom(Vector3 logicTarget, Vector3 origin)
+        {
+            Vector3 dir = logicTarget - origin;
+            dir.z = 0f;
+            if (dir.sqrMagnitude > 0.01f)
+                return dir.normalized;
             return Vector3.right;
         }
 

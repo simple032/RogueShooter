@@ -26,6 +26,8 @@ namespace RogueShooter.Maze
             if (err != null) return err;
             err = Stage1PlayableChecks.Run();
             if (err != null) return err;
+            err = L5VisionChecks.Run();
+            if (err != null) return "L5: " + err;
             return null;
         }
 
@@ -40,7 +42,7 @@ namespace RogueShooter.Maze
             sb.Append("chestAltar=2waves clear-w1→PortalFx→2.5s(>2 ≤3)→w2 ");
             sb.Append("normal=1wave+[PortalFx]1.0s ");
             sb.Append("pool=S1 Normal/Chest→N Altar→E ");
-            sb.Append("ortho=6 move=6 ");
+            sb.Append("ortho=").Append(CameraViewService.PlayOrthoSize.ToString("0.##")).Append(" move=6 ");
             sb.Append("rooms=52x40 pitch=82/70 gap=30u startDoor~18u ");
             sb.Append("startN=fixedNormal shuffle4=Altar+Chest×2+Normal noLargeChest ");
             sb.Append("connFollowsAltar orthoStraight diagFoldOnly ");
@@ -58,10 +60,13 @@ namespace RogueShooter.Maze
 
         static string CheckFeelLocks()
         {
-            if (Math.Abs(MazeRules.PlayOrtho - 6f) > 0.001f
-                || Math.Abs(CameraViewService.PlayOrthoSize - 6f) > 0.001f
-                || Math.Abs(EnemyCombatRules.PlayOrthoSize - 6f) > 0.001f)
-                return "play ortho 6";
+            // Single ortho source: every reader forwards to CameraViewService.PlayOrthoSize
+            // (6 orthographic; IsoConfig.OrthoSizeForAspect / 5.25 isometric).
+            float ortho = CameraViewService.PlayOrthoSize;
+            if (Math.Abs(MazeRules.PlayOrtho - ortho) > 0.001f
+                || Math.Abs(EnemyCombatRules.PlayOrthoSize - ortho) > 0.001f
+                || !L5VisionChecks.OrthoMatchesMode(ortho))
+                return "play ortho single source (6 ortho / 5.25 iso)";
             if (Math.Abs(MazeRules.PlayMoveSpeed - 6f) > 0.001f
                 || Math.Abs(EnemyCombatRules.WalkPlayerStub - 6f) > 0.001f
                 || Math.Abs(EnemyPoolDraft.DraftPlayerMove - 6f) > 0.001f)

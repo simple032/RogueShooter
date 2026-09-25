@@ -135,8 +135,9 @@ namespace RogueShooter.Ai
                 if (data.mobPatrolRadius > 0f) _patrolRadius = data.mobPatrolRadius;
             }
 
-            if (profile.RangedOrb && detect < attack + 0.5f)
-                detect = attack + 1.0f;
+            // L5: Patrol → Alert radius is a logic distance from L5Rules (melee 8u / ranged 10u),
+            // independent of the camera size; replaces the lock-CSV mobDetectRadius (5.5).
+            detect = DetectRadiusFor(profile.RangedOrb, attack);
 
             var stub = GetComponent<StubEnemy>();
             string kind = stub != null ? stub.KindId : "E1";
@@ -418,8 +419,8 @@ namespace RogueShooter.Ai
             DistToPlayer = delta.magnitude;
             if (DistToPlayer <= _brain.DetectRadius)
                 _lastKnown = _player.position;
-            if (delta.sqrMagnitude > 0.0001f && _brain.State != MobAiState.Patrol)
-                _facing = delta.normalized;
+            if (_brain.State != MobAiState.Patrol)
+                _facing = FacingToward(delta, _facing);
 
             TickShield();
 
@@ -538,6 +539,52 @@ namespace RogueShooter.Ai
                 return;
             }
 
+            TryStartWindup(profile);
+        }
+
+        /// <summary>L5 Patrol → Alert radius (logic u). Ranged keeps the legacy "≥ attack + 1" guard.</summary>
+        public static float DetectRadiusFor(bool ranged, float attackRange)
+        {
+            float detect = L5Rules.AggroFor(ranged);
+            if (ranged && detect < attackRange + 0.5f)
+                detect = attackRange + 1.0f;
+            return detect;
+        }
+
+        /// <summary>Logic-space unit facing toward <paramref name="delta"/>; keeps previous (normalized) when zero.</summary>
+        public static Vector3 FacingToward(Vector3 delta, Vector3 previous)
+        {
+            delta.z = 0f;
+            if (delta.sqrMagnitude > 0.0001f)
+                return delta.normalized;
+            previous.z = 0f;
+            return previous.sqrMagnitude > 0.0001f ? previous.normalized : Vector3.right;
+        }
+
+        /// <summary>L5 hard rule: a ranged caster fires only from inside the screen view quad.</summary>
+        public static bool RangedMayFire(bool ranged, bool insideViewQuad)
+        {
+            return !ranged || !L5Rules.RangedFireRequiresInView || insideViewQuad;
+        }
+
+        /// <summary>Count of windups / fires refused by the view rule (probe / log).</summary>
+        public int BlockedFireCount { get; private set; }
+
+        bool FireBlockedByView(EnemyKindProfile profile)
+        {
+            if (RangedMayFire(profile.RangedOrb, ViewSpace.InViewQuad(transform.position)))
+                return false;
+            BlockedFireCount++;
+            _inWindup = false;
+            SetBang(false);
+            _cooldownLeft = Mathf.Max(0.02f, L5Rules.BlockedFireRetrySeconds);
+            return true;
+        }
+
+        void TryStartWindup(EnemyKindProfile profile)
+        {
+            if (FireBlockedByView(profile))
+                return;
             StartWindup(profile);
         }
 
@@ -569,7 +616,9 @@ namespace RogueShooter.Ai
                     return;
                 if (profile.RangedOrb && LiveOrbCount() > 0)
                     return;
-                StartWindup(profile);
+                TryStartWindup(profile);
+                if (!_inWindup)
+                    return;
             }
 
             if (!_inWindup)
@@ -579,6 +628,8 @@ namespace RogueShooter.Ai
             if (_windupLeft > 0f)
                 return;
 
+            if (FireBlockedByView(profile))
+                return;
             _inWindup = false;
             SetBang(false);
             if (profile.RangedOrb)
@@ -612,10 +663,8 @@ namespace RogueShooter.Ai
             dir.Normalize();
             float walk = _chaseSpeed > 0.01f ? _chaseSpeed : profile.WalkSpeedPlayStub;
             float speed = EnemyCombatRules.OrbSpeedForKind(CurrentKindId(), walk);
-            Camera cam = Camera.main;
-            float ortho = cam != null ? cam.orthographicSize : EnemyCombatRules.PlayOrthoSize;
-            float aspect = cam != null ? CameraViewMath.ResolveAspect(cam) : EnemyCombatRules.DefaultAspect;
-            float maxRange = EnemyCombatRules.OrbMaxRange(ortho, aspect);
+            // L5: logic range 12u / flight 1.0s (not camera width × 0.7).
+            float maxRange = EnemyCombatRules.OrbMaxRange(speed);
             float dmg = HitDamage();
             int n = EnemyCombatRules.OrbCount(CurrentKindId());
             for (int i = 0; i < n; i++)
@@ -639,7 +688,7 @@ namespace RogueShooter.Ai
             }
 
             _lastDealt = dmg;
-            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
+            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, L5 range/flight)");
             Debug.Log("[ActionSpec] OnOrbSpawn kind=" + CurrentKindId()
                       + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
         }

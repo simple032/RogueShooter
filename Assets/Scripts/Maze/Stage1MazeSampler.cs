@@ -361,7 +361,7 @@ namespace RogueShooter.Maze
             sb.Append("[S1Maze] reachable=").Append(pace.AllReachable ? 1 : 0);
             sb.Append(" conn=").Append(pace.ConnectorReachable ? 1 : 0);
             sb.Append(" move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
-            sb.Append(" ortho=").Append(MazeRules.PlayOrtho.ToString("0"));
+            sb.Append(" ortho=").Append(MazeRules.PlayOrtho.ToString("0.##"));
             sb.Append(" portalHold=w1-").Append(MazeRules.PortalHoldSeconds.ToString("0.0")).Append("s");
             sb.Append(" w2-").Append(MazeRules.PortalHoldForWave(2).ToString("0.0")).Append("s");
             sb.Append("(≤").Append(MazeRules.InterWavePortalHoldMaxSeconds.ToString("0.0")).Append(")");

@@ -1,5 +1,6 @@
 using UnityEngine;
 using RogueShooter.Combat;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Player
 {
@@ -19,7 +20,32 @@ namespace RogueShooter.Player
         public bool IsRolling => DodgeRules.RollActive(Time.time, _rollStart);
         public bool IsInvulnerable => DodgeRules.IFrameActive(Time.time, _rollStart);
         public bool OnCooldown => DodgeRules.OnCooldown(Time.time, _rollStart);
+        /// <summary>Logic-space unit roll direction.</summary>
         public Vector3 RollDir => _dir;
+
+        /// <summary>
+        /// Roll direction in logic space (unit): input (screen WASD → logic), else motor facing,
+        /// else previous, else +X. Iso off: same as the previous inline code.
+        /// </summary>
+        public static Vector3 RollDirFrom(Vector2 rawInput, Vector3 lastFacing, Vector3 previous, bool iso)
+        {
+            Vector3 dir = previous;
+            Vector2 input = ViewSpace.InputToLogic(rawInput, iso);
+            if (input.sqrMagnitude > 0.01f)
+            {
+                input.Normalize();
+                dir = new Vector3(input.x, input.y, 0f);
+            }
+            else if (lastFacing.sqrMagnitude > 0.01f)
+            {
+                dir = lastFacing;
+            }
+
+            dir.z = 0f;
+            if (dir.sqrMagnitude < 0.0001f)
+                dir = Vector3.right;
+            return dir.normalized;
+        }
         public float LastRollStart => _rollStart;
 
         void Awake()
@@ -85,21 +111,8 @@ namespace RogueShooter.Player
 
         void Begin()
         {
-            Vector2 input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            if (input.sqrMagnitude > 0.01f)
-            {
-                input.Normalize();
-                _dir = new Vector3(input.x, input.y, 0f);
-            }
-            else if (_motor != null && _motor.LastFacing.sqrMagnitude > 0.01f)
-            {
-                _dir = _motor.LastFacing;
-            }
-
-            _dir.z = 0f;
-            if (_dir.sqrMagnitude < 0.0001f)
-                _dir = Vector3.right;
-            _dir.Normalize();
+            Vector2 raw = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            _dir = RollDirFrom(raw, _motor != null ? _motor.LastFacing : Vector3.zero, _dir, ViewSpace.IsoOn);
             _rollStart = Time.time;
             if (_charge == null)
                 _charge = GetComponent<PlayerCharge>();

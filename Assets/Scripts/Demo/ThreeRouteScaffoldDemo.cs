@@ -22,7 +22,7 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize; // 6 = producer retune
+        [SerializeField] float orthographicSize = CameraViewService.OrthoPlaySize; // 6 = producer retune
         [Tooltip("Play default ~6. 0 = MoveSpeeds.Player (L=22 lock)")]
         [SerializeField] float moveSpeed = 6f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
@@ -421,7 +421,7 @@ namespace RogueShooter.Demo
             bool idsOk = missing.Count == 0;
             bool configOk = _lock != null;
             bool viewOk = _view != null
-                && Mathf.Abs(orthographicSize - CameraViewService.PlayOrthoSize) < 0.01f
+                && Mathf.Abs(orthographicSize - CameraViewService.OrthoPlaySize) < 0.01f // serialized ortho authoring size; applied size below
                 && Mathf.Abs(_view.OrthographicSize - CameraViewService.PlayOrthoSize) < 0.01f;
 
             bool inViewSkip = _demoAnchors != null

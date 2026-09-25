@@ -88,7 +88,8 @@ namespace RogueShooter.Ai
                 return;
             }
 
-            if (OffCamera())
+            // L5 (default on): orbs end only on range / wall-door / player hit, never on the screen edge.
+            if (!L5Rules.OrbRangeOrWallOnly && OffCamera())
             {
                 Despawn("edge");
                 return;
@@ -110,12 +111,8 @@ namespace RogueShooter.Ai
 
         bool OffCamera()
         {
-            Camera cam = Camera.main;
-            if (cam == null || !cam.orthographic)
-                return false;
-            Rect rect = CameraViewMath.GetOrthographicWorldRect(
-                cam.transform.position, cam.orthographicSize, CameraViewMath.ResolveAspect(cam));
-            return !CameraViewMath.ContainsInclusive(rect, transform.position);
+            // Legacy (switch off): screen view rect (ortho) / view quad (iso).
+            return !ViewSpace.InViewQuad(transform.position);
         }
 
         void Despawn(string reason)
