@@ -229,12 +229,21 @@ namespace RogueShooter.Build
                     icon.sprite = LoadIcon(card.Icon);
                     icon.raycastTarget = false;
                 }
-                AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
+                // Rarity badge: the card art's pips + tier colour carry the rarity, so tier text
+                // (低/中/高/普) is not drawn. Non-tier marks (shop "回血") still show.
+                if (!IsTierMark(card.Mark))
+                    AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
                 AddText(go.transform, card.Name, Scale(cardH, 0.062f), new Vector2(0f, cardH * 0.029f), cardW * (272f / 360f));
                 AddText(go.transform, card.Desc, Scale(cardH, 0.046f), new Vector2(0f, -cardH * 0.204f), cardW * (292f / 360f));
                 if (!string.IsNullOrEmpty(card.Price))
                     AddText(go.transform, card.Price, Scale(cardH, 0.05f), new Vector2(0f, -cardH * 0.402f), cardW * (176f / 360f));
             }
+        }
+
+        /// <summary>True for the plain rarity labels that the badge art already shows.</summary>
+        public static bool IsTierMark(string mark)
+        {
+            return mark == "低" || mark == "中" || mark == "高" || mark == "普";
         }
 
         static int Scale(float cardH, float fraction)
