@@ -27,6 +27,8 @@ namespace RogueShooter.Iso
             if (err != null) return err;
             err = CheckSectors();
             if (err != null) return err;
+            err = CheckHysteresis();
+            if (err != null) return err;
             err = CheckMirror();
             if (err != null) return err;
             err = CheckNullCamera();
@@ -36,7 +38,7 @@ namespace RogueShooter.Iso
 
         public static string FormatPass()
         {
-            return "ACCEPTANCE PASS iso-projection roundtrip+grid+sectors+mirror";
+            return "ACCEPTANCE PASS iso-projection roundtrip+grid+sectors+hysteresis+mirror";
         }
 
         static string CheckConstants()
@@ -51,13 +53,19 @@ namespace RogueShooter.Iso
                 return "elevation must be 78.4 px per logic unit";
             if (Math.Abs(IsoProjection.ElevationViewPerUnit - (78.4f / 128f)) > 1e-6f)
                 return "elevation view scale";
-            if (Math.Abs(IsoFacing.Equal45BoundaryDeg - 22.5) > 1e-9)
-                return "equal sector half must be 22.5";
-            double diamond = IsoFacing.DiamondEdgeBoundaryDeg;
-            if (Math.Abs(diamond - (Math.Atan(0.5) * (180.0 / Math.PI))) > 1e-9)
-                return "diamond boundary must be atan(0.5) deg";
-            if (diamond < 26.0 || diamond > 27.0)
-                return "diamond boundary must be about 26.565 deg";
+            if (Math.Abs(IsoFacing.SectorHalfDeg - 22.5) > 1e-9)
+                return "sector half must be 22.5";
+            if (IsoConfig.FacingMode != SectorMode.DiamondAligned)
+                return "default facing mode must be diamond-aligned";
+            if (Math.Abs(IsoConfig.DefaultFacingHysteresisDeg - 4f) > 0.001f)
+                return "hysteresis placeholder must be 4 degrees TBD";
+            double ne = IsoFacing.NeScreenDeg;
+            if (Math.Abs(ne - (Math.Atan(0.5) * (180.0 / Math.PI))) > 1e-6)
+                return "NE screen ray must be atan(0.5)";
+            if (ne < 26.0 || ne > 27.0)
+                return "NE screen ray must be about 26.565 deg";
+            if (Math.Abs((90.0 - ne) - 63.434948822922) > 0.01)
+                return "NE to N gap must be about 63.4 deg";
             return null;
         }
 
@@ -179,76 +187,143 @@ namespace RogueShooter.Iso
 
         static string CheckSectors()
         {
-            if (IsoFacing.FromLogic(Vector2.zero, Dir8.N) != Dir8.N)
-                return "zero logic dir must return fallback";
-            if (IsoFacing.FromLogic(new Vector2(1e-5f, 0f), Dir8.S) != Dir8.S)
-                return "near-zero logic dir must return fallback";
-            if (IsoFacing.FromScreen(Vector2.zero, Dir8.W) != Dir8.W)
-                return "zero screen dir must return fallback";
+            SectorMode prev = IsoConfig.FacingMode;
+            try
+            {
+                if (IsoFacing.FromLogic(Vector2.zero, Dir8.N) != Dir8.N)
+                    return "zero logic dir must return fallback";
+                if (IsoFacing.FromLogic(new Vector2(1e-5f, 0f), Dir8.S) != Dir8.S)
+                    return "near-zero logic dir must return fallback";
+                if (IsoFacing.FromScreen(Vector2.zero, Dir8.W) != Dir8.W)
+                    return "zero screen dir must return fallback";
 
-            // Screen cardinals and diagonals sit in the same sector in both modes.
-            if (!ExpectScreen(0.0, Dir8.E)) return "screen E";
-            if (!ExpectScreen(45.0, Dir8.NE)) return "screen NE";
-            if (!ExpectScreen(90.0, Dir8.N)) return "screen N";
-            if (!ExpectScreen(135.0, Dir8.NW)) return "screen NW";
-            if (!ExpectScreen(180.0, Dir8.W)) return "screen W";
-            if (!ExpectScreen(-135.0, Dir8.SW)) return "screen SW";
-            if (!ExpectScreen(-90.0, Dir8.S)) return "screen S";
-            if (!ExpectScreen(-45.0, Dir8.SE)) return "screen SE";
+                IsoConfig.FacingMode = SectorMode.DiamondAligned;
+                string err = ExpectDefaultRays();
+                if (err != null)
+                    return err;
+                if (IsoFacing.FromLogic(new Vector2(1e-3f, 0f), Dir8.S) != Dir8.NE)
+                    return "small non-zero +logic X is NE";
 
-            // Equal 45°: boundary at 22.5 belongs to the CCW sector (NE).
-            if (Facing(22.5, SectorMode.Equal45) != Dir8.NE)
-                return "equal boundary +22.5 must be NE";
-            if (Facing(22.3, SectorMode.Equal45) != Dir8.E)
-                return "just inside equal E";
-            if (Facing(-22.5, SectorMode.Equal45) != Dir8.E)
-                return "equal boundary -22.5 must stay E";
-            if (Facing(67.5, SectorMode.Equal45) != Dir8.N)
-                return "equal boundary 67.5 must be N";
-            if (Facing(67.3, SectorMode.Equal45) != Dir8.NE)
-                return "just inside equal NE";
+                // Logic boundary 22.5° (NE|N) belongs to N. Screen boundary 22.5° belongs to NE.
+                if (IsoFacing.FromLogic(LogicOnDeg(22.5), Dir8.S) != Dir8.N)
+                    return "logic boundary 22.5 must be N";
+                if (IsoFacing.FromLogic(LogicOnDeg(22.3), Dir8.S) != Dir8.NE)
+                    return "just inside logic NE";
 
-            double edge = IsoFacing.DiamondEdgeBoundaryDeg;
-            if (Facing(edge, SectorMode.DiamondEdge) != Dir8.NE)
-                return "diamond edge angle must be NE";
-            if (Facing(edge - 0.2, SectorMode.DiamondEdge) != Dir8.E)
-                return "just inside diamond E";
-            if (Facing(edge + 0.2, SectorMode.DiamondEdge) != Dir8.NE)
-                return "just outside diamond E";
-            if (Facing(90.0 - edge, SectorMode.DiamondEdge) != Dir8.N)
-                return "diamond NE|N boundary must be N";
-            if (Facing(90.0 - edge - 0.2, SectorMode.DiamondEdge) != Dir8.NE)
-                return "just inside diamond NE";
+                IsoConfig.FacingMode = SectorMode.EqualScreen45;
+                if (IsoFacing.FromScreen(ScreenDir(0.0), Dir8.S) != Dir8.E)
+                    return "equal-screen east";
+                if (IsoFacing.FromScreen(ScreenDir(22.5), Dir8.S) != Dir8.NE)
+                    return "equal-screen boundary 22.5 must be NE";
+                if (IsoFacing.FromScreen(ScreenDir(22.3), Dir8.S) != Dir8.E)
+                    return "just inside equal-screen E";
+                if (IsoFacing.FromScreen(ScreenDir(90.0), Dir8.S) != Dir8.N)
+                    return "equal-screen north";
+                if (IsoFacing.FromScreen(ScreenDir(-90.0), Dir8.S) != Dir8.S)
+                    return "equal-screen south";
 
-            // +logic X is the diamond edge. Equal45 puts it in NE (26.6>22.5).
-            // Diamond mode puts the same ray on the boundary, owned by NE.
-            if (IsoFacing.FromLogic(new Vector2(1f, 0f), Dir8.S, SectorMode.Equal45) != Dir8.NE)
-                return "+logic X equal45 must be NE";
-            if (IsoFacing.FromLogic(new Vector2(1f, 0f), Dir8.S, SectorMode.DiamondEdge) != Dir8.NE)
-                return "+logic X diamond must be NE";
-            if (IsoFacing.FromLogic(new Vector2(0f, 1f), Dir8.S, SectorMode.Equal45) != Dir8.NW)
-                return "+logic Y equal45 must be NW";
-            if (IsoFacing.FromLogic(new Vector2(0f, 1f), Dir8.S, SectorMode.DiamondEdge) != Dir8.W)
-                return "+logic Y diamond boundary must be W";
+                // Same arrow, two modes, via the one config setting.
+                Vector2 screen20 = LogicFromScreenDeg(20.0);
+                Vector2 screen60 = LogicFromScreenDeg(60.0);
+                IsoConfig.FacingMode = SectorMode.EqualScreen45;
+                if (IsoFacing.FromLogic(screen20, Dir8.S) != Dir8.E)
+                    return "screen 20 equal-mode must be E";
+                if (IsoFacing.FromLogic(screen60, Dir8.S) != Dir8.NE)
+                    return "screen 60 equal-mode must be NE";
+                IsoConfig.FacingMode = SectorMode.DiamondAligned;
+                if (IsoFacing.FromLogic(screen20, Dir8.S) != Dir8.NE)
+                    return "screen 20 diamond-mode must be NE";
+                if (IsoFacing.FromLogic(screen60, Dir8.S) != Dir8.N)
+                    return "screen 60 diamond-mode must be N";
+                return null;
+            }
+            finally
+            {
+                IsoConfig.FacingMode = prev;
+            }
+        }
 
-            // Pure screen east is logic (1,-1).
-            if (IsoFacing.FromLogic(new Vector2(1f, -1f), Dir8.S) != Dir8.E)
-                return "logic (1,-1) is screen east";
-            if (IsoFacing.FromLogic(new Vector2(1f, 1f), Dir8.S) != Dir8.N)
-                return "logic (1,1) is screen north";
+        static string ExpectDefaultRays()
+        {
+            if (IsoConfig.FacingMode != SectorMode.DiamondAligned)
+                return "default ray test requires diamond mode";
 
-            // Custom half-angle: 30° keeps the diamond edge inside E; 10° does not.
-            if (IsoFacing.FromLogic(new Vector2(1f, 0f), Dir8.S, 30f) != Dir8.E)
-                return "custom 30 deg half must include +logic X in E";
-            if (IsoFacing.FromLogic(new Vector2(1f, 0f), Dir8.S, 10f) != Dir8.NE)
-                return "custom 10 deg half must put +logic X in NE";
-            if (Facing(0.0, 0f) != Dir8.E)
-                return "clamped half-angle still classifies east";
-
-            // A vector above the epsilon still has a direction.
-            if (IsoFacing.FromLogic(new Vector2(1e-3f, 0f), Dir8.S, SectorMode.Equal45) != Dir8.NE)
-                return "small non-zero +logic X";
+            // Four diamond edges (logic axes) and four screen axes.
+            if (Ray(new Vector2(1f, 0f), Dir8.NE)) return "diamond +X must be NE";
+            if (Ray(new Vector2(0f, 1f), Dir8.NW)) return "diamond +Y must be NW";
+            if (Ray(new Vector2(-1f, 0f), Dir8.SW)) return "diamond -X must be SW";
+            if (Ray(new Vector2(0f, -1f), Dir8.SE)) return "diamond -Y must be SE";
+            if (Ray(new Vector2(1f, -1f), Dir8.E)) return "screen +X must be E";
+            if (Ray(new Vector2(1f, 1f), Dir8.N)) return "screen +Y must be N";
+            if (Ray(new Vector2(-1f, 1f), Dir8.W)) return "screen -X must be W";
+            if (Ray(new Vector2(-1f, -1f), Dir8.S)) return "screen -Y must be S";
             return null;
+        }
+
+        static bool Ray(Vector2 logicDir, Dir8 expect)
+        {
+            if (IsoFacing.FromLogic(logicDir, Dir8.S) != expect)
+                return true;
+            Vector2 screen = IsoProjection.LogicDirToScreenDir(logicDir);
+            return IsoFacing.FromScreen(screen, Dir8.S) != expect;
+        }
+
+        static string CheckHysteresis()
+        {
+            SectorMode prevMode = IsoConfig.FacingMode;
+            float prevH = IsoConfig.FacingHysteresisDeg;
+            try
+            {
+                IsoConfig.FacingMode = SectorMode.DiamondAligned;
+                IsoConfig.FacingHysteresisDeg = IsoConfig.DefaultFacingHysteresisDeg;
+                var sticky = new IsoFacingTracker();
+                if (Math.Abs(sticky.HysteresisDeg - 4f) > 0.001f)
+                    return "tracker must take the TBD 4 degree placeholder";
+
+                // Sweep across the NE|N logic boundary (22.5°) and jitter inside the band.
+                double[] stayNe = { 20.0, 22.4, 23.0, 24.0, 25.0, 26.0, 22.0, 24.5, 21.0 };
+                for (int i = 0; i < stayNe.Length; i++)
+                {
+                    Dir8 got = sticky.Update(LogicOnDeg(stayNe[i]), Dir8.S);
+                    if (got != Dir8.NE)
+                        return "hysteresis must hold NE through " + stayNe[i];
+                }
+
+                if (IsoFacing.FromLogic(LogicOnDeg(23.0), Dir8.S) != Dir8.N)
+                    return "pure FromLogic at 23 must already be N";
+                if (IsoFacing.FromLogic(LogicOnDeg(21.0), Dir8.S) != Dir8.NE)
+                    return "pure FromLogic at 21 must be NE";
+
+                if (sticky.Update(LogicOnDeg(27.0), Dir8.S) != Dir8.N)
+                    return "past 4 degrees of hysteresis must switch to N";
+                if (IsoFacing.FromLogic(LogicOnDeg(20.0), Dir8.S) != Dir8.NE)
+                    return "pure FromLogic at 20 must be NE";
+                double[] stayN = { 26.0, 24.0, 23.0, 20.0, 19.5 };
+                for (int i = 0; i < stayN.Length; i++)
+                {
+                    if (sticky.Update(LogicOnDeg(stayN[i]), Dir8.S) != Dir8.N)
+                        return "hysteresis must hold N through " + stayN[i];
+                }
+
+                if (sticky.Update(LogicOnDeg(18.0), Dir8.S) != Dir8.NE)
+                    return "crossing back past hysteresis must return to NE";
+                if (sticky.Update(Vector2.zero, Dir8.W) != Dir8.NE)
+                    return "near-zero must keep the held facing";
+
+                var hair = new IsoFacingTracker(0f);
+                if (hair.Update(LogicOnDeg(21.0), Dir8.S) != Dir8.NE)
+                    return "zero hysteresis starts on NE";
+                if (hair.Update(LogicOnDeg(23.0), Dir8.S) != Dir8.N)
+                    return "zero hysteresis must flip at the boundary";
+                if (hair.Update(LogicOnDeg(21.0), Dir8.S) != Dir8.NE)
+                    return "zero hysteresis must flip back";
+                return null;
+            }
+            finally
+            {
+                IsoConfig.FacingMode = prevMode;
+                IsoConfig.FacingHysteresisDeg = prevH;
+            }
         }
 
         static string CheckMirror()
@@ -316,20 +391,15 @@ namespace RogueShooter.Iso
             return null;
         }
 
-        static bool ExpectScreen(double deg, Dir8 dir)
+        static Vector2 LogicOnDeg(double logicDeg)
         {
-            return Facing(deg, SectorMode.Equal45) == dir
-                && Facing(deg, SectorMode.DiamondEdge) == dir;
+            double r = logicDeg * Math.PI / 180.0;
+            return new Vector2((float)Math.Cos(r), (float)Math.Sin(r));
         }
 
-        static Dir8 Facing(double deg, SectorMode mode)
+        static Vector2 LogicFromScreenDeg(double screenDeg)
         {
-            return IsoFacing.FromScreen(ScreenDir(deg), Dir8.S, mode);
-        }
-
-        static Dir8 Facing(double deg, float half)
-        {
-            return IsoFacing.FromScreen(ScreenDir(deg), Dir8.S, half);
+            return IsoProjection.ScreenDirToLogicDir(ScreenDir(screenDeg));
         }
 
         static Vector2 ScreenDir(double deg)

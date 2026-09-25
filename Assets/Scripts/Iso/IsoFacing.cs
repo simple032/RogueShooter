@@ -5,9 +5,9 @@ using RogueShooter.Spawning;
 namespace RogueShooter.Iso
 {
     /// <summary>
-    /// Eight screen-space facings. 0 degrees is screen +X (viewer's right, East).
-    /// Angles increase counter-clockwise. Facing is chosen from what the
-    /// viewer sees, after <see cref="IsoProjection.LogicDirToScreenDir"/>.
+    /// Eight facing labels. The name is what the viewer sees (screen compass),
+    /// not the logic-axis name. 0 degrees on screen is +X (viewer's right, East).
+    /// See <see cref="IsoFacing"/> for which logic ray maps to each label.
     /// </summary>
     public enum Dir8
     {
@@ -22,21 +22,20 @@ namespace RogueShooter.Iso
     }
 
     /// <summary>
-    /// How wide the screen-cardinal sectors (E/N/W/S) are.
-    /// <see cref="Equal45"/> is the default. <see cref="DiamondEdge"/> puts a
-    /// boundary on the isometric diamond edge at atan(CellH/CellW)=atan(0.5).
-    /// A custom half-angle can be passed instead; design has not locked this.
+    /// Selected only by <see cref="IsoConfig.FacingMode"/>. Callers do not pass a mode.
     /// </summary>
     public enum SectorMode
     {
-        /// <summary>Equal 45° sectors. Boundary at 22.5° off each screen cardinal.</summary>
-        Equal45 = 0,
-
         /// <summary>
-        /// Cardinal sectors are 2*atan(0.5) wide (~53.13°). The +logic-X ray
-        /// (screen angle atan(0.5) ≈ 26.565°) lies on the E|NE boundary.
+        /// Default. Art directions are 45° steps in logic space. On screen those
+        /// eight rays are the horizontal and vertical axes plus the four diamond
+        /// edges, so the gaps alternate about 26.6° and 63.4°. Classification
+        /// inverse-projects a screen direction and splits at equal 45° in logic space.
         /// </summary>
-        DiamondEdge = 1
+        DiamondAligned = 0,
+
+        /// <summary>Equal 45° sectors in screen space. Boundaries at 22.5° + k*45°.</summary>
+        EqualScreen45 = 1
     }
 
     /// <summary>
@@ -55,7 +54,26 @@ namespace RogueShooter.Iso
     }
 
     /// <summary>
-    /// Screen-space facing and the art-direction table.
+    /// Facing labels and the art-direction table. The active split is
+    /// <see cref="IsoConfig.FacingMode"/> (default <see cref="SectorMode.DiamondAligned"/>).
+    /// <see cref="FromLogic"/> and <see cref="FromScreen"/> are hysteresis-free.
+    /// Stickiness lives on <see cref="IsoFacingTracker"/>.
+    ///
+    /// Diamond-aligned map (logic angle is atan2(y, x), 0 = +logic X, CCW).
+    /// The label is the screen compass of that ray:
+    /// logic (1, -1) / -45° → screen +X → E;
+    /// logic (1, 0) / 0° → diamond up-right (~26.6°) → NE;
+    /// logic (1, 1) / 45° → screen +Y → N;
+    /// logic (0, 1) / 90° → diamond up-left (~153.4°) → NW;
+    /// logic (-1, 1) / 135° → screen -X → W;
+    /// logic (-1, 0) / 180° → diamond down-left (~-153.4°) → SW;
+    /// logic (-1, -1) / -135° → screen -Y → S;
+    /// logic (0, -1) / -90° → diamond down-right (~-26.6°) → SE.
+    /// +logic X is NE, not East. Screen East is the horizontal axis.
+    /// Gaps on screen: ~26.6° from E to NE (and W to SW, and the matching
+    /// pairs), ~63.4° from NE to N (and N to NW, and the matching pairs).
+    /// The boundary ray belongs to the counter-clockwise sector.
+    ///
     /// Suffixes are lowercase and match STYLE_SPEC §3.3 / landed frames:
     /// <c>jh_char_archer_walk_s_03.png</c> → suffix <c>s</c>.
     /// <see cref="ArtFrameId"/> is the same string
@@ -64,20 +82,14 @@ namespace RogueShooter.Iso
     /// contract, and it does not change how those clips resolve today.
     /// flipX is SpriteRenderer.flipX (horizontal mirror). Authored east-side
     /// art (e/ne/se) flipped becomes w/nw/sw.
-    ///
-    /// Sector tie-break: each boundary ray belongs to the counter-clockwise
-    /// sector. Cardinal sector E is [−half, +half). Snap within 1e-4° so a
-    /// float reconstruction of the boundary stays on that ray.
-    /// Diamond-edge mode: +logic X (the right-hand diamond edge) → NE;
-    /// +logic Y (the left-hand diamond edge) → W.
     /// </summary>
     public static class IsoFacing
     {
         /// <summary>sqrMagnitude below this (length under 1e-4) is no direction.</summary>
         public const float DirEpsilonSqr = 1e-8f;
 
-        /// <summary>Half-width of a screen-cardinal sector in <see cref="SectorMode.Equal45"/>.</summary>
-        public const double Equal45BoundaryDeg = 22.5;
+        /// <summary>Half-width of one sector in the active angle space (logic or screen).</summary>
+        public const double SectorHalfDeg = 22.5;
 
         /// <summary>Archer / player sheet id. All 8 directions, no mirror.</summary>
         public const string KindArcher = "archer";
@@ -86,56 +98,42 @@ namespace RogueShooter.Iso
         public static readonly FacingSheet FiveDirMirrorWest = new FacingSheet(true);
 
         /// <summary>
-        /// atan(CellH/CellW) in degrees ≈ 26.565051177°. Half-width of the
-        /// screen-cardinal sectors in <see cref="SectorMode.DiamondEdge"/>.
+        /// Screen angle of +logic X (the NE ray), atan(CellH/CellW) degrees, about 26.565.
+        /// Screen North is 90°, so the NE-to-N gap is about 63.435°.
         /// </summary>
-        public static double DiamondEdgeBoundaryDeg
+        public static double NeScreenDeg
         {
             get { return Math.Atan(IsoProjection.CellH / IsoProjection.CellW) * (180.0 / Math.PI); }
         }
 
-        /// <summary>Default sectors: equal 45°. Near-zero <paramref name="logicDir"/> returns <paramref name="fallback"/>.</summary>
+        /// <summary>
+        /// Hysteresis-free. Near-zero <paramref name="logicDir"/> returns <paramref name="fallback"/>.
+        /// Uses <see cref="IsoConfig.FacingMode"/>.
+        /// </summary>
         public static Dir8 FromLogic(Vector2 logicDir, Dir8 fallback)
-        {
-            return FromLogic(logicDir, fallback, SectorMode.Equal45);
-        }
-
-        public static Dir8 FromLogic(Vector2 logicDir, Dir8 fallback, SectorMode mode)
         {
             if (logicDir.sqrMagnitude < DirEpsilonSqr)
                 return fallback;
-            return FromScreenVector(IsoProjection.LogicDirToScreenDir(logicDir), HalfAngle(mode));
+            if (IsoConfig.FacingMode == SectorMode.EqualScreen45)
+                return ClassifyCompass(ScreenAngleDeg(IsoProjection.LogicDirToScreenDir(logicDir)));
+            return ClassifyCompass(LogicAngleDeg(logicDir) + 45.0);
         }
 
         /// <summary>
-        /// <paramref name="cardinalHalfAngleDeg"/> is the half-width of E/N/W/S
-        /// in screen degrees. Values outside (0, 45) are clamped to [0.001, 44.999].
-        /// Diagonal sectors receive the remaining angle (90 − 2*half each).
+        /// Hysteresis-free. In diamond-aligned mode the screen direction is
+        /// inverse-projected, then split at equal 45° in logic space.
+        /// Near-zero <paramref name="screenDir"/> returns <paramref name="fallback"/>.
         /// </summary>
-        public static Dir8 FromLogic(Vector2 logicDir, Dir8 fallback, float cardinalHalfAngleDeg)
-        {
-            if (logicDir.sqrMagnitude < DirEpsilonSqr)
-                return fallback;
-            return FromScreenVector(IsoProjection.LogicDirToScreenDir(logicDir), cardinalHalfAngleDeg);
-        }
-
         public static Dir8 FromScreen(Vector2 screenDir, Dir8 fallback)
         {
-            return FromScreen(screenDir, fallback, SectorMode.Equal45);
-        }
-
-        public static Dir8 FromScreen(Vector2 screenDir, Dir8 fallback, SectorMode mode)
-        {
             if (screenDir.sqrMagnitude < DirEpsilonSqr)
                 return fallback;
-            return FromScreenVector(screenDir, HalfAngle(mode));
-        }
-
-        public static Dir8 FromScreen(Vector2 screenDir, Dir8 fallback, float cardinalHalfAngleDeg)
-        {
-            if (screenDir.sqrMagnitude < DirEpsilonSqr)
+            if (IsoConfig.FacingMode == SectorMode.EqualScreen45)
+                return ClassifyCompass(ScreenAngleDeg(screenDir));
+            Vector2 logic = IsoProjection.ScreenDirToLogicDir(screenDir);
+            if (logic.sqrMagnitude < DirEpsilonSqr)
                 return fallback;
-            return FromScreenVector(screenDir, cardinalHalfAngleDeg);
+            return ClassifyCompass(LogicAngleDeg(logic) + 45.0);
         }
 
         /// <summary>Lowercase art token: s, se, e, ne, n, nw, w, sw. Not the mirrored token.</summary>
@@ -235,28 +233,65 @@ namespace RogueShooter.Iso
             return UsesWestMirror(kindId) ? FiveDirMirrorWest : EightDirNoMirror;
         }
 
-        static Dir8 FromScreenVector(Vector2 screenDir, double halfAngleDeg)
+        static double LogicAngleDeg(Vector2 logicDir)
         {
-            double rad = Math.Atan2(screenDir.y, screenDir.x);
-            double deg = rad * (180.0 / Math.PI);
-            return FromAngleDeg(deg, halfAngleDeg);
+            return Math.Atan2(logicDir.y, logicDir.x) * (180.0 / Math.PI);
         }
 
-        static double HalfAngle(SectorMode mode)
+        static double ScreenAngleDeg(Vector2 screenDir)
         {
-            if (mode == SectorMode.DiamondEdge)
-                return DiamondEdgeBoundaryDeg;
-            return Equal45BoundaryDeg;
+            return Math.Atan2(screenDir.y, screenDir.x) * (180.0 / Math.PI);
         }
 
-        static Dir8 FromAngleDeg(double degrees, double halfAngleDeg)
+        /// <summary>
+        /// Compass angle used by both modes: screen atan2, or logic atan2 + 45
+        /// so logic 0° (+X, the NE ray) lands on the NE compass center (45°).
+        /// </summary>
+        internal static double CompassDeg(Vector2 logicDir, SectorMode mode)
         {
-            double half = halfAngleDeg;
-            if (half < 0.001)
-                half = 0.001;
-            else if (half > 44.999)
-                half = 44.999;
+            if (mode == SectorMode.EqualScreen45)
+                return ScreenAngleDeg(IsoProjection.LogicDirToScreenDir(logicDir));
+            return LogicAngleDeg(logicDir) + 45.0;
+        }
 
+        internal static bool ExceedsHeldBoundary(Vector2 logicDir, Dir8 held, float hysteresisDeg, SectorMode mode)
+        {
+            double past = AngularDistance(CompassDeg(logicDir, mode), CompassCenter(held)) - SectorHalfDeg;
+            if (past < 0.0)
+                past = 0.0;
+            double h = hysteresisDeg < 0f ? 0.0 : hysteresisDeg;
+            return past >= h;
+        }
+
+        static double CompassCenter(Dir8 dir)
+        {
+            switch (dir)
+            {
+                case Dir8.E: return 0.0;
+                case Dir8.NE: return 45.0;
+                case Dir8.N: return 90.0;
+                case Dir8.NW: return 135.0;
+                case Dir8.W: return 180.0;
+                case Dir8.SW: return 225.0;
+                case Dir8.S: return 270.0;
+                default: return 315.0;
+            }
+        }
+
+        static double AngularDistance(double angleDeg, double centerDeg)
+        {
+            double d = angleDeg - centerDeg;
+            d = d % 360.0;
+            if (d < 0.0)
+                d += 360.0;
+            if (d > 180.0)
+                d = 360.0 - d;
+            return d;
+        }
+
+        static Dir8 ClassifyCompass(double degrees)
+        {
+            const double half = SectorHalfDeg;
             double a = degrees;
             if (a < 0.0)
                 a += 360.0;
@@ -308,6 +343,66 @@ namespace RogueShooter.Iso
         static bool Eq(string a, string b)
         {
             return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// Per-caller facing with boundary hysteresis. One instance per character
+    /// (a class, so a copy does not drop the held direction).
+    /// <see cref="IsoFacing.FromLogic"/> stays hysteresis-free.
+    /// The held direction changes only after the angle passes the sector
+    /// boundary by <see cref="HysteresisDeg"/>. That angle is logic degrees
+    /// in diamond-aligned mode and screen degrees in equal-screen mode.
+    /// A near-zero vector keeps the held facing.
+    /// </summary>
+    public sealed class IsoFacingTracker
+    {
+        public Dir8 Current { get; private set; }
+        public bool HasFacing { get; private set; }
+
+        /// <summary>Degrees past the boundary required to switch. Negative is treated as 0.</summary>
+        public float HysteresisDeg { get; set; }
+
+        SectorMode _mode;
+
+        /// <summary>Uses <see cref="IsoConfig.FacingHysteresisDeg"/> (TBD placeholder, default 4).</summary>
+        public IsoFacingTracker()
+            : this(IsoConfig.FacingHysteresisDeg)
+        {
+        }
+
+        public IsoFacingTracker(float hysteresisDeg)
+        {
+            HysteresisDeg = hysteresisDeg;
+            _mode = IsoConfig.FacingMode;
+        }
+
+        public Dir8 Update(Vector2 logicDir, Dir8 fallback)
+        {
+            SectorMode mode = IsoConfig.FacingMode;
+            if (logicDir.sqrMagnitude < IsoFacing.DirEpsilonSqr)
+            {
+                if (!HasFacing)
+                {
+                    Current = fallback;
+                    HasFacing = true;
+                    _mode = mode;
+                }
+                return Current;
+            }
+
+            Dir8 raw = IsoFacing.FromLogic(logicDir, fallback);
+            if (!HasFacing || mode != _mode)
+            {
+                Current = raw;
+                HasFacing = true;
+                _mode = mode;
+                return Current;
+            }
+
+            if (raw != Current && IsoFacing.ExceedsHeldBoundary(logicDir, Current, HysteresisDeg, mode))
+                Current = raw;
+            return Current;
         }
     }
 }
