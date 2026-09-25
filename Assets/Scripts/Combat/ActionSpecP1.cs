@@ -51,7 +51,7 @@ namespace RogueShooter.Combat
     /// <summary>
     /// ACTION_SPEC_P1_v01 clip table. 12 fps naming; missing PNGs fall back to idle.
     /// Roll i-frame numbers live in DodgeRules (producer draft, not locked).
-    /// Charge combat times stay in ChargeShotRules (ring 0.70 / green 0.68–0.72).
+    /// Charge combat times stay in ChargeShotRules / ChargeProfile (ring 0.70 at 0B; window 76%–84% of full).
     /// </summary>
     public static class ActionSpecP1
     {
@@ -139,14 +139,20 @@ namespace RogueShooter.Combat
             return EnemyIdle(kindId).Root;
         }
 
-        /// <summary>§1.3 charge poses. Green uses ChargeShotRules lock (0.68–0.72), not a new window.</summary>
+        /// <summary>§1.3 charge poses at 0B. Green = the combat weak-spot window, not a new window.</summary>
         public static int ChargePoseFrame(float heldSeconds)
         {
-            if (heldSeconds < ChargeWindupPoseSeconds)
+            return ChargePoseFrame(heldSeconds, ChargeProfile.Base);
+        }
+
+        /// <summary>Poses for a loadout: windup _00–_01, draw loop _02/_03 until the window, _04 in the window, _05 after.</summary>
+        public static int ChargePoseFrame(float heldSeconds, ChargeProfile profile)
+        {
+            if (heldSeconds < ChargeWindupPoseSeconds && heldSeconds + ChargeShotRules.EdgeEpsilon < profile.WindowEnter)
                 return heldSeconds < ChargeWindupPoseSeconds * 0.5f ? 0 : 1;
-            if (heldSeconds < ChargeShotRules.GreenEnterSeconds)
+            if (heldSeconds + ChargeShotRules.EdgeEpsilon < profile.WindowEnter)
                 return 2 + ((int)(heldSeconds * Fps) & 1);
-            if (heldSeconds <= ChargeShotRules.GreenExitSeconds)
+            if (profile.InWindow(heldSeconds))
                 return 4;
             return 5;
         }
@@ -162,6 +168,14 @@ namespace RogueShooter.Combat
         /// <summary>1-based grip frame (1 = _01, 2 = _02) right after the windup pose ends, else 0.</summary>
         public static int GripFrameAt(float heldSeconds)
         {
+            return GripFrameAt(heldSeconds, ChargeProfile.Base);
+        }
+
+        /// <summary>Grip slot never overlaps the weak-spot window (疾张 can pull the window early).</summary>
+        public static int GripFrameAt(float heldSeconds, ChargeProfile profile)
+        {
+            if (heldSeconds + ChargeShotRules.EdgeEpsilon >= profile.WindowEnter)
+                return 0;
             if (heldSeconds < ChargeWindupPoseSeconds)
                 return 0;
             int i = (int)((heldSeconds - ChargeWindupPoseSeconds) * Fps);

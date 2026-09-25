@@ -1380,7 +1380,7 @@ namespace RogueShooter.Demo
                 "WASD · hold LMB/C charge (flying arrow) · Space/LShift dodge i-frame · F strike · chest/altar reward auto-opens on clear (E reopens)\n" +
                 "K skip-wave · N new seed · R same seed · F9 log · F1 START · F2 CONN · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
                 "rooms hidden until entered · enter combat → lock → [PortalFx] 1.0s → wave1 → clear → open  |  Chest/Altar: clear w1 → [PortalFx] 2.5s (>2 ≤3) → wave2\n" +
-                "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢\n" +
+                "full charge KB DRAFT · F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢 · Q 凝神窥机 (HUD bottom-left)\n" +
                 "dodge DRAFT DodgeRules dur=0.40s iframe=0.04–0.28s (len=0.24 未锁) cd=1.00s dist=6u cancel charge/recover · JianHai PNG · layers Player/Mob/Wall/Door/Projectile",
                 style);
             string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";

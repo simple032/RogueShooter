@@ -11,8 +11,9 @@ using RogueShooter.Vision;
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Hold-to-charge bow. Ring full at 0.70s; fire if held over 0.2s;
-    /// weak under 0.4s x0.50; weak-spot 0.68-0.72s. After a shot, 0.2s recovery.
+    /// Hold-to-charge bow. Ring full at ChargeProfile.Full (0.70s at 0B; 疾张 shortens it);
+    /// fire if held over 0.2s; weak under 60% of full x0.50; weak-spot 76%–84% of full
+    /// (+鸿运 on the upper bound). After a shot, 0.2s recovery (not scaled).
     /// Movement x0.5 while charging. Release queues an ArrowProjectile at the
     /// ActionSpecP1 OnFire frame; damage resolves on arrow impact (PR#10 port) through
     /// the reward-aware HitMob / boss path below (A's rules: ModifyOutgoing, pierce, lifesteal).
@@ -44,6 +45,8 @@ namespace RogueShooter.Player
         public bool IsFiring => Time.time < _atkUntil;
         public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
+        /// <summary>Current full charge / window from owned rewards (疾张 charge_time, 鸿运 crit_window).</summary>
+        public ChargeProfile Profile => ChargeProfile.FromOwned(_ownedRewards);
         public ChargeShotKind LastShot { get; private set; }
         public float LastDamage { get; private set; }
 
@@ -101,7 +104,8 @@ namespace RogueShooter.Player
             }
 
             _held += Time.deltaTime;
-            float p = ChargeShotRules.Progress(_held);
+            ChargeProfile prof = Profile;
+            float p = prof.Progress(_held);
             if (_fx != null)
                 _fx.SetChargeProgress(p, _green);
             if (!_mid && _held >= ChargeFxHooks.MidAt)
@@ -111,14 +115,14 @@ namespace RogueShooter.Player
                 Debug.Log("[ChargeFx] OnChargeMid");
             }
 
-            if (!_green && _held >= ChargeShotRules.GreenEnterSeconds)
+            if (!_green && !_exited && prof.InWindow(_held))
             {
                 _green = true;
                 ChargeFxHooks.ChargeEnterGreen();
                 Debug.Log("[ChargeFx] OnChargeEnterGreen");
             }
 
-            if (_green && !_exited && _held > ChargeShotRules.GreenExitSeconds)
+            if (_green && !_exited && _held - ChargeShotRules.EdgeEpsilon > prof.WindowExit)
             {
                 _exited = true;
                 _green = false;
@@ -126,11 +130,11 @@ namespace RogueShooter.Player
                 Debug.Log("[ChargeFx] OnChargeExitGreen");
             }
 
-            if (!_fullPose && _held >= ActionSpecP1.ChargeFullPoseSeconds)
+            if (!_fullPose && prof.Reached(_held))
             {
                 _fullPose = true;
                 ChargeFxHooks.ChargeFull();
-                Debug.Log("[ChargeFx] OnChargeFull pose t=" + ActionSpecP1.ChargeFullPoseSeconds.ToString("0.00"));
+                Debug.Log("[ChargeFx] OnChargeFull t=" + prof.Full.ToString("0.000") + "s");
             }
         }
 
@@ -176,20 +180,27 @@ namespace RogueShooter.Player
 
         ChargeShotKind Fire(float heldSeconds)
         {
-            ChargeShotKind kind = ChargeShotRules.Resolve(heldSeconds);
+            ChargeProfile prof = Profile;
+            ChargeShotKind kind = prof.Resolve(heldSeconds);
             if (_guaranteed == null)
                 _guaranteed = GetComponent<GuaranteedCritActive>();
-            if (_guaranteed != null && _guaranteed.TryForceCrit(kind, out ChargeShotKind forced))
+            bool focusGate = false;
+            if (_guaranteed != null && _guaranteed.TryForceCrit(kind, heldSeconds, out ChargeShotKind forced))
+            {
+                // 凝神窥机: ≥FocusMinChargeSeconds → Crit (必中弱点); shorter → no shot.
+                focusGate = forced == ChargeShotKind.None;
                 kind = forced;
+            }
 
             float dmg = ChargeShotRules.Damage(kind);
             LastShot = kind;
             LastDamage = dmg;
-            float p = ChargeShotRules.Progress(heldSeconds);
+            float p = prof.Progress(heldSeconds);
 
             if (kind == ChargeShotKind.None)
             {
-                Debug.Log($"[ChargeShot] NO_SHOT held={heldSeconds:0.000}s p={p:0.00} (<{ChargeShotRules.MinChargeSeconds:0.00}s)");
+                float gate = focusGate ? GuaranteedCritActive.FocusMinChargeSeconds : ChargeShotRules.MinChargeSeconds;
+                Debug.Log($"[ChargeShot] NO_SHOT held={heldSeconds:0.000}s p={p:0.00} (<{gate:0.00}s{(focusGate ? " 凝神窥机" : "")})");
                 if (_fx != null)
                     _fx.HideAll();
                 return kind;
@@ -215,6 +226,7 @@ namespace RogueShooter.Player
             _pendingFire = true;
             _fireAt = Time.time + onFire;
             Debug.Log($"[ChargeShot] {kind} dmg={dmg:0.0} held={heldSeconds:0.000}s p={p:0.00} " +
+                      $"full={prof.Full:0.000}s win={prof.WindowEnter:0.000}-{prof.WindowExit:0.000}s weakMax={prof.WeakMax:0.000}s " +
                       $"recover={ChargeShotRules.RecoverSeconds:0.00}s OnFire@{onFire:0.000}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
             return kind;
@@ -317,7 +329,7 @@ namespace RogueShooter.Player
             bool bossWeak = kind == ChargeShotKind.Crit;
             if (bossWeak)
                 boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
-            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            if (FullChargeKnockback.Applies(kind, heldSeconds, Profile.Full))
             {
                 float kb = FullChargeKnockback.HitDistance(
                     null, false, true, bossWeak, _ownedRewards);
@@ -344,7 +356,7 @@ namespace RogueShooter.Player
                 best.NotifyDamaged();
             if (weak && !piercePacket)
                 best.ApplyWeakSpotStagger(stagger);
-            if (!piercePacket && FullChargeKnockback.Applies(kind, heldSeconds))
+            if (!piercePacket && FullChargeKnockback.Applies(kind, heldSeconds, Profile.Full))
             {
                 if (FullChargeKnockback.RootsOnBodyHit(best.KindId, raised, weak))
                     best.ApplyRoot(FullChargeKnockback.ShieldRaisedRootSeconds);

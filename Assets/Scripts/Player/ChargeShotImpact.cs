@@ -34,7 +34,7 @@ namespace RogueShooter.Player
                 mob.NotifyDamaged();
             if (weak)
                 mob.ApplyWeakSpotStagger(stagger);
-            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            if (FullChargeKnockback.Applies(kind, heldSeconds, ChargeProfile.FromOwned(ownedRewards).Full))
             {
                 if (FullChargeKnockback.RootsOnBodyHit(mob.KindId, raised, weak))
                     mob.ApplyRoot(FullChargeKnockback.ShieldRaisedRootSeconds);
@@ -68,7 +68,7 @@ namespace RogueShooter.Player
             bool bossWeak = kind == ChargeShotKind.Crit;
             if (bossWeak)
                 boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);
-            if (FullChargeKnockback.Applies(kind, heldSeconds))
+            if (FullChargeKnockback.Applies(kind, heldSeconds, ChargeProfile.FromOwned(ownedRewards).Full))
             {
                 float kb = FullChargeKnockback.HitDistance(
                     null, false, true, bossWeak, ownedRewards);

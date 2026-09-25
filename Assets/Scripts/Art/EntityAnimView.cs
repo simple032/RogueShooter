@@ -247,9 +247,10 @@ namespace RogueShooter.Art
             {
                 var charge = GetComponent<PlayerCharge>();
                 float held = charge != null ? charge.HeldSeconds : 0f;
+                ChargeProfile prof = charge != null ? charge.Profile : ChargeProfile.Base;
                 // Stage 1→2 grip slot: grip_1to2_01/02 when delivered, otherwise skipped (warn once).
-                _grip = EntityAnimCatalog.GripArt(held);
-                return ActionSpecP1.ChargePoseFrame(held);
+                _grip = EntityAnimCatalog.GripArt(held, prof);
+                return ActionSpecP1.ChargePoseFrame(held, prof);
             }
 
             return clip.FrameAt(Time.time - _clipStart);

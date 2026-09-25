@@ -7,6 +7,9 @@ namespace RogueShooter.Art
     /// that fills clockwise from 12 o'clock. Fig2 scale: compact in-camera
     /// (outer radius ~half a character head, ≤ previous 0.72u assembly).
     /// World-space; caller places via ScreenToWorld. Not a player child.
+    /// Weak-spot band: faint arc at ChargeShotRules.WeakSpotEnterPct–ExitPct of the ring (progress is
+    /// held / current full charge, so the band stays at 76%–84% under 疾张). 凝神窥机 active →
+    /// core + ring recolour (code only, no PNG).
     /// </summary>
     public class ChargeReticle : MonoBehaviour
     {
@@ -23,6 +26,8 @@ namespace RogueShooter.Art
         static readonly Color RingIdle = new Color(0.78f, 0.76f, 0.70f, 0.95f);
         static readonly Color RingWarm = new Color(0.83f, 0.64f, 0.36f, 0.98f);
         static readonly Color RingGreen = new Color(0.55f, 0.78f, 0.62f, 1f);
+        static readonly Color BandColor = new Color(0.55f, 0.78f, 0.62f, 0.35f);
+        public static readonly Color FocusColor = new Color(1f, 0.84f, 0.50f, 1f);
 
         LineRenderer _diamond;
         LineRenderer _dot;
@@ -30,6 +35,10 @@ namespace RogueShooter.Art
         MeshFilter _ringFilter;
         MeshRenderer _ringRend;
         Mesh _ringMesh;
+        MeshRenderer _bandRend;
+        Mesh _bandMesh;
+        Material _bandMat;
+        bool _focus;
         Material _lineMat;
         Material _ringMat;
         float _progress;
@@ -38,6 +47,10 @@ namespace RogueShooter.Art
         bool _ringOn;
 
         public float Progress => _progress;
+        public bool FocusTinted => _focus;
+        /// <summary>Band arc as ring fractions (tests).</summary>
+        public static float BandStart => RogueShooter.Player.ChargeShotRules.WeakSpotEnterPct;
+        public static float BandEnd => RogueShooter.Player.ChargeShotRules.WeakSpotExitPct;
 
         public void SetCoreVisible(bool on)
         {
@@ -63,6 +76,7 @@ namespace RogueShooter.Art
         {
             BuildCore();
             BuildRing();
+            BuildBand();
             SetCoreVisible(true);
             SetRingVisible(false);
             SetProgress(0f, false);
@@ -76,6 +90,83 @@ namespace RogueShooter.Art
                 Destroy(_lineMat);
             if (_ringMat != null)
                 Destroy(_ringMat);
+            if (_bandMesh != null)
+                Destroy(_bandMesh);
+            if (_bandMat != null)
+                Destroy(_bandMat);
+        }
+
+        void LateUpdate()
+        {
+            bool focus = RogueShooter.Player.GuaranteedCritActive.AnyActive;
+            if (focus == _focus)
+                return;
+            _focus = focus;
+            Color core = focus ? FocusColor : CoreColor;
+            SetLineColor(_diamond, core);
+            SetLineColor(_dot, core);
+            if (_ticks != null)
+                for (int i = 0; i < _ticks.Length; i++)
+                    SetLineColor(_ticks[i], core);
+            RebuildRing();
+        }
+
+        static void SetLineColor(LineRenderer lr, Color c)
+        {
+            if (lr == null)
+                return;
+            lr.startColor = c;
+            lr.endColor = c;
+        }
+
+        void BuildBand()
+        {
+            var go = new GameObject("WeakSpotBand");
+            go.transform.SetParent(transform, false);
+            var mf = go.AddComponent<MeshFilter>();
+            _bandRend = go.AddComponent<MeshRenderer>();
+            _bandMesh = new Mesh { name = "ChargeWeakSpotBand" };
+            mf.sharedMesh = _bandMesh;
+            _bandMat = MakeMat();
+            _bandMat.color = BandColor;
+            _bandRend.sharedMaterial = _bandMat;
+            _bandRend.sortingLayerName = JianHaiArtCatalog.LayerUi;
+            _bandRend.sortingOrder = Sorting - 1;
+            _bandRend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _bandRend.receiveShadows = false;
+            BuildArc(_bandMesh, BandStart, BandEnd, OuterRadius - RingThickness * 0.5f, OuterRadius + RingThickness * 0.5f, BandColor);
+        }
+
+        static void BuildArc(Mesh mesh, float from01, float to01, float inner, float outer, Color col)
+        {
+            int segs = Mathf.Max(2, Mathf.RoundToInt((to01 - from01) * RingSegments * 2f));
+            var verts = new Vector3[(segs + 1) * 2];
+            var colors = new Color[verts.Length];
+            var tris = new int[segs * 6];
+            for (int i = 0; i <= segs; i++)
+            {
+                float t = Mathf.Lerp(from01, to01, i / (float)segs);
+                float rad = (90f - t * 360f) * Mathf.Deg2Rad;
+                var dir = new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f);
+                verts[i * 2] = dir * inner;
+                verts[i * 2 + 1] = dir * outer;
+                colors[i * 2] = col;
+                colors[i * 2 + 1] = col;
+            }
+
+            for (int i = 0; i < segs; i++)
+            {
+                int vi = i * 2;
+                int ti = i * 6;
+                tris[ti] = vi; tris[ti + 1] = vi + 1; tris[ti + 2] = vi + 3;
+                tris[ti + 3] = vi; tris[ti + 4] = vi + 3; tris[ti + 5] = vi + 2;
+            }
+
+            mesh.Clear();
+            mesh.vertices = verts;
+            mesh.colors = colors;
+            mesh.triangles = tris;
+            mesh.RecalculateBounds();
         }
 
         void BuildCore()
@@ -139,7 +230,7 @@ namespace RogueShooter.Art
                 return;
 
             float fill = _progress;
-            Color col = _green ? RingGreen : (_progress > 0.001f ? RingWarm : RingIdle);
+            Color col = _green ? RingGreen : (_focus ? FocusColor : (_progress > 0.001f ? RingWarm : RingIdle));
             if (_ringMat != null)
                 _ringMat.color = col;
 
@@ -207,6 +298,8 @@ namespace RogueShooter.Art
 
             if (_ringRend != null)
                 _ringRend.enabled = _ringOn && _progress > 0.001f;
+            if (_bandRend != null)
+                _bandRend.enabled = _ringOn;
         }
 
         LineRenderer MakeLine(string name, int points, float width)

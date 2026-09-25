@@ -52,6 +52,8 @@ namespace RogueShooter.Build
 
             if (!RewardCatalog.TryGet("R3", out var r3) || r3.Tier != RewardTier.High)
                 return "R3 鸿运 must high";
+            if (r3.Stat != "crit_window" || Math.Abs(r3.Value - 0.06f) > 0.001f)
+                return "R3 crit_window +0.06s";
             if (r3.ShopPrice != 60)
                 return "R3 shop mid of 54-66";
             if (!RewardCatalog.TryGet("R10", out var r10) || r10.Tier != RewardTier.Mid)
