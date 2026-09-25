@@ -124,6 +124,12 @@ namespace RogueShooter.Iso
 
         /// <summary>
         /// Orthographic view rectangle → 4 logic-space corners (a quad / diamond).
+        /// The rect is this camera's actual orthographicSize and aspect
+        /// (<see cref="CameraViewMath.ResolveAspect"/>), the single source.
+        /// Do not substitute <see cref="IsoConfig.IsoOrthoSize"/> or
+        /// <see cref="IsoConfig.TargetAspect"/>. PR3 assigns orthographicSize
+        /// from <see cref="IsoConfig.OrthoSizeForAspect"/>; this method then
+        /// uses whatever size and aspect the camera has.
         /// Uses the same axis-aligned rect as <see cref="CameraViewMath"/>
         /// (unrotated camera). Index 0 bottom-left, 1 bottom-right, 2 top-right,
         /// 3 top-left, in view space, then <see cref="ScreenToLogic"/>.

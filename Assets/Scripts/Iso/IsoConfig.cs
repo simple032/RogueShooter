@@ -24,10 +24,29 @@ namespace RogueShooter.Iso
         public static bool Enabled { get; set; }
 
         /// <summary>
-        /// Orthographic size of the isometric camera.
+        /// Orthographic size of the isometric camera at 16:9 and wider.
         /// The orthographic (current) size 6 remains CameraViewService.PlayOrthoSize.
         /// </summary>
         public const float IsoOrthoSize = 5.25f;
+
+        /// <summary>Design aspect. Narrower windows keep this horizontal view width.</summary>
+        public const float TargetAspect = 16f / 9f;
+
+        /// <summary>
+        /// Orthographic size for a window aspect. PR3 sets the camera's
+        /// orthographicSize from this. At <see cref="TargetAspect"/> and wider
+        /// (21:9) the size stays <see cref="IsoOrthoSize"/>. Narrower aspects
+        /// (16:10, 4:3) return IsoOrthoSize * TargetAspect / aspect, which
+        /// locks the horizontal view width to the 16:9 width.
+        /// IsoProjection.ViewQuadInLogic must then read that camera's actual
+        /// orthographicSize and aspect. It must not rebuild the quad from these constants.
+        /// </summary>
+        public static float OrthoSizeForAspect(float aspect)
+        {
+            if (aspect >= TargetAspect)
+                return IsoOrthoSize;
+            return IsoOrthoSize * TargetAspect / aspect;
+        }
 
         /// <summary>
         /// The only sector-mode switch. Default is diamond-aligned

@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Iso
 {
@@ -24,6 +25,8 @@ namespace RogueShooter.Iso
             err = CheckViewHeight();
             if (err != null) return err;
             err = CheckSortAndQuad();
+            if (err != null) return err;
+            err = CheckAspectOrtho();
             if (err != null) return err;
             err = CheckSectors();
             if (err != null) return err;
@@ -187,6 +190,62 @@ namespace RogueShooter.Iso
             IsoProjection.ViewQuadInLogic(view, null);
             IsoProjection.ViewQuadInLogic(view, new Vector2[2]);
             return null;
+        }
+
+        static string CheckAspectOrtho()
+        {
+            if (Math.Abs(IsoConfig.TargetAspect - (16f / 9f)) > 1e-6f)
+                return "target aspect must be 16:9";
+            if (Math.Abs(IsoConfig.OrthoSizeForAspect(16f / 9f) - 5.25f) > 1e-4f)
+                return "16:9 ortho must be 5.25";
+            if (Math.Abs(IsoConfig.OrthoSizeForAspect(16f / 10f) - 5.8333f) > 0.0002f)
+                return "16:10 ortho must be 5.8333";
+            if (Math.Abs(IsoConfig.OrthoSizeForAspect(4f / 3f) - 7f) > 1e-4f)
+                return "4:3 ortho must be 7";
+            if (Math.Abs(IsoConfig.OrthoSizeForAspect(21f / 9f) - 5.25f) > 1e-4f)
+                return "21:9 ortho must stay 5.25";
+
+            float aspect = 16f / 9f;
+            float ortho = IsoConfig.OrthoSizeForAspect(aspect);
+            Rect view = CameraViewMath.GetOrthographicWorldRect(Vector3.zero, ortho, aspect);
+            var quad = new Vector2[4];
+            IsoProjection.ViewQuadInLogic(view, quad);
+            Vector2 center = IsoProjection.ScreenToLogic(new Vector2(
+                (view.xMin + view.xMax) * 0.5f,
+                (view.yMin + view.yMax) * 0.5f));
+            float left = DistToSegment(center, quad[3], quad[0]);
+            float right = DistToSegment(center, quad[1], quad[2]);
+            float bottom = DistToSegment(center, quad[0], quad[1]);
+            float top = DistToSegment(center, quad[2], quad[3]);
+            float minLR = left < right ? left : right;
+            float minTB = bottom < top ? bottom : top;
+            double expectLR = Math.Sqrt(2.0) * 5.25 * (16.0 / 9.0);
+            double expectTB = 2.0 * Math.Sqrt(2.0) * 5.25;
+            if (Math.Abs(minLR - expectLR) > 0.02 || Math.Abs(minLR - 13.2) > 0.05)
+                return "16:9 left/right logic reach " + minLR;
+            if (Math.Abs(minTB - expectTB) > 0.02 || Math.Abs(minTB - 14.85) > 0.05)
+                return "16:9 top/bottom logic reach " + minTB;
+            return null;
+        }
+
+        static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
+        {
+            float abx = b.x - a.x;
+            float aby = b.y - a.y;
+            float ab2 = abx * abx + aby * aby;
+            float t = 0f;
+            if (ab2 > 1e-12f)
+            {
+                t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / ab2;
+                if (t < 0f)
+                    t = 0f;
+                else if (t > 1f)
+                    t = 1f;
+            }
+
+            float dx = p.x - (a.x + abx * t);
+            float dy = p.y - (a.y + aby * t);
+            return (float)Math.Sqrt(dx * dx + dy * dy);
         }
 
         static string CheckSectors()
