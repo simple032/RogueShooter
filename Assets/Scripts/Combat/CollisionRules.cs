@@ -25,7 +25,8 @@ namespace RogueShooter.Combat
 
         public static CollisionLayer SolidMask => CollisionLayer.Wall | CollisionLayer.Door;
 
-        public static float DoorOpening => MazeRules.CorridorWidth;
+        /// <summary>Door opening (3u) = corridor 5u − 2 × 1u stub. Locked door volume is this wide.</summary>
+        public static float DoorOpening => MazeRules.DoorWidth;
 
         public static int UnityLayer(CollisionLayer layer)
         {

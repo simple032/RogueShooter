@@ -35,6 +35,8 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckRetestFixes();
             if (err != null) return err;
+            err = CheckDoorGeometry();
+            if (err != null) return err;
             return null;
         }
 
@@ -581,6 +583,102 @@ namespace RogueShooter.Combat
                 ActionClipDef atk = ActionSpecP1.EnemyAttack(k);
                 if (atk.Duration <= 0.01f)
                     return "attack clip duration missing for " + k;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 走廊宽度_建议_v02 + PR#19: every door strip is exactly MazeRules.DoorWidth (corridor − 2 × stub),
+        /// centred on MazeRules.DoorAxis, on whole cells, sealed by the wall segments on both sides; the room
+        /// cover edge lies on the door strip centre plane and spans the opening; reveal (0.3) is past the
+        /// strip and lock (2.0) is past strip + player box. Procedural seeds and the painted layout.
+        /// </summary>
+        static string CheckDoorGeometry()
+        {
+            float dw = MazeRules.DoorWidth;
+            if (Math.Abs(CollisionRules.DoorOpening - dw) > 0.001f
+                || Math.Abs(MazeRules.DoorOpeningFor(MazeRules.CorridorWidth) - dw) > 0.001f
+                || Math.Abs(MazeRules.CorridorWidth - dw - 2f * MazeRules.DoorStub) > 0.001f)
+                return "door width must be corridor − 2 × stub (" + MazeRules.CorridorWidth + "/" + dw + ")";
+            float half = CollisionRules.WallThickness * 0.5f;
+            float reveal = RogueShooter.Demo.Stage1MazeDemo.RevealInset;
+            float lockIn = RogueShooter.Demo.Stage1MazeDemo.LockTriggerInset;
+            if (!(reveal > half))
+                return "reveal inset must clear the door strip";
+            if (!(lockIn > reveal) || !(lockIn >= half + CollisionRules.PlayerHalfY))
+                return "lock inset must be past reveal and past strip + player box";
+
+            var mazes = new List<Stage1Maze>();
+            for (int s = 1; s <= 12; s++)
+                mazes.Add(Stage1MazeGen.Generate(s));
+            mazes.Add(RogueShooter.Demo.Stage1PaintedPlay.BuildPaintedMaze(42));
+            for (int m = 0; m < mazes.Count; m++)
+            {
+                Stage1Maze maze = mazes[m];
+                bool painted = m == mazes.Count - 1;
+                List<MazeSolid> solids = painted
+                    ? MazeCollisionBuilder.Build(maze, RogueShooter.Demo.Stage1PaintedPlay.CorridorWidth)
+                    : MazeCollisionBuilder.Build(maze);
+                for (int i = 0; i < solids.Count; i++)
+                {
+                    MazeSolid d = solids[i];
+                    if (!d.Door)
+                        continue;
+                    string tag = maze.Signature + " " + d.Name;
+                    MazeNode room = maze.Find(d.RoomId);
+                    MazeNode other = maze.Find(d.OtherId);
+                    if (room == null || other == null)
+                        return "door rooms missing " + tag;
+                    int side;
+                    float along;
+                    MazeCollisionBuilder.DoorOnWall(room, other, out side, out along);
+                    bool horiz = side == MazeCollisionBuilder.SideN || side == MazeCollisionBuilder.SideS;
+                    float span = horiz ? d.Width : d.Height;
+                    float thick = horiz ? d.Height : d.Width;
+                    float mid = horiz ? d.X : d.Y;
+                    float plane = horiz ? d.Y : d.X;
+                    if (Math.Abs(span - dw) > 0.001f || Math.Abs(thick - CollisionRules.WallThickness) > 0.001f)
+                        return "lock strip must be " + dw + "u wide " + tag;
+                    float roomMid = horiz ? room.Center.X : room.Center.Y;
+                    if (Math.Abs(mid - MazeRules.DoorAxis(roomMid)) > 0.001f)
+                        return "door centre must be DoorAxis " + tag;
+                    float a0 = mid - span * 0.5f, a1 = mid + span * 0.5f;
+                    if (Math.Abs(a0 - Math.Round(a0)) > 0.001f || Math.Abs(a1 - Math.Round(a1)) > 0.001f)
+                        return "door edges must be whole cells " + tag;
+
+                    float cx, cy, cw, ch;
+                    RogueShooter.Demo.Stage1MazeDemo.CoverRect(room, out cx, out cy, out cw, out ch);
+                    float edge = side == MazeCollisionBuilder.SideN ? cy + ch * 0.5f
+                        : side == MazeCollisionBuilder.SideS ? cy - ch * 0.5f
+                        : side == MazeCollisionBuilder.SideE ? cx + cw * 0.5f
+                        : cx - cw * 0.5f;
+                    float c0 = horiz ? cx - cw * 0.5f : cy - ch * 0.5f;
+                    float c1 = horiz ? cx + cw * 0.5f : cy + ch * 0.5f;
+                    if (Math.Abs(edge - plane) > 0.001f)
+                        return "cover edge must sit on the door centre plane " + tag;
+                    if (a0 < c0 - 0.001f || a1 > c1 + 0.001f)
+                        return "cover edge must span the door opening " + tag;
+
+                    bool sealLo = false, sealHi = false;
+                    for (int j = 0; j < solids.Count; j++)
+                    {
+                        MazeSolid w = solids[j];
+                        if (w.Door || w.RoomId != d.RoomId)
+                            continue;
+                        float wp = horiz ? w.Y : w.X;
+                        float wt = horiz ? w.Height : w.Width;
+                        if (Math.Abs(wp - plane) > 0.001f || wt > 1f)
+                            continue;
+                        float w0 = (horiz ? w.X - w.Width * 0.5f : w.Y - w.Height * 0.5f);
+                        float w1 = (horiz ? w.X + w.Width * 0.5f : w.Y + w.Height * 0.5f);
+                        if (Math.Abs(w1 - a0) < 0.001f) sealLo = true;
+                        if (Math.Abs(w0 - a1) < 0.001f) sealHi = true;
+                    }
+
+                    if (!sealLo || !sealHi)
+                        return "lock strip must meet the wall on both sides " + tag;
+                }
             }
 
             return null;

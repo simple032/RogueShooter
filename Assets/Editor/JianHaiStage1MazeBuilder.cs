@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using RogueShooter.Art;
+using RogueShooter.Maze;
 
 namespace RogueShooter.Tools
 {
@@ -99,14 +100,15 @@ namespace RogueShooter.Tools
             PaintRect(floorType, 29, 2, 48, 17, "chest");
             PaintRect(floorType, 29, 22, 48, 37, "room");
             PaintRect(floorType, 3, 22, 22, 37, "altar");
-            PaintRect(floorType, 23, 9, 28, 10, "corridor");
-            PaintRect(floorType, 38, 18, 39, 21, "corridor");
-            PaintRect(floorType, 23, 29, 28, 30, "corridor");
 
+            // 走廊宽度_建议_v02 (定稿): corridor 5u, door 3u, 1u wall stub each side. The door is the
+            // gap cell line touching each room (room wall line); the corridor body runs between.
+            // Axis = MazeRules.DoorAxis(room centre) so everything is whole cells. Every door is a mouth
+            // (stub cells get the opening frame tiles). Must match Stage1PaintedPlay.BuildMaze rooms.
             var mouth = new HashSet<Vector2Int>();
-            MarkMouth(mouth, 27, 9);
-            MarkMouth(mouth, 38, 20);
-            MarkMouth(mouth, 23, 29);
+            PaintCorridorX(floorType, mouth, 23, 28, 2, 17);   // START(3..22) ↔ CHEST(29..48), rows 2..17
+            PaintCorridorY(floorType, mouth, 18, 21, 29, 48);  // CHEST(y2..17) ↔ N1(y22..37), cols 29..48
+            PaintCorridorX(floorType, mouth, 23, 28, 22, 37);  // ALTAR(3..22) ↔ N1(29..48), rows 22..37
 
             var rand = new System.Random(20260921);
             int floorCount = 0;
@@ -182,11 +184,46 @@ namespace RogueShooter.Tools
                     floorType[x, y] = kind;
         }
 
-        static void MarkMouth(HashSet<Vector2Int> mouth, int x, int y)
+        /// <summary>Cell span [lo, hi] of a whole-cell band of <paramref name="width"/> on the door axis.</summary>
+        static void Band(int roomLo, int roomHi, float width, out int lo, out int hi)
         {
-            for (int dy = 0; dy < 2; dy++)
-                for (int dx = 0; dx < 2; dx++)
-                    mouth.Add(new Vector2Int(x + dx, y + dy));
+            float axis = MazeRules.DoorAxis((roomLo + roomHi + 1) * 0.5f);
+            lo = Mathf.RoundToInt(axis - width * 0.5f);
+            hi = lo + Mathf.RoundToInt(width) - 1;
+        }
+
+        /// <summary>E–W corridor across gap columns gx0..gx1 between rooms spanning rows roomY0..roomY1.
+        /// Door cells: columns gx0 and gx1 (3 rows). Body: gx0+1..gx1-1 (5 rows).</summary>
+        static void PaintCorridorX(string[,] floorType, HashSet<Vector2Int> mouth, int gx0, int gx1, int roomY0, int roomY1)
+        {
+            int c0, c1, d0, d1;
+            Band(roomY0, roomY1, MazeRules.CorridorWidth, out c0, out c1);
+            Band(roomY0, roomY1, MazeRules.DoorWidth, out d0, out d1);
+            PaintRect(floorType, gx0 + 1, c0, gx1 - 1, c1, "corridor");
+            for (int y = d0; y <= d1; y++)
+            {
+                floorType[gx0, y] = "corridor";
+                floorType[gx1, y] = "corridor";
+                mouth.Add(new Vector2Int(gx0, y));
+                mouth.Add(new Vector2Int(gx1, y));
+            }
+        }
+
+        /// <summary>N–S corridor across gap rows gy0..gy1 between rooms spanning columns roomX0..roomX1.
+        /// Door cells: rows gy0 and gy1 (3 columns). Body: gy0+1..gy1-1 (5 columns).</summary>
+        static void PaintCorridorY(string[,] floorType, HashSet<Vector2Int> mouth, int gy0, int gy1, int roomX0, int roomX1)
+        {
+            int c0, c1, d0, d1;
+            Band(roomX0, roomX1, MazeRules.CorridorWidth, out c0, out c1);
+            Band(roomX0, roomX1, MazeRules.DoorWidth, out d0, out d1);
+            PaintRect(floorType, c0, gy0 + 1, c1, gy1 - 1, "corridor");
+            for (int x = d0; x <= d1; x++)
+            {
+                floorType[x, gy0] = "corridor";
+                floorType[x, gy1] = "corridor";
+                mouth.Add(new Vector2Int(x, gy0));
+                mouth.Add(new Vector2Int(x, gy1));
+            }
         }
 
         static bool IsFloor(string[,] floorType, int x, int y)
@@ -226,9 +263,13 @@ namespace RogueShooter.Tools
             Add(7, 34, 2);
             Add(36, 9, 2);
             Add(13, 30, 3);
+            // No rubble on / next to the six 3u doors (door centre cells).
+            Add(23, 10, 2);
             Add(28, 10, 2);
+            Add(39, 18, 2);
             Add(39, 21, 2);
-            Add(24, 30, 2);
+            Add(23, 30, 2);
+            Add(28, 30, 2);
             return set;
         }
 
