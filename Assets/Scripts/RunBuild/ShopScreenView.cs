@@ -1,40 +1,52 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
-using RogueShooter.Player;
 
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// 商店购买界面 v0.2: standalone purchase screen (not the 3-choice reward screen).
-    /// 6 shelves in a 2×3 grid + 离开, live gold top-right, detail panel for the focused shelf.
-    /// Reuses the delivered shop panel / reward card / icon sprites (RewardScreenView.Load, RewardPresent)
-    /// and the bundled JianHaiUI-SC font. No new PNGs: focus frame and buttons are plain uGUI colour quads.
-    /// Keyboard / gamepad / mouse: arrows·WASD·left stick move, Enter·Space·A buy, Esc·B leave,
-    /// hover = focus, left click = buy. 1–6 still buy a shelf directly (QA shortcut, same rules).
+    /// 商店购买界面 (制作人 09-25 版式): standalone purchase screen, not the 3-choice reward screen.
+    /// LEFT: shop list — one row per shelf with ONLY icon, name, rarity, price.
+    /// RIGHT: details of the selected row + 购买 button (single press buys, no second confirm) + 离开.
+    /// Sold / can't-afford read clearly on the row (dimmed, 已售 / red price) and on the button (已售 / 金币不足).
+    /// Placeholder styling only: delivered shop panel + reward icons (RewardScreenView.Load / RewardPresent),
+    /// bundled JianHaiUI-SC font, and plain uGUI colour quads. No new PNGs (final art pending, v03 doc pending).
+    /// Input: mouse click row = select, click 购买 = buy; ↑↓/W S/left stick = select row (then 离开, wraps);
+    /// Enter/Space/A = press 购买 for the selected row (or 离开 when it is selected); Esc/B = leave.
+    /// 1–6 = select that row and press 购买 (QA shortcut, same rules). Buy/leave presses are ignored for
+    /// <see cref="ShopSession.OpenInputLockSeconds"/> after each open.
     /// </summary>
     public sealed class ShopScreenView : MonoBehaviour
     {
         /// <summary>True while the purchase screen is up (debug HUDs hide, like RewardScreenView.PanelOpen).</summary>
         public static bool IsOpen { get; private set; }
 
-        public const int Columns = 3;
-        public const float CardW = 150f;
-        public const float CardH = 216f;
+        public const float RowW = 470f;
+        public const float RowH = 66f;
+        public const float RowGap = 8f;
         public const float ShakeSeconds = 0.3f;
         public const string SoldText = "已售";
         public const string LeaveText = "离开";
         public const string GoldLabel = "金币";
+        public const string BuyText = "购买";
+        public const string NoGoldText = "金币不足";
 
-        static readonly Color PriceOk = Color.white;
+        static readonly Color PriceOk = new Color(1f, 0.9f, 0.55f);
         static readonly Color PriceShort = new Color(1f, 0.32f, 0.28f);
-        static readonly Color CardDim = new Color(0.45f, 0.45f, 0.45f, 1f);
-        static readonly Color CardSold = new Color(0.3f, 0.3f, 0.3f, 1f);
-        static readonly Color FocusColor = new Color(1f, 0.82f, 0.32f, 0.95f);
-        static readonly Color LeaveIdle = new Color(0.16f, 0.12f, 0.1f, 0.92f);
-        static readonly Color LeaveFocus = new Color(0.55f, 0.4f, 0.16f, 0.95f);
+        static readonly Color RowIdle = new Color(0.12f, 0.1f, 0.09f, 0.88f);
+        static readonly Color RowSelected = new Color(0.42f, 0.3f, 0.13f, 0.95f);
+        static readonly Color RowDim = new Color(0.08f, 0.08f, 0.08f, 0.8f);
+        static readonly Color TextDim = new Color(0.55f, 0.55f, 0.55f, 1f);
+        static readonly Color BtnBuy = new Color(0.2f, 0.52f, 0.24f, 0.95f);
+        static readonly Color BtnBuyFocus = new Color(0.3f, 0.7f, 0.32f, 1f);
+        static readonly Color BtnDisabled = new Color(0.3f, 0.3f, 0.3f, 0.9f);
+        static readonly Color BtnLeave = new Color(0.16f, 0.12f, 0.1f, 0.92f);
+        static readonly Color BtnLeaveFocus = new Color(0.55f, 0.4f, 0.16f, 0.95f);
+        static readonly Color DetailBg = new Color(0.07f, 0.06f, 0.05f, 0.85f);
 
         public ShopSession Session { get; private set; }
+        public Canvas Canvas => _canvas;
+        public int LastShownGold { get; private set; }
 
         RunBuildState _build;
         Action<ShopShelf> _onBought;
@@ -43,34 +55,33 @@ namespace RogueShooter.Build
 
         Canvas _canvas;
         Font _font;
-        Image _panel;
-        Text _title;
         Text _gold;
-        Text _detail;
-        RectTransform _leaveRt;
+        Image _detailIcon;
+        Text _detailName;
+        Text _detailMeta;
+        Text _detailBody;
+        Image _buyImage;
+        Text _buyText;
+        RectTransform _buyRt;
         Image _leaveImage;
-        Card[] _cards = new Card[0];
+        RectTransform _leaveRt;
+        Row[] _rows = new Row[0];
         AudioSource _audio;
         AudioClip _deny;
         int _shakeIndex = -1;
         float _shakeUntil;
-        Vector3 _lastMouse;
         bool _axisArmed = true;
         bool _leaveRequested;
-        public int LastShownGold { get; private set; }
 
-        sealed class Card
+        sealed class Row
         {
             public RectTransform Root;
             public Vector2 Home;
-            public Image Frame;
-            public Image Body;
+            public Image Bg;
             public Image Icon;
-            public Text Mark;
             public Text Name;
-            public Text Desc;
+            public Text Rarity;
             public Text Price;
-            public Text Sold;
         }
 
         public void Open(ShopSession session, RunBuildState build, Action<ShopShelf> onBought,
@@ -84,10 +95,9 @@ namespace RogueShooter.Build
             _onBought = onBought;
             _onResult = onResult;
             _onClosed = onClosed;
-            BuildCards();
+            BuildRows();
             session.Open(Time.unscaledTime, build.Gold);
             _shakeIndex = -1;
-            _lastMouse = Input.mousePosition;
             _axisArmed = false; // a held stick at open must return to centre first
             _leaveRequested = false;
             _canvas.gameObject.SetActive(true);
@@ -142,54 +152,58 @@ namespace RogueShooter.Build
                 Leave();
         }
 
-        void RequestLeave()
-        {
-            _leaveRequested = true;
-        }
-
         void HandleInput()
         {
             float now = Time.unscaledTime;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
             {
-                RequestLeave();
+                _leaveRequested = true;
                 return;
             }
 
-            int dx = 0, dy = 0;
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)) dx = -1;
-            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)) dx = 1;
+            int dy = 0;
             if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)) dy = -1;
             if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)) dy = 1;
-            bool keyHeld = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow)
-                           || Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
-                           || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D)
+            bool keyHeld = Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
                            || Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.S);
-            if (dx == 0 && dy == 0 && !keyHeld)
-                ReadStick(ref dx, ref dy);
-            if (dx != 0)
-                Session.MoveFocus(dx, 0, Columns);
-            else if (dy != 0)
-                Session.MoveFocus(0, dy, Columns);
+            if (dy == 0 && !keyHeld)
+                dy = ReadStick();
+            if (dy != 0)
+                Select(Session.MoveFocus(dy, 0, 1));
 
-            // Mouse: hover = focus (only when the mouse actually moved), click = buy / leave.
-            Vector3 mouse = Input.mousePosition;
-            bool moved = (mouse - _lastMouse).sqrMagnitude > 0.25f;
-            _lastMouse = mouse;
-            int hover = HitTest(mouse);
-            if (moved && hover >= 0)
-                Session.Focus = hover;
-            if (Input.GetMouseButtonDown(0) && hover >= 0)
+            if (Input.GetMouseButtonDown(0))
             {
-                Session.Focus = hover;
-                Confirm(hover, now);
-                return;
+                Vector3 mouse = Input.mousePosition;
+                if (Hit(_buyRt, mouse))
+                {
+                    PressBuy(now);
+                    return;
+                }
+
+                if (Hit(_leaveRt, mouse))
+                {
+                    Select(Session.LeaveIndex);
+                    PressLeave(now);
+                    return;
+                }
+
+                for (int i = 0; i < _rows.Length; i++)
+                {
+                    if (_rows[i] != null && Hit(_rows[i].Root, mouse))
+                    {
+                        Select(i); // click row = select only
+                        return;
+                    }
+                }
             }
 
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)
                 || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.JoystickButton0))
             {
-                Confirm(Session.Focus, now);
+                if (Session.Focus == Session.LeaveIndex)
+                    PressLeave(now);
+                else
+                    PressBuy(now);
                 return;
             }
 
@@ -197,55 +211,62 @@ namespace RogueShooter.Build
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i))
                 {
-                    Session.Focus = i;
                     Confirm(i, now);
                     return;
                 }
             }
         }
 
-        void ReadStick(ref int dx, ref int dy)
+        int ReadStick()
         {
-            float h = 0f, v = 0f;
+            float v;
             try
             {
-                h = Input.GetAxisRaw("Horizontal");
                 v = Input.GetAxisRaw("Vertical");
             }
             catch (ArgumentException)
             {
-                return;
+                return 0;
             }
 
-            float mag = Mathf.Max(Mathf.Abs(h), Mathf.Abs(v));
+            float mag = Mathf.Abs(v);
             if (mag < 0.3f)
             {
                 _axisArmed = true;
-                return;
+                return 0;
             }
 
             if (!_axisArmed || mag < 0.6f)
-                return;
+                return 0;
             _axisArmed = false;
-            if (Mathf.Abs(h) >= Mathf.Abs(v))
-                dx = h > 0f ? 1 : -1;
-            else
-                dy = v > 0f ? -1 : 1; // stick up = previous row
+            return v > 0f ? -1 : 1; // stick up = previous row
         }
 
-        /// <summary>One confirm. Shelf: buy (no second confirm). 离开: close. Both ignored in the open lock window.</summary>
-        public ShopBuyResult Confirm(int index, float now)
+        static bool Hit(RectTransform rt, Vector3 mouse)
+        {
+            return rt != null && rt.gameObject.activeInHierarchy
+                   && RectTransformUtility.RectangleContainsScreenPoint(rt, mouse, null);
+        }
+
+        /// <summary>Select a row (or <see cref="ShopSession.LeaveIndex"/>). Never buys.</summary>
+        public void Select(int index)
+        {
+            if (Session == null)
+                return;
+            if (index < 0 || index > Session.LeaveIndex)
+                return;
+            Session.Focus = index;
+            Refresh();
+        }
+
+        /// <summary>购买 button: buys the selected row at once (no second confirm). Ignored in the open lock window.</summary>
+        public ShopBuyResult PressBuy(float now)
         {
             if (Session == null)
                 return ShopBuyResult.Invalid;
-            if (index == Session.LeaveIndex)
-            {
-                if (Session.InputLocked(now))
-                    return ShopBuyResult.Locked;
-                RequestLeave();
+            int index = Session.Focus;
+            if (index < 0 || index >= Session.LeaveIndex)
                 return ShopBuyResult.Invalid;
-            }
-
             ShopShelf shelf;
             ShopBuyResult r = Session.TryBuy(index, now, _build, out shelf);
             if (r == ShopBuyResult.Bought && _onBought != null)
@@ -263,82 +284,124 @@ namespace RogueShooter.Build
             return r;
         }
 
-        int HitTest(Vector3 mouse)
+        /// <summary>离开 button press (lock window applies; Esc / B always leave).</summary>
+        public bool PressLeave(float now)
         {
-            for (int i = 0; i < _cards.Length; i++)
-            {
-                if (_cards[i] != null && RectTransformUtility.RectangleContainsScreenPoint(_cards[i].Root, mouse, null))
-                    return i;
-            }
-
-            if (_leaveRt != null && RectTransformUtility.RectangleContainsScreenPoint(_leaveRt, mouse, null))
-                return Session != null ? Session.LeaveIndex : -1;
-            return -1;
+            if (Session == null || Session.InputLocked(now))
+                return false;
+            _leaveRequested = true;
+            return true;
         }
 
-        /// <summary>Re-judge every shelf on the live gold (§4.1 即时刷新) and redraw gold / focus / detail.</summary>
+        /// <summary>Select <paramref name="index"/> then press 购买 (or 离开 for the leave index).</summary>
+        public ShopBuyResult Confirm(int index, float now)
+        {
+            if (Session == null)
+                return ShopBuyResult.Invalid;
+            Select(index);
+            if (index == Session.LeaveIndex)
+                return PressLeave(now) ? ShopBuyResult.Invalid : ShopBuyResult.Locked;
+            return PressBuy(now);
+        }
+
+        /// <summary>Re-judge every row on the live gold (即时刷新) and redraw gold / selection / detail / button.</summary>
         public void Refresh()
         {
             if (Session == null || _build == null || _canvas == null)
                 return;
             int gold = _build.Gold;
             LastShownGold = gold;
-            _gold.text = GoldLabel + " " + gold + "\nBuild " + _build.BuildCount;
+            _gold.text = GoldLabel + " " + gold + "   Build " + _build.BuildCount;
             float now = Time.unscaledTime;
-            for (int i = 0; i < _cards.Length; i++)
+            for (int i = 0; i < _rows.Length; i++)
             {
-                Card c = _cards[i];
+                Row r = _rows[i];
                 ShopSlotState st = Session.StateOf(i, gold);
-                c.Body.color = st == ShopSlotState.Buyable ? Color.white : st == ShopSlotState.NoGold ? CardDim : CardSold;
-                if (c.Icon != null)
-                    c.Icon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.2f)
-                        : st == ShopSlotState.NoGold ? CardDim : Color.white;
-                c.Price.gameObject.SetActive(st != ShopSlotState.Sold);
-                c.Price.color = st == ShopSlotState.NoGold ? PriceShort : PriceOk;
-                c.Sold.gameObject.SetActive(st == ShopSlotState.Sold);
-                c.Frame.enabled = Session.Focus == i;
+                bool selected = Session.Focus == i;
+                r.Bg.color = selected ? RowSelected : st == ShopSlotState.Sold ? RowDim : RowIdle;
+                Color text = st == ShopSlotState.Buyable ? Color.white : TextDim;
+                r.Name.color = text;
+                r.Rarity.color = st == ShopSlotState.Buyable ? RarityColor(Session.Shelves[i]) : TextDim;
+                if (r.Icon != null)
+                    r.Icon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.25f)
+                        : st == ShopSlotState.NoGold ? new Color(0.6f, 0.6f, 0.6f, 1f) : Color.white;
+                r.Price.text = st == ShopSlotState.Sold ? SoldText : Session.Shelves[i].Price + " " + GoldLabel;
+                r.Price.color = st == ShopSlotState.Sold ? TextDim : st == ShopSlotState.NoGold ? PriceShort : PriceOk;
                 float dx = 0f;
                 if (i == _shakeIndex && now < _shakeUntil)
-                {
-                    float k = (_shakeUntil - now) / ShakeSeconds;
-                    dx = Mathf.Sin(now * 70f) * 9f * k;
-                }
-
-                c.Root.anchoredPosition = c.Home + new Vector2(dx, 0f);
+                    dx = Mathf.Sin(now * 70f) * 9f * ((_shakeUntil - now) / ShakeSeconds);
+                r.Root.anchoredPosition = r.Home + new Vector2(dx, 0f);
             }
 
-            if (_leaveImage != null)
-                _leaveImage.color = Session.Focus == Session.LeaveIndex ? LeaveFocus : LeaveIdle;
-            _detail.text = DetailText(Session.Focus, gold);
+            RefreshDetail(gold);
+            _leaveImage.color = Session.Focus == Session.LeaveIndex ? BtnLeaveFocus : BtnLeave;
         }
 
-        string DetailText(int index, int gold)
+        void RefreshDetail(int gold)
         {
-            if (Session.Shelves == null || index < 0 || index >= Session.Shelves.Length)
-                return "离开商店\n货架不刷新，可再次进入";
-            ShopShelf s = Session.Shelves[index];
+            int i = Session.Focus;
+            bool shelfSel = Session.Shelves != null && i >= 0 && i < Session.Shelves.Length;
+            if (!shelfSel)
+            {
+                _detailIcon.enabled = false;
+                _detailName.text = LeaveText;
+                _detailMeta.text = "";
+                _detailBody.text = "货架不刷新，离开后可再次进入";
+                _buyImage.color = BtnDisabled;
+                _buyText.text = BuyText;
+                return;
+            }
+
+            ShopShelf s = Session.Shelves[i];
+            ShopSlotState st = Session.StateOf(i, gold);
             if (s.Empty)
-                return SoldText;
-            RewardCardData card = RewardPresent.ToCard(s.Id, s.Tier, "", "", index, false);
-            int stacks = ShopSession.OwnedStacks(_build.OwnedRewardIds, s.Id);
-            string stack = ShopSession.StackLabel(s.Id);
-            ShopSlotState st = Session.StateOf(index, gold);
-            string state = st == ShopSlotState.Sold ? SoldText
-                : st == ShopSlotState.NoGold ? "金币不足"
-                : "可购买";
-            return card.Name + "\n"
-                   + MarkFor(s) + " · " + s.Price + GoldLabel + " · " + state + "\n"
-                   + card.Desc + "\n"
-                   + stack + (s.IsHeal ? "" : " · 已有 " + stacks + " 层");
+            {
+                _detailIcon.enabled = false;
+                _detailName.text = SoldText;
+                _detailMeta.text = "";
+                _detailBody.text = "";
+            }
+            else
+            {
+                RewardCardData card = RewardPresent.ToCard(s.Id, s.Tier, "", "", i, false);
+                _detailIcon.enabled = true;
+                _detailIcon.sprite = RewardScreenView.Load(card.Icon);
+                _detailIcon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
+                _detailName.text = card.Name;
+                _detailMeta.text = RarityText(s) + " · " + s.Price + " " + GoldLabel;
+                _detailMeta.color = st == ShopSlotState.NoGold ? PriceShort : PriceOk;
+                int stacks = ShopSession.OwnedStacks(_build.OwnedRewardIds, s.Id);
+                string stack = ShopSession.StackLabel(s.Id);
+                _detailBody.text = card.Desc + "\n" + s.Effect + "\n" + stack
+                                   + (s.IsHeal ? "" : " · 已有 " + stacks + " 层");
+            }
+
+            bool focusBuy = st == ShopSlotState.Buyable;
+            _buyImage.color = focusBuy ? BtnBuyFocus : BtnDisabled;
+            _buyText.text = st == ShopSlotState.Sold ? SoldText
+                : st == ShopSlotState.NoGold ? NoGoldText + "（" + s.Price + "）"
+                : BuyText + "  " + s.Price + " " + GoldLabel;
+            _buyText.color = st == ShopSlotState.NoGold ? PriceShort : Color.white;
         }
 
-        static string MarkFor(ShopShelf s)
+        public static string RarityText(ShopShelf s)
         {
             string tier = s.ContentRole == ShopSlotRole.Heal ? "回复"
                 : s.ContentRole == ShopSlotRole.High ? "高级"
                 : s.ContentRole == ShopSlotRole.Mid ? "中级"
                 : "普通";
-            return s.IsElastic ? "灵活·" + tier : tier;
+            return s.IsElastic ? tier + "·灵活" : tier;
+        }
+
+        static Color RarityColor(ShopShelf s)
+        {
+            switch (s.ContentRole)
+            {
+                case ShopSlotRole.Heal: return new Color(0.5f, 0.95f, 0.55f);
+                case ShopSlotRole.High: return new Color(1f, 0.7f, 0.3f);
+                case ShopSlotRole.Mid: return new Color(0.55f, 0.75f, 1f);
+                default: return new Color(0.85f, 0.85f, 0.85f);
+            }
         }
 
         void PlayDeny()
@@ -350,7 +413,7 @@ namespace RogueShooter.Build
             _audio.PlayOneShot(_deny);
         }
 
-        /// <summary>Short low "嘟" generated in code (no new audio asset).</summary>
+        /// <summary>Short low beep generated in code (no new audio asset).</summary>
         static AudioClip MakeDenyClip()
         {
             const int rate = 22050;
@@ -381,20 +444,37 @@ namespace RogueShooter.Build
             var scaler = root.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1600f, 900f);
+            scaler.matchWidthOrHeight = 0.5f;
 
-            _panel = MakeImage(root.transform, "Panel", Vector2.zero, new Vector2(1100f, 620f));
-            _panel.sprite = RewardScreenView.Load("jh_ui_shop_panel");
-            _title = AddText(root.transform, "商店 · 不刷新", 24, new Vector2(0f, 262f), 360f, TextAnchor.MiddleCenter);
-            _gold = AddText(root.transform, "", 22, new Vector2(430f, 250f), 200f, TextAnchor.MiddleRight);
-            _gold.rectTransform.sizeDelta = new Vector2(200f, 60f);
-            _detail = AddText(root.transform, "", 20, new Vector2(300f, 40f), 400f, TextAnchor.UpperLeft);
-            _detail.rectTransform.sizeDelta = new Vector2(400f, 260f);
-            _detail.verticalOverflow = VerticalWrapMode.Overflow;
+            Image panel = MakeImage(root.transform, "Panel", Vector2.zero, new Vector2(1100f, 620f));
+            panel.sprite = RewardScreenView.Load("jh_ui_shop_panel");
+            if (panel.sprite == null)
+                panel.color = DetailBg;
+            AddText(root.transform, "商店 · 不刷新", 24, new Vector2(0f, 262f), 360f, TextAnchor.MiddleCenter);
+            _gold = AddText(root.transform, "", 22, new Vector2(390f, 262f), 260f, TextAnchor.MiddleRight);
+            _gold.color = PriceOk;
 
-            _leaveImage = MakeImage(root.transform, "Leave", new Vector2(300f, -210f), new Vector2(220f, 52f));
+            // Right: detail panel + buttons.
+            Image detail = MakeImage(root.transform, "Detail", new Vector2(262f, 20f), new Vector2(430f, 400f));
+            detail.preserveAspect = false;
+            detail.color = DetailBg;
+            _detailIcon = MakeImage(detail.transform, "Icon", new Vector2(-150f, 140f), new Vector2(96f, 96f));
+            _detailName = AddText(detail.transform, "", 28, new Vector2(50f, 158f), 290f, TextAnchor.MiddleLeft);
+            _detailMeta = AddText(detail.transform, "", 20, new Vector2(50f, 118f), 290f, TextAnchor.MiddleLeft);
+            _detailBody = AddText(detail.transform, "", 20, new Vector2(0f, -20f), 390f, TextAnchor.UpperLeft);
+            _detailBody.rectTransform.sizeDelta = new Vector2(390f, 200f);
+            _detailBody.verticalOverflow = VerticalWrapMode.Overflow;
+            _detailBody.lineSpacing = 1.2f;
+
+            _buyImage = MakeImage(root.transform, "Buy", new Vector2(262f, -222f), new Vector2(300f, 56f));
+            _buyImage.preserveAspect = false;
+            _buyRt = _buyImage.rectTransform;
+            _buyText = AddText(_buyImage.transform, BuyText, 24, Vector2.zero, 300f, TextAnchor.MiddleCenter);
+
+            _leaveImage = MakeImage(root.transform, "Leave", new Vector2(460f, -222f), new Vector2(80f, 56f));
             _leaveImage.preserveAspect = false;
             _leaveRt = _leaveImage.rectTransform;
-            AddText(_leaveImage.transform, LeaveText + " (Esc)", 22, Vector2.zero, 220f, TextAnchor.MiddleCenter);
+            AddText(_leaveImage.transform, LeaveText, 22, Vector2.zero, 80f, TextAnchor.MiddleCenter);
 
             _audio = gameObject.GetComponent<AudioSource>();
             if (_audio == null)
@@ -405,87 +485,45 @@ namespace RogueShooter.Build
             _canvas.gameObject.SetActive(false);
         }
 
-        void BuildCards()
+        void BuildRows()
         {
-            for (int i = 0; i < _cards.Length; i++)
+            for (int i = 0; i < _rows.Length; i++)
             {
-                if (_cards[i] == null || _cards[i].Root == null)
+                if (_rows[i] == null || _rows[i].Root == null)
                     continue;
                 if (Application.isPlaying)
-                    Destroy(_cards[i].Root.gameObject);
+                    Destroy(_rows[i].Root.gameObject);
                 else
-                    DestroyImmediate(_cards[i].Root.gameObject);
+                    DestroyImmediate(_rows[i].Root.gameObject);
             }
 
             ShopShelf[] shelves = Session.Shelves ?? new ShopShelf[0];
-            _cards = new Card[shelves.Length];
-            float gap = 16f;
-            float x0 = -360f;
-            float y0 = 118f;
+            _rows = new Row[shelves.Length];
+            float top = 200f;
             for (int i = 0; i < shelves.Length; i++)
-            {
-                int col = i % Columns;
-                int row = i / Columns;
-                var home = new Vector2(x0 + col * (CardW + gap), y0 - row * (CardH + 18f));
-                _cards[i] = MakeCard(shelves[i], i, home);
-            }
+                _rows[i] = MakeRow(shelves[i], i, new Vector2(-250f, top - i * (RowH + RowGap)));
         }
 
-        Card MakeCard(ShopShelf shelf, int index, Vector2 home)
+        Row MakeRow(ShopShelf shelf, int index, Vector2 home)
         {
-            var c = new Card { Home = home };
-            var go = new GameObject("Shelf" + index, typeof(RectTransform));
-            go.transform.SetParent(_canvas.transform, false);
-            c.Root = go.GetComponent<RectTransform>();
-            c.Root.anchorMin = c.Root.anchorMax = new Vector2(0.5f, 0.5f);
-            c.Root.sizeDelta = new Vector2(CardW, CardH);
-            c.Root.anchoredPosition = home;
-
-            c.Frame = MakeImage(go.transform, "Focus", Vector2.zero, new Vector2(CardW + 12f, CardH + 12f));
-            c.Frame.preserveAspect = false;
-            c.Frame.color = FocusColor;
-            c.Frame.raycastTarget = false;
-            c.Body = MakeImage(go.transform, "Card", Vector2.zero, new Vector2(CardW, CardH));
-            c.Body.sprite = RewardScreenView.Load(CardSprite(shelf.Tier, shelf.IsHeal));
-            c.Body.raycastTarget = false;
-
+            var r = new Row { Home = home };
+            r.Bg = MakeImage(_canvas.transform, "Row" + index, home, new Vector2(RowW, RowH));
+            r.Bg.preserveAspect = false;
+            r.Root = r.Bg.rectTransform;
             RewardCardData card = shelf.Empty
-                ? new RewardCardData { Name = "", Desc = "", Icon = "" }
-                : RewardPresent.ToCard(shelf.Id, shelf.Tier, shelf.Price + GoldLabel, MarkFor(shelf), index, false);
+                ? new RewardCardData { Name = SoldText, Icon = "" }
+                : RewardPresent.ToCard(shelf.Id, shelf.Tier, "", "", index, false);
             if (!string.IsNullOrEmpty(card.Icon))
             {
-                c.Icon = MakeImage(go.transform, "Icon", new Vector2(0f, CardH * 0.25f),
-                    new Vector2(CardW * (96f / 360f), CardH * (96f / 520f)));
-                c.Icon.sprite = RewardScreenView.Load(card.Icon);
-                c.Icon.raycastTarget = false;
+                r.Icon = MakeImage(r.Root, "Icon", new Vector2(-RowW * 0.5f + 36f, 0f), new Vector2(52f, 52f));
+                r.Icon.sprite = RewardScreenView.Load(card.Icon);
+                r.Icon.raycastTarget = false;
             }
 
-            c.Mark = AddText(go.transform, MarkFor(shelf), Scale(0.07f), new Vector2(0f, CardH * 0.38f), CardW * 0.8f, TextAnchor.MiddleCenter);
-            c.Name = AddText(go.transform, card.Name, Scale(0.062f), new Vector2(0f, CardH * 0.029f), CardW * (272f / 360f), TextAnchor.MiddleCenter);
-            c.Desc = AddText(go.transform, card.Desc, Scale(0.046f), new Vector2(0f, -CardH * 0.204f), CardW * (292f / 360f), TextAnchor.MiddleCenter);
-            c.Price = AddText(go.transform, shelf.Empty ? "" : shelf.Price + GoldLabel, Scale(0.06f), new Vector2(0f, -CardH * 0.402f), CardW * 0.6f, TextAnchor.MiddleCenter);
-            c.Sold = AddText(go.transform, SoldText, Scale(0.1f), new Vector2(0f, CardH * 0.1f), CardW, TextAnchor.MiddleCenter);
-            c.Sold.color = new Color(1f, 0.85f, 0.5f);
-            return c;
-        }
-
-        /// <summary>Same card art mapping as the reward screen (low / mid / high). Heal uses the mid card (price tier 当量2).</summary>
-        static string CardSprite(RewardTier tier, bool heal)
-        {
-            if (heal)
-                return "jh_ui_reward_card_mid";
-            switch (tier)
-            {
-                case RewardTier.Mid: return "jh_ui_reward_card_mid";
-                case RewardTier.High: return "jh_ui_reward_card_high";
-                default: return "jh_ui_reward_card_low";
-            }
-        }
-
-        static int Scale(float fraction)
-        {
-            int size = Mathf.RoundToInt(CardH * fraction);
-            return size < 10 ? 10 : size;
+            r.Name = AddText(r.Root, card.Name, 24, new Vector2(-40f, 0f), 220f, TextAnchor.MiddleLeft);
+            r.Rarity = AddText(r.Root, RarityText(shelf), 18, new Vector2(95f, 0f), 100f, TextAnchor.MiddleCenter);
+            r.Price = AddText(r.Root, "", 22, new Vector2(RowW * 0.5f - 60f, 0f), 110f, TextAnchor.MiddleRight);
+            return r;
         }
 
         Text AddText(Transform parent, string value, int size, Vector2 pos, float width, TextAnchor align)
