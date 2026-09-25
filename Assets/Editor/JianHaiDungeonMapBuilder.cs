@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using RogueShooter.Art;
+using RogueShooter.Iso.Render;
 using RogueShooter.Demo;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
@@ -469,6 +470,7 @@ namespace RogueShooter.Tools
             var tr = go.GetComponent<TilemapRenderer>();
             tr.sortingLayerName = layer;
             tr.sortingOrder = order;   // chunk mode is the default
+            IsoUrpEditorMaterials.AssignLit(tr);
             return tm;
         }
 
@@ -528,6 +530,7 @@ namespace RogueShooter.Tools
             go.transform.position = pos;
             var slot = go.AddComponent<JianHaiSpriteSlot>();
             slot.Configure(hookId, artRoot, state);
+            IsoUrpEditorMaterials.AssignLit(go.GetComponent<SpriteRenderer>());
             if (scaleOverride > 0.001f)
                 go.transform.localScale = Vector3.one * scaleOverride; // 小/中/大 体量递进 (final art = 外包 96x96)
             return go;
@@ -544,6 +547,7 @@ namespace RogueShooter.Tools
             sr.sprite = LoadSprite(artId);
             sr.sortingLayerName = LayerFor(layer);
             sr.sortingOrder = OrderFor(layer == JianHaiArtCatalog.LayerEntity ? 20 : 10);
+            IsoUrpEditorMaterials.AssignLit(sr);
             if (sr.sprite == null)
                 Debug.LogError("[DungeonMap] sprite missing: " + artId);
             return go;
