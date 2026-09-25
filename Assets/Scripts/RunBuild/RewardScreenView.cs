@@ -230,9 +230,12 @@ namespace RogueShooter.Build
             if (cards == null)
                 return;
             int n = cards.Length;
-            float cardW = shop ? 150f : 200f;
-            float cardH = shop ? 216f : 288f;
-            float gap = shop ? 12f : 24f;
+            // Reward (chest/altar) cards: 225x325, gap 68.75 → centres (-293.75 / 0 / +293.75, -18.75),
+            // i.e. the painted slots of jh_ui_reward_panel_3choice (1600x760 art shown at 1000x475).
+            float cardW = shop ? 150f : 225f;
+            float cardH = shop ? 216f : 325f;
+            float gap = shop ? 12f : 68.75f;
+            float cardY = shop ? -10f : -18.75f;
             float total = n * cardW + (n - 1) * gap;
             float x0 = -total * 0.5f + cardW * 0.5f;
             for (int i = 0; i < n; i++)
@@ -243,11 +246,11 @@ namespace RogueShooter.Build
                 var rt = go.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.sizeDelta = new Vector2(cardW, cardH);
-                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), shop ? -10f : 0f);
+                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), cardY);
                 var image = go.GetComponent<Image>();
                 image.sprite = Load(CardSprite(card.Tier));
                 image.type = Image.Type.Simple;
-                image.preserveAspect = true;
+                image.preserveAspect = false;
                 int index = card.Index;
                 go.GetComponent<Button>().onClick.AddListener(() =>
                 {
@@ -259,15 +262,24 @@ namespace RogueShooter.Build
                     float iconW = cardW * (96f / 360f);
                     float iconH = cardH * (96f / 520f);
                     Image icon = MakeImage(go.transform, "Icon", new Vector2(0f, cardH * 0.25f), new Vector2(iconW, iconH));
-                    icon.sprite = Load(card.Icon);
+                    icon.sprite = LoadIcon(card.Icon);
                     icon.raycastTarget = false;
                 }
-                AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
+                // Rarity badge: the card art's pips + tier colour carry the rarity, so tier text
+                // (低/中/高/普) is not drawn. Non-tier marks (shop "回血") still show.
+                if (!IsTierMark(card.Mark))
+                    AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
                 AddText(go.transform, card.Name, Scale(cardH, 0.062f), new Vector2(0f, cardH * 0.029f), cardW * (272f / 360f));
                 AddText(go.transform, card.Desc, Scale(cardH, 0.046f), new Vector2(0f, -cardH * 0.204f), cardW * (292f / 360f));
                 if (!string.IsNullOrEmpty(card.Price))
                     AddText(go.transform, card.Price, Scale(cardH, 0.05f), new Vector2(0f, -cardH * 0.402f), cardW * (176f / 360f));
             }
+        }
+
+        /// <summary>True for the plain rarity labels that the badge art already shows.</summary>
+        public static bool IsTierMark(string mark)
+        {
+            return mark == "低" || mark == "中" || mark == "高" || mark == "普";
         }
 
         static int Scale(float cardH, float fraction)
@@ -324,6 +336,19 @@ namespace RogueShooter.Build
             if (string.IsNullOrEmpty(id))
                 return null;
             return Resources.Load<Sprite>("JianHaiReward/" + id);
+        }
+
+        /// <summary>
+        /// Card icon: the requested sprite, else its silent stand-in from
+        /// <see cref="RewardPresent.IconFallback"/> (e.g. quick_step → afterimage until the art lands).
+        /// </summary>
+        public static Sprite LoadIcon(string id)
+        {
+            Sprite sprite = Load(id);
+            if (sprite != null)
+                return sprite;
+            string fallback = RewardPresent.IconFallback(id);
+            return string.IsNullOrEmpty(fallback) ? null : Load(fallback);
         }
     }
 }
