@@ -9,9 +9,9 @@ namespace RogueShooter.Build
     /// <summary>
     /// 商店购买界面 v0.3 (制作人 09-25 版式): standalone purchase screen, not the 3-choice reward screen.
     /// LEFT: 6-row list (普通→中级→高级→回复→灵活1→灵活2), each row ONLY icon / name / price / rarity
-    /// (rarity = border colour ONLY, no rarity name text anywhere; heal row = neutral border; flex = rolled tier colour).
-    /// Sold rows stay, fully greyed (border too) with 「已售罄」.
-    /// RIGHT: nothing selected → only 「选择一件商品查看详情」, no button. Selected → big icon, name, rarity border colour,
+    /// (rarity = ICON FRAME colour ONLY, no rarity name text anywhere; heal = shop-green frame; flex = rolled tier colour).
+    /// Sold rows stay, fully greyed (icon frame too) with 「已售罄」.
+    /// RIGHT: nothing selected → only 「选择一件商品查看详情」, no button. Selected → big icon in rarity frame, name,
     /// full effect (叠加方式 + 当前层数), price, 购买 button (已售罄 > 金币不足 > 购买). Gold sits above the detail area.
     /// Mouse: click row = select (hover never selects, double-click never buys); only 购买 buys; 关闭 closes.
     /// Keyboard / gamepad: ↑↓ / left stick (first press only selects the first unsold row; clamp, no wrap, sold not skipped),
@@ -61,17 +61,18 @@ namespace RogueShooter.Build
         public const string BuyText = "购买";
         public const string NoGoldText = "金币不足";
 
-        // Rarity border colours (v0.3 §4.1.4, UI 定 placeholder). Hues sampled from the delivered reward-card
-        // frames jh_ui_reward_card_low/mid/high (#5B6E82 / #A97935 / #5BBACB), brightened / saturated so 普通 does not read
-        // as the sold grey. Heal = neutral warm white. Sold = grey border (§6).
+        // Rarity = icon-frame colour (制作人 09-25). Hues reused from the delivered reward-card frames
+        // jh_ui_reward_card_low/mid/high (sampled #5B6E82 / #A97935 / #5BBACB), brightened / saturated so 普通 does not read
+        // as the sold grey or the heal green. Heal = shop green #5A8F7B (configurable). Sold = grey frame (§6).
         public static readonly Color RarityLow = new Color32(0x8C, 0xA6, 0xC4, 0xFF);
         public static readonly Color RarityMid = new Color32(0xE0, 0xA0, 0x40, 0xFF);
         public static readonly Color RarityHigh = new Color32(0x38, 0xD4, 0xF0, 0xFF);
         public static readonly Color SoldBorder = new Color32(0x40, 0x40, 0x40, 0xFF);
-        /// <summary>Heal row border (configurable, <see cref="ShopUiConfig.HealColor"/>, default #5A8F7B).</summary>
+        /// <summary>Heal icon frame (configurable, <see cref="ShopUiConfig.HealColor"/>, default #5A8F7B). No label.</summary>
         public static Color RarityNeutral => ShopUiConfig.HealColor;
         static readonly Color PriceOk = new Color(1f, 0.9f, 0.55f);
         static readonly Color PriceShort = new Color(1f, 0.32f, 0.28f);
+        static readonly Color RowFrame = new Color(0.32f, 0.27f, 0.2f, 1f);
         static readonly Color RowIdle = new Color(0.12f, 0.1f, 0.09f, 0.88f);
         static readonly Color RowSelected = new Color(0.42f, 0.3f, 0.13f, 0.95f);
         static readonly Color RowDim = new Color(0.08f, 0.08f, 0.08f, 0.8f);
@@ -102,7 +103,7 @@ namespace RogueShooter.Build
         Text _buyText;
         RectTransform _buyRt;
         Image _leaveImage;
-        Image _detailBorder;
+        Image _detailFrame;
         Image _coin;
         readonly Dictionary<string, Sprite> _art = new Dictionary<string, Sprite>();
         RectTransform _leaveRt;
@@ -127,7 +128,7 @@ namespace RogueShooter.Build
             public Text SoldTag;
             public Text Name;
             public Text Price;
-            public Text HealTag;
+            public Image IconFrame;
         }
 
         public void Open(ShopSession session, RunBuildState build, Action<ShopShelf> onBought,
@@ -357,9 +358,8 @@ namespace RogueShooter.Build
                 ApplySprite(r.Bg, rowArt);
                 r.Bg.color = rowArt != null ? (sold && !selected ? new Color(0.6f, 0.6f, 0.6f, 1f) : Color.white)
                     : selected ? RowSelected : sold ? RowDim : RowIdle;
-                if (r.HealTag != null)
-                    r.HealTag.color = sold ? TextDim : RarityNeutral;
-                r.Border.color = BorderColor(shelf, sold);
+                r.Border.color = sold ? SoldBorder : RowFrame;
+                r.IconFrame.color = BorderColor(shelf, sold);
                 r.Name.color = sold ? TextDim : Color.white;
                 if (r.Icon != null)
                     r.Icon.color = sold ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
@@ -378,14 +378,13 @@ namespace RogueShooter.Build
             _buyImage.gameObject.SetActive(sel);
             if (!sel)
             {
-                _detailBorder.color = DetailBg;
                 return;
             }
 
             int i = Session.Focus;
             ShopShelf s = Session.Shelves[i];
             ShopSlotState st = Session.StateOf(i, gold);
-            _detailBorder.color = BorderColor(s, st == ShopSlotState.Sold);
+            _detailFrame.color = BorderColor(s, st == ShopSlotState.Sold);
             RewardCardData card = s.Empty
                 ? new RewardCardData { Name = SoldText, Desc = "", Icon = "" }
                 : RewardPresent.ToCard(s.Id, s.Tier, "", "", i, false);
@@ -394,8 +393,7 @@ namespace RogueShooter.Build
                 _detailIcon.sprite = RewardScreenView.Load(card.Icon);
             _detailIcon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
             _detailName.text = card.Name;
-            _detailMeta.text = s.Empty ? "" : s.Price + " " + GoldLabel
-                + (s.IsHeal && !string.IsNullOrEmpty(ShopUiConfig.HealLabel) ? "    " + ShopUiConfig.HealLabel : "");
+            _detailMeta.text = s.Empty ? "" : s.Price + " " + GoldLabel;
             _detailMeta.color = st == ShopSlotState.Sold ? TextDim : st == ShopSlotState.NoGold ? PriceShort : PriceOk;
             int stacks = ShopSession.OwnedStacks(_build.OwnedRewardIds, s.Id);
             string stack = ShopSession.StackLabel(s.Id);
@@ -416,8 +414,8 @@ namespace RogueShooter.Build
         }
 
         /// <summary>
-        /// Rarity border colour (no text). Uses the tier the shelf actually rolled, so a flex row gets its rolled
-        /// tier colour (§4.1.4 / 假设7); heal row = neutral; sold = grey border (§6 / 假设8).
+        /// Rarity icon-frame colour (no text). Uses the tier the shelf actually rolled, so a flex row gets its rolled
+        /// tier colour (§4.1.4 / 假设7); heal = shop green; sold = grey frame (§6 / 假设8).
         /// </summary>
         public static Color BorderColor(ShopShelf s, bool sold)
         {
@@ -532,18 +530,21 @@ namespace RogueShooter.Build
             _gold = AddText(root.transform, "", 30, new Vector2(dc.x + 30f, 392f), 400f, TextAnchor.MiddleLeft);
             _gold.color = PriceOk;
 
-            _detailBorder = MakeImage(root.transform, "DetailBorder", dc, DetailRect.size + new Vector2(8f, 8f));
-            _detailBorder.preserveAspect = false;
-            _detailBorder.raycastTarget = false;
-            _detailBorder.color = DetailBg;
             Image detail = MakeFramed(root.transform, "Detail", dc, DetailRect.size, ArtDetailFrame, DetailBg);
             _hint = AddText(detail.transform, HintText, 32, Vector2.zero, 800f, TextAnchor.MiddleCenter);
             _hint.color = TextDim;
             _detailRoot = new GameObject("Selected", typeof(RectTransform));
             _detailRoot.transform.SetParent(detail.transform, false);
             float left = -DetailRect.width * 0.5f, top = DetailRect.height * 0.5f;
-            _detailIcon = MakeImage(_detailRoot.transform, "Icon", new Vector2(left + 40f + DetailIcon * 0.5f, top - 40f - DetailIcon * 0.5f),
-                new Vector2(DetailIcon, DetailIcon));
+            Vector2 iconPos = new Vector2(left + 40f + DetailIcon * 0.5f, top - 40f - DetailIcon * 0.5f);
+            _detailFrame = MakeImage(_detailRoot.transform, "IconFrame", iconPos, new Vector2(DetailIcon + 16f, DetailIcon + 16f));
+            _detailFrame.preserveAspect = false;
+            _detailFrame.raycastTarget = false;
+            Image detailIconBg = MakeImage(_detailFrame.transform, "Inset", Vector2.zero, new Vector2(DetailIcon + 4f, DetailIcon + 4f));
+            detailIconBg.preserveAspect = false;
+            detailIconBg.raycastTarget = false;
+            detailIconBg.color = new Color(0.05f, 0.05f, 0.05f, 1f);
+            _detailIcon = MakeImage(_detailRoot.transform, "Icon", iconPos, new Vector2(DetailIcon, DetailIcon));
             float textX = left + 40f + DetailIcon + 32f; // right of the big icon
             float textW = DetailRect.width * 0.5f - 40f - textX;
             _detailName = AddText(_detailRoot.transform, "", 40, new Vector2(textX + textW * 0.5f, top - 90f), textW, TextAnchor.MiddleLeft);
@@ -596,7 +597,7 @@ namespace RogueShooter.Build
         Row MakeRow(ShopShelf shelf, int index, Vector2 home)
         {
             var r = new Row { Home = home };
-            // Rarity border = outer quad in rarity colour, inner row background inset by 4px (row art goes on the inset).
+            // Row frame (neutral, grey when sold) + inset background (row art); rarity = frame around the icon.
             r.Border = MakeImage(_canvas.transform, "Row" + index, home, new Vector2(RowW, RowH));
             r.Border.preserveAspect = false;
             r.Root = r.Border.rectTransform;
@@ -607,9 +608,17 @@ namespace RogueShooter.Build
                 ? new RewardCardData { Name = SoldText, Icon = "" }
                 : RewardPresent.ToCard(shelf.Id, shelf.Tier, "", "", index, false);
             float left = -RowW * 0.5f;
+            Vector2 iconPos = new Vector2(left + 12f + RowIcon * 0.5f, 0f);
+            r.IconFrame = MakeImage(r.Root, "IconFrame", iconPos, new Vector2(RowIcon + 8f, RowIcon + 8f));
+            r.IconFrame.preserveAspect = false;
+            r.IconFrame.raycastTarget = false;
+            Image inset = MakeImage(r.IconFrame.transform, "Inset", Vector2.zero, new Vector2(RowIcon, RowIcon));
+            inset.preserveAspect = false;
+            inset.raycastTarget = false;
+            inset.color = new Color(0.05f, 0.05f, 0.05f, 1f);
             if (!string.IsNullOrEmpty(card.Icon))
             {
-                r.Icon = MakeImage(r.Root, "Icon", new Vector2(left + 12f + RowIcon * 0.5f, 0f), new Vector2(RowIcon, RowIcon));
+                r.Icon = MakeImage(r.Root, "Icon", iconPos, new Vector2(RowIcon - 6f, RowIcon - 6f));
                 r.Icon.sprite = RewardScreenView.Load(card.Icon);
                 r.Icon.raycastTarget = false;
             }
@@ -620,12 +629,6 @@ namespace RogueShooter.Build
                 new Vector2(RowW * 0.5f - 20f - 70f, 0f), 140f, TextAnchor.MiddleRight);
             r.SoldTag = AddText(r.Root, SoldText, 24, new Vector2(150f, 0f), 100f, TextAnchor.MiddleCenter);
             r.SoldTag.color = new Color(1f, 0.85f, 0.5f);
-            if (shelf.IsHeal && !string.IsNullOrEmpty(ShopUiConfig.HealLabel))
-            {
-                r.HealTag = AddText(r.Root, ShopUiConfig.HealLabel, 22, new Vector2(150f, 30f), 100f, TextAnchor.MiddleCenter);
-                r.HealTag.color = RarityNeutral;
-            }
-
             return r;
         }
 
@@ -665,20 +668,18 @@ namespace RogueShooter.Build
     }
 
     /// <summary>
-    /// Shop UI config (StreamingAssets/JianHaiUI/shop_ui_config.csv): heal_label (empty = not shown, v0.3 §12),
-    /// heal_color (#RRGGBB, default #5A8F7B from UI规格_商店_v01). Missing file / row / bad value → defaults, no error.
+    /// Shop UI config (StreamingAssets/JianHaiUI/shop_ui_config.csv): heal_color (#RRGGBB heal icon frame, default shop green
+    /// #5A8F7B, UI规格_商店_v01). No heal label (制作人 09-25: 不显示「补给」). Missing file / row / bad value → default, no error.
     /// </summary>
     public static class ShopUiConfig
     {
         public const string RelativePath = "JianHaiUI/shop_ui_config.csv";
         public static readonly Color DefaultHealColor = new Color32(0x5A, 0x8F, 0x7B, 0xFF);
-        public static string HealLabel { get; private set; } = "";
         public static Color HealColor { get; private set; } = DefaultHealColor;
         public static bool Loaded { get; private set; }
 
         public static void Load()
         {
-            HealLabel = "";
             HealColor = DefaultHealColor;
             Loaded = false;
             try
@@ -712,9 +713,7 @@ namespace RogueShooter.Build
                     continue;
                 string key = cells[0].Trim().TrimStart('\uFEFF');
                 string value = cells[1].Trim();
-                if (key == "heal_label")
-                    HealLabel = value;
-                else if (key == "heal_color" && ColorUtility.TryParseHtmlString(value, out Color c))
+                if (key == "heal_color" && ColorUtility.TryParseHtmlString(value, out Color c))
                     HealColor = c;
             }
         }
