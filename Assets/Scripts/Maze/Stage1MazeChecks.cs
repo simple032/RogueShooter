@@ -71,9 +71,9 @@ namespace RogueShooter.Maze
                 || Math.Abs(EnemyCombatRules.WalkPlayerStub - 6f) > 0.001f
                 || Math.Abs(EnemyPoolDraft.DraftPlayerMove - 6f) > 0.001f)
                 return "play moveSpeed 6";
-            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.68f) > 0.001f
-                || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.72f) > 0.001f)
-                return "weak window must stay 0.68–0.72";
+            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - ChargeShotRules.RingFillSeconds * ChargeShotRules.WeakSpotEnterPct) > 0.001f
+                || Math.Abs(ChargeShotRules.GreenExitSeconds - ChargeShotRules.RingFillSeconds * ChargeShotRules.WeakSpotExitPct) > 0.001f)
+                return "weak window must be WeakSpotEnterPct–ExitPct × full charge";
             if (Math.Abs(MazeRules.PortalHoldSeconds - 1.0f) > 0.001f)
                 return "first-wave portal hold 1.0s (enter→PortalFx→wave1)";
             if (Math.Abs(MazeRules.InterWavePortalHoldMaxSeconds - 3.0f) > 0.001f)
@@ -127,15 +127,16 @@ namespace RogueShooter.Maze
         static string CheckKnockbackDraft()
         {
             FullChargeKnockback.EnsureLoaded();
-            if (FullChargeKnockback.Applies(ChargeShotKind.Weak, 0.30f)
-                || FullChargeKnockback.Applies(ChargeShotKind.Full, 0.50f)
-                || FullChargeKnockback.Applies(ChargeShotKind.None, 0.80f))
+            float full = ChargeShotRules.RingFillSeconds;
+            if (FullChargeKnockback.Applies(ChargeShotKind.Weak, ChargeShotRules.WeakMaxSeconds * 0.7f)
+                || FullChargeKnockback.Applies(ChargeShotKind.Full, full - 0.05f)
+                || FullChargeKnockback.Applies(ChargeShotKind.None, full + 0.10f))
                 return "weak/partial charge must not knockback";
-            if (!FullChargeKnockback.Applies(ChargeShotKind.Full, 0.70f)
-                || !FullChargeKnockback.Applies(ChargeShotKind.Full, 0.80f)
-                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.70f)
-                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, 0.68f))
-                return "full charge held≥0.70 or weak-spot window must CC";
+            if (!FullChargeKnockback.Applies(ChargeShotKind.Full, full)
+                || !FullChargeKnockback.Applies(ChargeShotKind.Full, full + 0.10f)
+                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, ChargeShotRules.GreenExitSeconds)
+                || !FullChargeKnockback.Applies(ChargeShotKind.Crit, ChargeShotRules.GreenEnterSeconds))
+                return "full charge held≥full or weak-spot window must CC";
             if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.Dog, false), 4.32f))
                 return "kb dog mid 4.32";
             if (!NearKb(FullChargeKnockback.MidDistance(EnemyKindIds.CultMage, false), 2.16f))

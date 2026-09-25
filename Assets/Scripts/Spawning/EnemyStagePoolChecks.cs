@@ -107,9 +107,9 @@ namespace RogueShooter.Spawning
                 return "shield weak-spot stagger 1s";
             if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
                 return "weak-spot stagger 0.5s";
-            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.68f) > 0.001f
-                || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.72f) > 0.001f)
-                return "weak-spot window 0.68–0.72";
+            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - ChargeShotRules.RingFillSeconds * ChargeShotRules.WeakSpotEnterPct) > 0.001f
+                || Math.Abs(ChargeShotRules.GreenExitSeconds - ChargeShotRules.RingFillSeconds * ChargeShotRules.WeakSpotExitPct) > 0.001f)
+                return "weak-spot window = 76%–84% × full charge";
             if (Math.Abs(ChargeShotRules.RingFillSeconds - 0.70f) > 0.001f)
                 return "ring full @0.70";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)

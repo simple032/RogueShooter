@@ -37,6 +37,8 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckDoorGeometry();
             if (err != null) return err;
+            err = ChargeAcceptanceChecks.Run();
+            if (err != null) return "charge/focus: " + err;
             return null;
         }
 
@@ -503,10 +505,10 @@ namespace RogueShooter.Combat
                 return "roll clip duration must follow DodgeRules";
             if (ActionSpecP1.ChargePoseFrame(0.05f) > 1)
                 return "charge pose start _00/_01";
-            if (ActionSpecP1.ChargePoseFrame(0.70f) != 4)
-                return "charge pose green _04";
-            if (ActionSpecP1.ChargePoseFrame(0.80f) != 5)
-                return "charge pose full _05";
+            if (ActionSpecP1.ChargePoseFrame((ChargeShotRules.GreenEnterSeconds + ChargeShotRules.GreenExitSeconds) * 0.5f) != 4)
+                return "charge pose green _04 (inside the weak-spot window)";
+            if (ActionSpecP1.ChargePoseFrame(ChargeShotRules.RingFillSeconds) != 5)
+                return "charge pose full _05 (at full charge)";
             if (ActionSpecP1.EnemyRoot(EnemyKindIds.Normal) != "jh_enemy_e1_skel")
                 return "E1 skel root";
             if (ActionSpecP1.EnemyRoot(EnemyKindIds.Dog) != "jh_enemy_dog")
