@@ -35,6 +35,55 @@ namespace RogueShooter.Build
             Line("震矢", "震矢", "蓄满射出时把敌人推得更远", "jh_ui_icon_shock_arrow"),
         };
 
+        /// <summary>Generic card icon for ids with no delivered icon (DODGE / FIRE / unknown).</summary>
+        public const string GenericIcon = "jh_ui_icon_luck";
+
+        /// <summary>
+        /// BalanceLock demo_reward_pool ids (stem before _C/_R/_E). Same number-free copy style.
+        /// Icon "" = no delivered icon, card uses <see cref="GenericIcon"/>.
+        /// </summary>
+        public static readonly KeyValuePair<string, Copy>[] DemoStems =
+        {
+            Demo("VIT", "骨甲", "能承受更多伤害", "jh_ui_icon_bone_armor"),
+            Demo("ARM", "护甲", "受到的伤害更少", "jh_ui_icon_bone_armor"),
+            Demo("DODGE", "闪身", "更容易躲开攻击", ""),
+            Demo("GOLD", "盗墓者", "击杀掉落更多金币", "jh_ui_icon_grave_robber"),
+            Demo("HASTE", "残影", "走得更快", "jh_ui_icon_afterimage"),
+            Demo("DMG", "锋矢", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"),
+            Demo("CRIT", "瞬击预感", "更容易打出暴击", "jh_ui_icon_instant_foresight"),
+            Demo("FIRE", "火矢", "箭矢附带灼烧", ""),
+        };
+
+        /// <summary>demo_reward_pool.csv ids as shipped (R15_* resolve through RewardCatalog).</summary>
+        public static readonly string[] DemoPoolIds =
+        {
+            "VIT_C", "ARM_C", "DODGE_C", "GOLD_C", "HASTE_C", "DMG_C", "CRIT_C", "FIRE_C",
+            "VIT_R", "ARM_R", "GOLD_R", "HASTE_R", "DMG_R", "CRIT_R",
+            "VIT_E", "GOLD_E", "DMG_E", "CRIT_E", "R15_C", "R15_R"
+        };
+
+        /// <summary>Demo pool id → copy. Icon falls back to <see cref="GenericIcon"/>.</summary>
+        public static bool TryForDemoId(string id, out Copy copy)
+        {
+            copy = default(Copy);
+            if (string.IsNullOrEmpty(id))
+                return false;
+            int cut = id.LastIndexOf('_');
+            string stem = cut > 0 ? id.Substring(0, cut) : id;
+            for (int i = 0; i < DemoStems.Length; i++)
+            {
+                if (DemoStems[i].Key == stem)
+                {
+                    copy = DemoStems[i].Value;
+                    if (string.IsNullOrEmpty(copy.Icon))
+                        copy.Icon = GenericIcon;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static bool TryForId(string id, out Copy copy)
         {
             copy = default(Copy);
@@ -60,9 +109,10 @@ namespace RogueShooter.Build
 
         public static RewardCardData ToCard(string id, RewardTier tier, string price, string mark, int index, bool sold)
         {
-            string name = id ?? "";
-            string sentence = "";
-            string icon = "";
+            // Never show a raw id: catalog copy → demo pool copy → generic card.
+            string name = "强化";
+            string sentence = "获得一项强化";
+            string icon = GenericIcon;
             if (RewardCatalog.TryGet(id, out RewardRow row))
             {
                 tier = row.Tier;
@@ -73,6 +123,12 @@ namespace RogueShooter.Build
                     sentence = copy.Sentence;
                     icon = copy.Icon;
                 }
+            }
+            else if (TryForDemoId(id, out Copy demo))
+            {
+                name = demo.DisplayName;
+                sentence = demo.Sentence;
+                icon = demo.Icon;
             }
 
             if (sold)
@@ -129,6 +185,18 @@ namespace RogueShooter.Build
             if (!TryForId("R1L", out Copy a) || !TryForId("R1M", out Copy b) || a.Icon != b.Icon || a.Sentence != b.Sentence)
                 return "sharp tiers must share icon and sentence";
 
+            for (int i = 0; i < DemoPoolIds.Length; i++)
+            {
+                string id = DemoPoolIds[i];
+                RewardCardData card = ToCard(id, RewardTier.Low, "", "低", i, false);
+                if (card.Name == id || card.Name.IndexOf('_') >= 0 || string.IsNullOrEmpty(card.Name))
+                    return "demo raw id shown " + id;
+                if (string.IsNullOrEmpty(card.Icon) || string.IsNullOrEmpty(card.Desc) || HasDigit(card.Desc))
+                    return "demo present " + id;
+                if (!RewardCatalog.TryGet(id, out _) && !TryForDemoId(id, out _))
+                    return "demo id unmapped " + id;
+            }
+
             ShopShelf[] shelves = ShopStock.RollShelves(new System.Random(7));
             if (shelves == null || shelves.Length != 6)
                 return "shop shelves";
@@ -158,6 +226,11 @@ namespace RogueShooter.Build
             }
 
             return false;
+        }
+
+        static KeyValuePair<string, Copy> Demo(string stem, string displayName, string sentence, string icon)
+        {
+            return new KeyValuePair<string, Copy>(stem, Line(stem, displayName, sentence, icon));
         }
 
         static Copy Line(string catalogName, string displayName, string sentence, string icon)

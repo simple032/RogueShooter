@@ -145,6 +145,13 @@ namespace RogueShooter.Demo
             Transform root = transform;
             Color floor = new Color(0.165f, 0.188f, 0.220f);
             bool painted = Painted;
+            if (painted)
+            {
+                int wallCells = _painted.BuildWallFootprints();
+                Debug.Log("[S1Maze] wall footprints cells=" + wallCells
+                          + " (1x1 per wall cell; overhang art not solid) playerR=" + Stage1PaintedPlay.PlayerRadius
+                          + " footOffset=" + Stage1PaintedPlay.PlayerFootOffset);
+            }
             for (int i = 0; painted == false && i < _maze.Edges.Length; i++)
             {
                 MazeEdge e = _maze.Edges[i];
@@ -674,6 +681,20 @@ namespace RogueShooter.Demo
             if (_player == null || _maze == null)
                 return;
             Vector3 p = _player.position;
+            if (_playerBody != null)
+            {
+                // Physics player: walls and locked doors collide. No per-frame pull-back;
+                // only recover when the player is clearly off the level (teleport / tunnelling).
+                if (IsInsideLevel(p.x, p.y, SafetyMargin))
+                    _lastGood = p;
+                else
+                {
+                    Debug.LogWarning("[S1Maze] safety recover player off-level at " + p + " -> " + _lastGood);
+                    MovePlayer(_lastGood);
+                }
+                return;
+            }
+
             if (_active != null && _active.DoorsLocked)
             {
                 MazeNode room = _maze.Find(_active.RoomId);
@@ -707,6 +728,26 @@ namespace RogueShooter.Demo
                 _playerBody.position = p;
                 _playerBody.velocity = Vector2.zero;
             }
+        }
+
+        const float SafetyMargin = 1.0f;
+
+        /// <summary>Rooms/corridors grown by <paramref name="margin"/> (safety fallback only).</summary>
+        bool IsInsideLevel(float x, float y, float margin)
+        {
+            for (int i = 0; i < _maze.Nodes.Length; i++)
+            {
+                if (_maze.Nodes[i].Contains(x, y, -margin))
+                    return true;
+            }
+
+            for (int i = 0; i < _maze.Edges.Length; i++)
+            {
+                if (_maze.Edges[i].Contains(x, y, margin))
+                    return true;
+            }
+
+            return false;
         }
 
         bool IsWalkable(float x, float y)

@@ -69,6 +69,14 @@ namespace RogueShooter.Build
             _panel.sprite = Load("jh_ui_shop_panel");
             _panel.rectTransform.sizeDelta = new Vector2(1100f, 620f);
             BuildCards(cards, shop: true);
+            // Title count comes from the shelves actually shown (ShopStock.ShelfCount = 6).
+            int n = cards != null ? cards.Length : 0;
+            AddText(_choiceRoot.transform, ShopTitle(n), 30, new Vector2(0f, 250f), 900f);
+        }
+
+        public static string ShopTitle(int shelfCount)
+        {
+            return "商店 · " + shelfCount + " 件商品 · 不刷新";
         }
 
         public void Hide()

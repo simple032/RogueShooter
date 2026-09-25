@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Tilemaps;
 using RogueShooter.Maze;
 
 namespace RogueShooter.Demo
@@ -9,8 +10,11 @@ namespace RogueShooter.Demo
     /// component sits next to the Demo and the painted Grid exists, the Demo uses
     /// the painted room rects below instead of the procedural skeleton, skips its
     /// placeholder floor/wall quads, and gives its own spawned Player a
-    /// Rigidbody2D + CircleCollider2D so the Walls TilemapCollider2D stops it.
-    /// Rects mirror Editor/JianHaiStage1MazeBuilder.PaintStage1 (cell = 1 world unit).
+    /// Rigidbody2D + foot-based CircleCollider2D. Wall collision comes from
+    /// <see cref="BuildWallFootprints"/>: one box per wall cell footprint (the
+    /// tall 32x64 wall art overhang is not solid), replacing the sprite-shaped
+    /// TilemapCollider2D. Rects mirror Editor/JianHaiStage1MazeBuilder.PaintStage1
+    /// (cell = 1 world unit).
     /// </summary>
     [DefaultExecutionOrder(-200)]
     public class Stage1PaintedPlay : MonoBehaviour
@@ -18,6 +22,10 @@ namespace RogueShooter.Demo
         public const string GridName = "Grid";
         public const float PlayerRadius = 0.28f;
         public const float CorridorWidth = 2f;
+        /// <summary>Circle centre height above the feet (transform pivot), world units.</summary>
+        public const float PlayerFootOffset = 0.08f;
+        public const string WallsName = "Walls";
+        public const string FootprintName = "WallFootprints";
 
         public bool HasPaintedGrid
         {
@@ -66,6 +74,68 @@ namespace RogueShooter.Demo
             // Player root is scaled by EntityStubWorldScale; keep the world radius fixed.
             float s = Mathf.Max(0.01f, Mathf.Abs(player.transform.localScale.x));
             col.radius = PlayerRadius / s;
+            // AddComponent auto-fits the circle to the sprite bounds (centre ~0.43u above the
+            // feet with pivot y=0.15). Keep it on the feet so corridor clearance matches the floor.
+            col.offset = new Vector2(0f, PlayerFootOffset / s);
+        }
+
+        /// <summary>
+        /// Replaces the Walls TilemapCollider2D (sprite rect = footprint + 1.5 cells of
+        /// overhang) with one box per wall cell footprint, merged into a CompositeCollider2D.
+        /// Level geometry and tiles are untouched. Returns the number of wall cells.
+        /// </summary>
+        public int BuildWallFootprints()
+        {
+            Transform grid = transform.Find(GridName);
+            Transform wallsTr = grid != null ? grid.Find(WallsName) : null;
+            Tilemap walls = wallsTr != null ? wallsTr.GetComponent<Tilemap>() : null;
+            if (walls == null)
+                return 0;
+            var tileCol = walls.GetComponent<TilemapCollider2D>();
+            if (tileCol != null)
+                tileCol.enabled = false;
+
+            Transform old = wallsTr.Find(FootprintName);
+            if (old != null)
+                Destroy(old.gameObject);
+
+            var go = new GameObject(FootprintName);
+            go.layer = wallsTr.gameObject.layer;
+            go.transform.SetParent(wallsTr, false);
+            var body = go.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Static;
+            var composite = go.AddComponent<CompositeCollider2D>();
+            composite.geometryType = CompositeCollider2D.GeometryType.Polygons;
+            composite.generationType = CompositeCollider2D.GenerationType.Manual;
+
+            walls.CompressBounds();
+            BoundsInt b = walls.cellBounds;
+            Vector3 cell = walls.layoutGrid != null ? walls.layoutGrid.cellSize : Vector3.one;
+            int count = 0;
+            for (int y = b.yMin; y < b.yMax; y++)
+            {
+                int x = b.xMin;
+                while (x < b.xMax)
+                {
+                    if (!walls.HasTile(new Vector3Int(x, y, 0)))
+                    {
+                        x++;
+                        continue;
+                    }
+                    int x0 = x;
+                    while (x < b.xMax && walls.HasTile(new Vector3Int(x, y, 0)))
+                        x++;
+                    int len = x - x0;
+                    count += len;
+                    Vector3 corner = walls.CellToLocal(new Vector3Int(x0, y, 0));
+                    var box = go.AddComponent<BoxCollider2D>();
+                    box.usedByComposite = true;
+                    box.size = new Vector2(len * cell.x, cell.y);
+                    box.offset = new Vector2(corner.x + len * cell.x * 0.5f, corner.y + cell.y * 0.5f);
+                }
+            }
+            composite.GenerateGeometry();
+            return count;
         }
 
         static MazeNode Room(string id, MazeNodeKind kind, int x0, int y0, int x1, int y1)

@@ -64,6 +64,11 @@ namespace RogueShooter.Build
 
             if (low != 1 || mid != 1 || high != 1 || heal != 1 || elastic != 2)
                 return "shelf mix changed";
+            if (RewardScreenView.ShopTitle(shelves.Length).IndexOf(ShopStock.ShelfCount.ToString(), System.StringComparison.Ordinal) < 0)
+                return "shop title must match shown shelf count";
+            string present = RewardPresent.Check();
+            if (present != null)
+                return "present " + present;
 
             return null;
         }
