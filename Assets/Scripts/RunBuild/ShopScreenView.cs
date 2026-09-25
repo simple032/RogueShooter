@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,16 +17,42 @@ namespace RogueShooter.Build
     /// Keyboard / gamepad: ↑↓ / left stick (first press only selects the first unsold row; clamp, no wrap, sold not skipped),
     /// left/right do nothing; A / Enter / Space = press 购买 (first press when nothing is selected only selects);
     /// B / Esc = close. Confirm ignored for <see cref="ShopSession.OpenInputLockSeconds"/> after each open.
-    /// Placeholder styling only: delivered shop panel + reward icons + JianHaiUI-SC font + uGUI colour quads. No new PNGs.
+    /// Layout = UI规格_商店_v01 (1600×900 reference): list x40 y116 640×744 (6 rows 608×112, gap 8), detail x696 y116 864×744,
+    /// 购买 x968 y736 320×80, icon 96 (row) / 192 (detail). Art slots <see cref="ArtNames"/> load from Resources/<see cref="ArtFolder"/>
+    /// and silently fall back to colour quads until the PNGs are delivered (9-slice → Sliced, PPU multiplier 3.125 for PPU32 art).
     /// </summary>
     public sealed class ShopScreenView : MonoBehaviour
     {
         /// <summary>True while the purchase screen is up (debug HUDs hide, like RewardScreenView.PanelOpen).</summary>
         public static bool IsOpen { get; private set; }
 
-        public const float RowW = 470f;
-        public const float RowH = 66f;
+        // UI规格_商店_v01 (reference 1600×900, top-left rects → centred anchored positions)
+        public const float RowW = 608f;
+        public const float RowH = 112f;
         public const float RowGap = 8f;
+        public const float RowIcon = 96f;
+        public const float DetailIcon = 192f;
+        public const float SlicedPpuMultiplier = 3.125f; // PPU32 art on a 100-PPU canvas
+        static readonly Rect ListRect = new Rect(40f, 116f, 640f, 744f);
+        static readonly Rect DetailRect = new Rect(696f, 116f, 864f, 744f);
+        static readonly Rect BuyRect = new Rect(968f, 736f, 320f, 80f);
+
+        /// <summary>Reserved art (not delivered yet): Resources/JianHaiShop/&lt;name&gt;.png. Missing → colour placeholder, no error.</summary>
+        public const string ArtFolder = "JianHaiShop/";
+        public const string ArtBg = "jh_ui_shop_bg";
+        public const string ArtListFrame = "jh_ui_shop_list_frame";
+        public const string ArtDetailFrame = "jh_ui_shop_detail_frame";
+        public const string ArtRow = "jh_ui_shop_row";
+        public const string ArtRowSelected = "jh_ui_shop_row_selected";
+        public const string ArtRowSold = "jh_ui_shop_row_sold";
+        public const string ArtBtnBuy = "jh_ui_shop_btn_buy";
+        public const string ArtBtnDisabled = "jh_ui_shop_btn_disabled";
+        public const string ArtBtnClose = "jh_ui_shop_btn_close";
+        public const string ArtCoin = "jh_ui_shop_coin";
+        public static readonly string[] ArtNames =
+        {
+            ArtBg, ArtListFrame, ArtDetailFrame, ArtRow, ArtRowSelected, ArtRowSold, ArtBtnBuy, ArtBtnDisabled, ArtBtnClose, ArtCoin
+        };
         public const float ShakeSeconds = 0.3f;
         public const string SoldText = "已售罄";
         public const string LeaveText = "关闭";
@@ -39,8 +67,9 @@ namespace RogueShooter.Build
         public static readonly Color RarityLow = new Color32(0x8C, 0xA6, 0xC4, 0xFF);
         public static readonly Color RarityMid = new Color32(0xE0, 0xA0, 0x40, 0xFF);
         public static readonly Color RarityHigh = new Color32(0x38, 0xD4, 0xF0, 0xFF);
-        public static readonly Color RarityNeutral = new Color32(0xD8, 0xD2, 0xC4, 0xFF);
-        public static readonly Color SoldBorder = new Color32(0x55, 0x55, 0x55, 0xFF);
+        public static readonly Color SoldBorder = new Color32(0x40, 0x40, 0x40, 0xFF);
+        /// <summary>Heal row border (configurable, <see cref="ShopUiConfig.HealColor"/>, default #5A8F7B).</summary>
+        public static Color RarityNeutral => ShopUiConfig.HealColor;
         static readonly Color PriceOk = new Color(1f, 0.9f, 0.55f);
         static readonly Color PriceShort = new Color(1f, 0.32f, 0.28f);
         static readonly Color RowIdle = new Color(0.12f, 0.1f, 0.09f, 0.88f);
@@ -74,6 +103,8 @@ namespace RogueShooter.Build
         RectTransform _buyRt;
         Image _leaveImage;
         Image _detailBorder;
+        Image _coin;
+        readonly Dictionary<string, Sprite> _art = new Dictionary<string, Sprite>();
         RectTransform _leaveRt;
         GameObject _detailRoot;
         Text _hint;
@@ -96,6 +127,7 @@ namespace RogueShooter.Build
             public Text SoldTag;
             public Text Name;
             public Text Price;
+            public Text HealTag;
         }
 
         public void Open(ShopSession session, RunBuildState build, Action<ShopShelf> onBought,
@@ -321,7 +353,12 @@ namespace RogueShooter.Build
                 ShopSlotState st = Session.StateOf(i, gold);
                 bool sold = st == ShopSlotState.Sold;
                 bool selected = Session.Focus == i;
-                r.Bg.color = selected ? RowSelected : sold ? RowDim : RowIdle;
+                Sprite rowArt = Art(selected ? ArtRowSelected : sold ? ArtRowSold : ArtRow);
+                ApplySprite(r.Bg, rowArt);
+                r.Bg.color = rowArt != null ? (sold && !selected ? new Color(0.6f, 0.6f, 0.6f, 1f) : Color.white)
+                    : selected ? RowSelected : sold ? RowDim : RowIdle;
+                if (r.HealTag != null)
+                    r.HealTag.color = sold ? TextDim : RarityNeutral;
                 r.Border.color = BorderColor(shelf, sold);
                 r.Name.color = sold ? TextDim : Color.white;
                 if (r.Icon != null)
@@ -357,7 +394,8 @@ namespace RogueShooter.Build
                 _detailIcon.sprite = RewardScreenView.Load(card.Icon);
             _detailIcon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
             _detailName.text = card.Name;
-            _detailMeta.text = s.Empty ? "" : s.Price + " " + GoldLabel;
+            _detailMeta.text = s.Empty ? "" : s.Price + " " + GoldLabel
+                + (s.IsHeal && !string.IsNullOrEmpty(ShopUiConfig.HealLabel) ? "    " + ShopUiConfig.HealLabel : "");
             _detailMeta.color = st == ShopSlotState.Sold ? TextDim : st == ShopSlotState.NoGold ? PriceShort : PriceOk;
             int stacks = ShopSession.OwnedStacks(_build.OwnedRewardIds, s.Id);
             string stack = ShopSession.StackLabel(s.Id);
@@ -365,7 +403,9 @@ namespace RogueShooter.Build
                 + (s.IsHeal ? "" : "    当前 " + stacks + " 层");
 
             // §6: 已售罄 > 金币不足 > 可购买
-            _buyImage.color = st == ShopSlotState.Buyable ? BtnBuyFocus : BtnDisabled;
+            Sprite btnArt = Art(st == ShopSlotState.Buyable ? ArtBtnBuy : ArtBtnDisabled);
+            ApplySprite(_buyImage, btnArt);
+            _buyImage.color = btnArt != null ? Color.white : st == ShopSlotState.Buyable ? BtnBuyFocus : BtnDisabled;
             _buyText.text = st == ShopSlotState.Sold ? SoldText : st == ShopSlotState.NoGold ? NoGoldText : BuyText;
             _buyText.color = st == ShopSlotState.Buyable ? Color.white : TextDim;
             float now = Time.unscaledTime;
@@ -419,10 +459,55 @@ namespace RogueShooter.Build
             return clip;
         }
 
+        /// <summary>Top-left reference rect (1600×900) → centred anchored position.</summary>
+        static Vector2 Centre(Rect r)
+        {
+            return new Vector2(r.x + r.width * 0.5f - 800f, 450f - (r.y + r.height * 0.5f));
+        }
+
+        Sprite Art(string name)
+        {
+            Sprite sp;
+            if (_art.TryGetValue(name, out sp))
+                return sp;
+            sp = Resources.Load<Sprite>(ArtFolder + name); // silent: null until the art is delivered
+            _art[name] = sp;
+            return sp;
+        }
+
+        /// <summary>Assign art if present: 9-slice sprites → Sliced with PPU multiplier 3.125 (PPU32 art).</summary>
+        static void ApplySprite(Image img, Sprite sp)
+        {
+            if (img == null)
+                return;
+            img.sprite = sp;
+            if (sp != null && sp.border != Vector4.zero)
+            {
+                img.type = Image.Type.Sliced;
+                img.pixelsPerUnitMultiplier = SlicedPpuMultiplier;
+                img.preserveAspect = false;
+            }
+            else
+            {
+                img.type = Image.Type.Simple;
+            }
+        }
+
+        Image MakeFramed(Transform parent, string name, Vector2 pos, Vector2 size, string art, Color fallback)
+        {
+            Image img = MakeImage(parent, name, pos, size);
+            img.preserveAspect = false;
+            Sprite sp = Art(art);
+            ApplySprite(img, sp);
+            img.color = sp != null ? Color.white : fallback;
+            return img;
+        }
+
         void EnsureUi()
         {
             if (_canvas != null)
                 return;
+            ShopUiConfig.Load();
             _font = RogueShooter.Demo.BuiltinUiFont.LoadUi();
             var root = new GameObject("ShopScreen", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);
@@ -434,48 +519,49 @@ namespace RogueShooter.Build
             scaler.referenceResolution = new Vector2(1600f, 900f);
             scaler.matchWidthOrHeight = 0.5f;
 
-            Image panel = MakeImage(root.transform, "Panel", Vector2.zero, new Vector2(1100f, 620f));
-            panel.sprite = RewardScreenView.Load("jh_ui_shop_panel");
-            if (panel.sprite == null)
-                panel.color = DetailBg;
-            AddText(root.transform, "商店 · 不刷新", 24, new Vector2(0f, 262f), 360f, TextAnchor.MiddleCenter);
-            _gold = AddText(root.transform, "", 22, new Vector2(390f, 262f), 260f, TextAnchor.MiddleRight);
+            MakeFramed(root.transform, "Bg", Vector2.zero, new Vector2(1600f, 900f), ArtBg, new Color(0f, 0f, 0f, 0.72f));
+            // header band (y 0..116): title over the list, gold over the detail area, 关闭 top-right
+            AddText(root.transform, "商店", 34, new Vector2(Centre(ListRect).x, 392f), 640f, TextAnchor.MiddleCenter);
+            MakeFramed(root.transform, "List", Centre(ListRect), ListRect.size, ArtListFrame, DetailBg);
+
+            Vector2 dc = Centre(DetailRect);
+            _coin = MakeImage(root.transform, "Coin", new Vector2(dc.x - 200f, 392f), new Vector2(48f, 48f));
+            Sprite coin = Art(ArtCoin);
+            _coin.sprite = coin;
+            _coin.gameObject.SetActive(coin != null);
+            _gold = AddText(root.transform, "", 30, new Vector2(dc.x + 30f, 392f), 400f, TextAnchor.MiddleLeft);
             _gold.color = PriceOk;
 
-            // Right: gold above the detail area, hint (unselected) or detail + 购买; 关闭 top-right.
-            _gold.rectTransform.anchoredPosition = new Vector2(262f, 200f);
-            _gold.rectTransform.sizeDelta = new Vector2(430f, 40f);
-            _gold.alignment = TextAnchor.MiddleCenter;
-            _detailBorder = MakeImage(root.transform, "DetailBorder", new Vector2(262f, -10f), new Vector2(438f, 368f));
+            _detailBorder = MakeImage(root.transform, "DetailBorder", dc, DetailRect.size + new Vector2(8f, 8f));
             _detailBorder.preserveAspect = false;
             _detailBorder.raycastTarget = false;
             _detailBorder.color = DetailBg;
-            Image detail = MakeImage(root.transform, "Detail", new Vector2(262f, -10f), new Vector2(430f, 360f));
-            detail.preserveAspect = false;
-            detail.color = DetailBg;
-            _hint = AddText(detail.transform, HintText, 24, Vector2.zero, 400f, TextAnchor.MiddleCenter);
+            Image detail = MakeFramed(root.transform, "Detail", dc, DetailRect.size, ArtDetailFrame, DetailBg);
+            _hint = AddText(detail.transform, HintText, 32, Vector2.zero, 800f, TextAnchor.MiddleCenter);
             _hint.color = TextDim;
             _detailRoot = new GameObject("Selected", typeof(RectTransform));
             _detailRoot.transform.SetParent(detail.transform, false);
-            _detailIcon = MakeImage(_detailRoot.transform, "Icon", new Vector2(-150f, 115f), new Vector2(104f, 104f));
-            _detailName = AddText(_detailRoot.transform, "", 28, new Vector2(55f, 135f), 290f, TextAnchor.MiddleLeft);
-            _detailMeta = AddText(_detailRoot.transform, "", 22, new Vector2(55f, 95f), 290f, TextAnchor.MiddleLeft);
-            _detailBody = AddText(_detailRoot.transform, "", 20, new Vector2(0f, -45f), 390f, TextAnchor.UpperLeft);
-            _detailBody.rectTransform.sizeDelta = new Vector2(390f, 180f);
+            float left = -DetailRect.width * 0.5f, top = DetailRect.height * 0.5f;
+            _detailIcon = MakeImage(_detailRoot.transform, "Icon", new Vector2(left + 40f + DetailIcon * 0.5f, top - 40f - DetailIcon * 0.5f),
+                new Vector2(DetailIcon, DetailIcon));
+            float textX = left + 40f + DetailIcon + 32f; // right of the big icon
+            float textW = DetailRect.width * 0.5f - 40f - textX;
+            _detailName = AddText(_detailRoot.transform, "", 40, new Vector2(textX + textW * 0.5f, top - 90f), textW, TextAnchor.MiddleLeft);
+            _detailMeta = AddText(_detailRoot.transform, "", 30, new Vector2(textX + textW * 0.5f, top - 160f), textW, TextAnchor.MiddleLeft);
+            _detailBody = AddText(_detailRoot.transform, "", 26, new Vector2(0f, top - 272f - 140f), DetailRect.width - 80f, TextAnchor.UpperLeft);
+            _detailBody.rectTransform.sizeDelta = new Vector2(DetailRect.width - 80f, 280f);
             _detailBody.verticalOverflow = VerticalWrapMode.Overflow;
             _detailBody.lineSpacing = 1.2f;
 
-            _buyHome = new Vector2(262f, -236f);
-            _buyImage = MakeImage(root.transform, "Buy", _buyHome, new Vector2(300f, 56f));
+            _buyHome = Centre(BuyRect);
+            _buyImage = MakeImage(root.transform, "Buy", _buyHome, BuyRect.size);
             _buyImage.preserveAspect = false;
             _buyRt = _buyImage.rectTransform;
-            _buyText = AddText(_buyImage.transform, BuyText, 26, Vector2.zero, 300f, TextAnchor.MiddleCenter);
+            _buyText = AddText(_buyImage.transform, BuyText, 32, Vector2.zero, BuyRect.width, TextAnchor.MiddleCenter);
 
-            _leaveImage = MakeImage(root.transform, "Close", new Vector2(500f, 262f), new Vector2(80f, 40f));
-            _leaveImage.preserveAspect = false;
-            _leaveImage.color = BtnLeave;
+            _leaveImage = MakeFramed(root.transform, "Close", new Vector2(700f, 392f), new Vector2(120f, 56f), ArtBtnClose, BtnLeave);
             _leaveRt = _leaveImage.rectTransform;
-            AddText(_leaveImage.transform, LeaveText, 20, Vector2.zero, 80f, TextAnchor.MiddleCenter);
+            AddText(_leaveImage.transform, LeaveText, 26, Vector2.zero, 120f, TextAnchor.MiddleCenter);
 
             _audio = gameObject.GetComponent<AudioSource>();
             if (_audio == null)
@@ -500,36 +586,46 @@ namespace RogueShooter.Build
 
             ShopShelf[] shelves = Session.Shelves ?? new ShopShelf[0];
             _rows = new Row[shelves.Length];
-            float top = 200f;
+            Vector2 lc = Centre(ListRect);
+            float pad = (ListRect.height - (6f * RowH + 5f * RowGap)) * 0.5f; // 16px top/bottom
+            float firstY = ListRect.height * 0.5f - pad - RowH * 0.5f;
             for (int i = 0; i < shelves.Length; i++)
-                _rows[i] = MakeRow(shelves[i], i, new Vector2(-250f, top - i * (RowH + RowGap)));
+                _rows[i] = MakeRow(shelves[i], i, new Vector2(lc.x, lc.y + firstY - i * (RowH + RowGap)));
         }
 
         Row MakeRow(ShopShelf shelf, int index, Vector2 home)
         {
             var r = new Row { Home = home };
-            // Rarity border = outer quad in rarity colour, inner row background inset by 3px.
+            // Rarity border = outer quad in rarity colour, inner row background inset by 4px (row art goes on the inset).
             r.Border = MakeImage(_canvas.transform, "Row" + index, home, new Vector2(RowW, RowH));
             r.Border.preserveAspect = false;
             r.Root = r.Border.rectTransform;
-            r.Bg = MakeImage(r.Root, "Bg", Vector2.zero, new Vector2(RowW - 6f, RowH - 6f));
+            r.Bg = MakeImage(r.Root, "Bg", Vector2.zero, new Vector2(RowW - 8f, RowH - 8f));
             r.Bg.preserveAspect = false;
             r.Bg.raycastTarget = false;
             RewardCardData card = shelf.Empty
                 ? new RewardCardData { Name = SoldText, Icon = "" }
                 : RewardPresent.ToCard(shelf.Id, shelf.Tier, "", "", index, false);
+            float left = -RowW * 0.5f;
             if (!string.IsNullOrEmpty(card.Icon))
             {
-                r.Icon = MakeImage(r.Root, "Icon", new Vector2(-RowW * 0.5f + 36f, 0f), new Vector2(50f, 50f));
+                r.Icon = MakeImage(r.Root, "Icon", new Vector2(left + 12f + RowIcon * 0.5f, 0f), new Vector2(RowIcon, RowIcon));
                 r.Icon.sprite = RewardScreenView.Load(card.Icon);
                 r.Icon.raycastTarget = false;
             }
 
-            r.Name = AddText(r.Root, card.Name, 24, new Vector2(-60f, 0f), 210f, TextAnchor.MiddleLeft);
-            r.Price = AddText(r.Root, shelf.Empty ? "" : shelf.Price + " " + GoldLabel, 22,
-                new Vector2(RowW * 0.5f - 50f, 0f), 90f, TextAnchor.MiddleRight);
-            r.SoldTag = AddText(r.Root, SoldText, 18, new Vector2(90f, 0f), 80f, TextAnchor.MiddleCenter);
+            float nameX = left + 12f + RowIcon + 20f;
+            r.Name = AddText(r.Root, card.Name, 30, new Vector2(nameX + 140f, 0f), 280f, TextAnchor.MiddleLeft);
+            r.Price = AddText(r.Root, shelf.Empty ? "" : shelf.Price + " " + GoldLabel, 28,
+                new Vector2(RowW * 0.5f - 20f - 70f, 0f), 140f, TextAnchor.MiddleRight);
+            r.SoldTag = AddText(r.Root, SoldText, 24, new Vector2(150f, 0f), 100f, TextAnchor.MiddleCenter);
             r.SoldTag.color = new Color(1f, 0.85f, 0.5f);
+            if (shelf.IsHeal && !string.IsNullOrEmpty(ShopUiConfig.HealLabel))
+            {
+                r.HealTag = AddText(r.Root, ShopUiConfig.HealLabel, 22, new Vector2(150f, 30f), 100f, TextAnchor.MiddleCenter);
+                r.HealTag.color = RarityNeutral;
+            }
+
             return r;
         }
 
@@ -565,6 +661,62 @@ namespace RogueShooter.Build
             image.preserveAspect = true;
             image.color = Color.white;
             return image;
+        }
+    }
+
+    /// <summary>
+    /// Shop UI config (StreamingAssets/JianHaiUI/shop_ui_config.csv): heal_label (empty = not shown, v0.3 §12),
+    /// heal_color (#RRGGBB, default #5A8F7B from UI规格_商店_v01). Missing file / row / bad value → defaults, no error.
+    /// </summary>
+    public static class ShopUiConfig
+    {
+        public const string RelativePath = "JianHaiUI/shop_ui_config.csv";
+        public static readonly Color DefaultHealColor = new Color32(0x5A, 0x8F, 0x7B, 0xFF);
+        public static string HealLabel { get; private set; } = "";
+        public static Color HealColor { get; private set; } = DefaultHealColor;
+        public static bool Loaded { get; private set; }
+
+        public static void Load()
+        {
+            HealLabel = "";
+            HealColor = DefaultHealColor;
+            Loaded = false;
+            try
+            {
+                string sa = Application.streamingAssetsPath;
+                if (string.IsNullOrEmpty(sa))
+                    return;
+                string path = Path.Combine(sa, RelativePath);
+                if (!File.Exists(path))
+                    return;
+                Parse(File.ReadAllLines(path));
+                Loaded = true;
+            }
+            catch (Exception)
+            {
+                // silent: keep defaults
+            }
+        }
+
+        public static void Parse(string[] lines)
+        {
+            if (lines == null)
+                return;
+            foreach (string raw in lines)
+            {
+                string line = raw == null ? "" : raw.Trim();
+                if (line.Length == 0 || line.StartsWith("#"))
+                    continue;
+                string[] cells = line.Split(',');
+                if (cells.Length < 2)
+                    continue;
+                string key = cells[0].Trim().TrimStart('\uFEFF');
+                string value = cells[1].Trim();
+                if (key == "heal_label")
+                    HealLabel = value;
+                else if (key == "heal_color" && ColorUtility.TryParseHtmlString(value, out Color c))
+                    HealColor = c;
+            }
         }
     }
 }
