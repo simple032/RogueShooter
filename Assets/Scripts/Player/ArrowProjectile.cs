@@ -124,7 +124,7 @@ namespace RogueShooter.Player
             for (int i = 0; i < all.Count; i++)
             {
                 MobFourStateAi mob = all[i];
-                if (mob == null || !mob.isActiveAndEnabled)
+                if (mob == null || !mob.isActiveAndEnabled || mob.IsDead)
                     continue;
                 Vector3 d = mob.transform.position - transform.position;
                 d.z = 0f;

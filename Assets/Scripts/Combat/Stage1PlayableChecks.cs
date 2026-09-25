@@ -33,6 +33,8 @@ namespace RogueShooter.Combat
             if (err != null) return err;
             err = CheckSpawnLand();
             if (err != null) return err;
+            err = CheckRetestFixes();
+            if (err != null) return err;
             return null;
         }
 
@@ -534,6 +536,35 @@ namespace RogueShooter.Combat
             string w2 = PortalFxHook.FormatSpawn("ALTAR", 2);
             if (w2 != "[PortalFx] room=ALTAR wave=2 spawn after 2.5s")
                 return "wave2 spawn log " + w2;
+            return null;
+        }
+
+        /// <summary>
+        /// PR#19 retest (e43d220): atk/cast replays each attack cycle, player never under a room mask
+        /// in the doorway, corpses leave collision and are removed after the death clip, patrol walk/idle
+        /// uses movement intent with a hold. Runtime behaviour is covered by the play-mode probe; this
+        /// pins the constants the fixes rely on.
+        /// </summary>
+        static string CheckRetestFixes()
+        {
+            int entity = JianHaiArtCatalog.SortingOrderForArtId(JianHaiArtCatalog.PlayerIdle);
+            if (!(RogueShooter.Demo.Stage1MazeDemo.CoverSortingOrder > entity))
+                return "room cover must sort above entities";
+            if (!(RogueShooter.Demo.Stage1MazeDemo.PlayerDoorwayOrder > RogueShooter.Demo.Stage1MazeDemo.CoverSortingOrder))
+                return "player doorway order must sort above room covers";
+            if (MobFourStateAi.MoveHoldSeconds <= 0f || MobFourStateAi.MoveHoldSeconds > 0.5f)
+                return "patrol move hold must be (0, 0.5]s";
+            if (MobFourStateAi.CorpseLingerSeconds < 0f)
+                return "corpse linger must be ≥ 0";
+            foreach (string k in new[] { EnemyKindIds.Normal, EnemyKindIds.Dog, EnemyKindIds.CultMage, EnemyKindIds.Shield, EnemyKindIds.GrandMage })
+            {
+                if (ActionSpecP1.EnemyDeath(k).Duration <= 0.01f)
+                    return "death clip duration missing for " + k;
+                ActionClipDef atk = ActionSpecP1.EnemyAttack(k);
+                if (atk.Duration <= 0.01f)
+                    return "attack clip duration missing for " + k;
+            }
+
             return null;
         }
 

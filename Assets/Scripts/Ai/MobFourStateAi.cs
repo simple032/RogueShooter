@@ -59,6 +59,19 @@ namespace RogueShooter.Ai
         float _rootUntil;
 
         float _hurtUntil;
+        int _attackCycle;
+        float _lastMovedAt = -999f;
+        bool _dead;
+        float _corpseUntil = -1f;
+
+        /// <summary>
+        /// Walk/idle hold: the mob counts as moving for this long after its last real displacement
+        /// while it intends to move, so a slow patrol at high fps (tiny per-frame steps) or a
+        /// one-frame wall stall does not flip walk↔idle.
+        /// </summary>
+        public const float MoveHoldSeconds = 0.15f;
+        /// <summary>Corpse stays for the death clip plus this hold, then the object is destroyed.</summary>
+        public const float CorpseLingerSeconds = 0.25f;
 
         public MobAiState State => _brain.State;
         public float DistToPlayer { get; private set; }
@@ -74,6 +87,13 @@ namespace RogueShooter.Ai
         public string KindId => CurrentKindId();
         public bool IsKnocking => _knockLeft > 0.001f;
         public bool IsRooted => Time.time < _rootUntil;
+        /// <summary>+1 every time a windup (telegraph → hit/orb) starts; the anim view restarts atk/cast on change.</summary>
+        public int AttackCycle => _attackCycle;
+        /// <summary>Movement intent this frame (patrol/alert/chase/disengage step requested and made recently).</summary>
+        public bool IsMoving => !_dead && Time.time - _lastMovedAt <= MoveHoldSeconds;
+        public bool IsDead => _dead;
+        /// <summary>Time the corpse object is destroyed (−1 while alive).</summary>
+        public float CorpseUntil => _corpseUntil;
 
         public static IReadOnlyList<MobFourStateAi> All => Live;
 
@@ -295,13 +315,17 @@ namespace RogueShooter.Ai
 
         void OnEnable()
         {
-            if (!Live.Contains(this))
-                Live.Add(this);
             var stub = GetComponent<StubEnemy>();
+            if (stub != null && stub.IsDead)
+                _dead = true;
+            if (!_dead && !Live.Contains(this))
+                Live.Add(this);
             if (stub != null)
             {
                 stub.Damaged -= NotifyDamaged;
                 stub.Damaged += NotifyDamaged;
+                stub.Died -= OnStubDied;
+                stub.Died += OnStubDied;
             }
         }
 
@@ -310,16 +334,61 @@ namespace RogueShooter.Ai
             Live.Remove(this);
             var stub = GetComponent<StubEnemy>();
             if (stub != null)
+            {
                 stub.Damaged -= NotifyDamaged;
+                stub.Died -= OnStubDied;
+            }
+        }
+
+        /// <summary>
+        /// Death: leave Live (arrow / hitscan / strike / screen-cap all iterate Live), drop the mob
+        /// collision volume so arrows and bodies pass through, hide the state label + bang, then
+        /// destroy the object once the death clip has played.
+        /// </summary>
+        void OnStubDied(StubEnemy stub)
+        {
+            if (_dead)
+                return;
+            _dead = true;
+            Live.Remove(this);
+            _inWindup = false;
+            _lunging = false;
+            _knockLeft = 0f;
+            SetBang(false);
+            if (_label != null)
+                _label.gameObject.SetActive(false);
+            if (_shieldVis != null)
+                _shieldVis.SetRaised(false, _facing);
+            var vol = GetComponent<CollisionVolume>();
+            if (vol != null)
+                vol.enabled = false;
+            var box = GetComponent<BoxCollider2D>();
+            if (box != null)
+                box.enabled = false;
+            _corpseUntil = Time.time + ActionSpecP1.EnemyDeath(CurrentKindId()).Duration + CorpseLingerSeconds;
+            Debug.Log($"[MobAI] {name} died → collision off, corpse until +{_corpseUntil - Time.time:0.00}s");
         }
 
         void Update()
         {
-            if (RunPause.IsPaused || _player == null)
+            if (RunPause.IsPaused)
                 return;
+
+            if (_dead)
+            {
+                if (_corpseUntil > 0f && Time.time >= _corpseUntil)
+                    Destroy(gameObject);
+                return;
+            }
 
             var stub = GetComponent<StubEnemy>();
             if (stub != null && stub.IsDead)
+            {
+                OnStubDied(stub);
+                return;
+            }
+
+            if (_player == null)
                 return;
 
             if (_lungeCd > 0f)
@@ -469,8 +538,14 @@ namespace RogueShooter.Ai
                 return;
             }
 
+            StartWindup(profile);
+        }
+
+        void StartWindup(EnemyKindProfile profile)
+        {
             _inWindup = true;
             _windupLeft = profile.WindupSeconds;
+            _attackCycle++;
             SetBang(true);
         }
 
@@ -494,9 +569,7 @@ namespace RogueShooter.Ai
                     return;
                 if (profile.RangedOrb && LiveOrbCount() > 0)
                     return;
-                _inWindup = true;
-                _windupLeft = profile.WindupSeconds;
-                SetBang(true);
+                StartWindup(profile);
             }
 
             if (!_inWindup)
@@ -574,6 +647,8 @@ namespace RogueShooter.Ai
         void OnOrbDespawn(MageOrbProjectile orb, string reason)
         {
             _orbs.Remove(orb);
+            if (this == null)
+                return; // caster corpse already destroyed; the orb outlived it.
             Debug.Log($"[Orb] {name} despawn {reason} live={LiveOrbCount()}");
         }
 
@@ -700,11 +775,16 @@ namespace RogueShooter.Ai
 
         void Shift(Vector3 delta)
         {
+            Vector3 before = transform.position;
             CollisionWorld.TryMove(
                 transform,
                 CollisionRules.MobHalfX,
                 CollisionRules.MobHalfY,
                 delta.x, delta.y);
+            Vector3 moved = transform.position - before;
+            moved.z = 0f;
+            if (moved.sqrMagnitude > 1e-10f && !IsKnocking)
+                _lastMovedAt = Time.time;
         }
 
         void ShiftTowards(Vector3 target, float maxDelta)
