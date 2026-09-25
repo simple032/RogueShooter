@@ -16,8 +16,8 @@ namespace RogueShooter.Vision
     /// L5 vision / spawn / aggro + iso-prep self-checks. Pure (no scene); returns null on pass.
     /// Runs every scenario with <see cref="IsoConfig.Enabled"/> off and on and restores the switch
     /// and <see cref="L5Rules"/> afterwards. Measured numbers are kept in the static fields below
-    /// (<see cref="Report"/>). "Clamped" = probe camera clamp: the view rect is kept inside the room's
-    /// projected bounding box (main has no camera clamp; this is the worst case a later clamp could add).
+    /// (<see cref="Report"/>). "Clamped" = the runtime camera clamp (<see cref="CameraFollow2D.ClampViewCentre"/>,
+    /// used by Stage1MazeDemo): the view rect is kept inside the room's (projected) bounding box.
     /// </summary>
     public static class L5VisionChecks
     {
@@ -29,10 +29,16 @@ namespace RogueShooter.Vision
         public static float OrthoCenteredMinEdgeU;
         public static float IsoClampedMinEdgeU_Big;
         public static float IsoClampedNearestOffscreenCellU_Big;
-        public static float IsoClampedMinEdgeU_Painted;
-        public static float IsoClampedNearestOffscreenCellU_Painted;
+        public static float IsoClampedMinEdgeU_Compact;
+        public static float IsoClampedNearestOffscreenCellU_Compact;
         public static float OrthoClampedMinEdgeU_Big;
         public static float OrthoClampedNearestOffscreenCellU_Big;
+        /// <summary>Stage-4 on a real generator room (Stage1MazeGen seed 1 N1, 52×40) with the runtime camera clamp.</summary>
+        public static float IsoClampedMinEdgeU_Gen;
+        public static float IsoClampedNearestOffscreenCellU_Gen;
+        public static float OrthoClampedMinEdgeU_Gen;
+        public static float OrthoClampedNearestOffscreenCellU_Gen;
+        public static string GenRoomTag = "";
         public static int SpawnSpotsChecked;
         public static int SpawnFallbacks;
         public static int SpawnNonFallback;
@@ -43,7 +49,8 @@ namespace RogueShooter.Vision
         public static int FacingSamples;
 
         public static readonly MazeNode BigRoom = Room("L5_big", 0f, 0f, MazeRules.CombatWidth, MazeRules.CombatHeight);
-        public static readonly MazeNode PaintedRoom = Room("L5_painted", 100f, 50f, 20f, 16f);
+        /// <summary>Compact 20×16 probe room (spawn-rule / fallback coverage only; no Stage1 layout uses it now).</summary>
+        public static readonly MazeNode CompactRoom = Room("L5_compact", 100f, 50f, 20f, 16f);
         public static readonly MazeNode MidRoom = Room("L5_mid", -40f, 10f, 30f, 24f);
         public static readonly MazeNode SmallRoom = Room("L5_small", 60f, -40f, 12f, 10f);
 
@@ -82,9 +89,9 @@ namespace RogueShooter.Vision
                 if (err != null) return err;
                 MeasureClamp();
                 if (!Stage4Ok())
-                    return "stage4: nearest off-screen walkable cell (iso 5.25 clamped) must be ≥ "
-                           + F(L5Rules.Stage4MinOffscreenCellU) + "u, got " + F(IsoClampedNearestOffscreenCellU_Big)
-                           + "/" + F(IsoClampedNearestOffscreenCellU_Painted);
+                    return "stage4: nearest off-screen walkable cell (iso 5.25 clamped, generator 52x40) must be ≥ "
+                           + F(L5Rules.Stage4MinOffscreenCellU) + "u, got " + F(IsoClampedNearestOffscreenCellU_Gen)
+                           + " (synthetic 52x40 " + F(IsoClampedNearestOffscreenCellU_Big) + ")";
                 if (L5Rules.AggroRangedU != 10f)
                     return "ranged aggro stays 10u";
                 return null;
@@ -113,13 +120,17 @@ namespace RogueShooter.Vision
                           + "u vs ranged aggro " + F(L5Rules.AggroRangedU) + "u (report only)");
             sb.AppendLine("[L5] iso 5.25 clamped 52x40: player→edge min=" + F(IsoClampedMinEdgeU_Big)
                           + "u nearestOffscreenWalkable=" + F(IsoClampedNearestOffscreenCellU_Big) + "u");
-            sb.AppendLine("[L5] iso 5.25 clamped 20x16: player→edge min=" + F(IsoClampedMinEdgeU_Painted)
-                          + "u nearestOffscreenWalkable=" + F(IsoClampedNearestOffscreenCellU_Painted) + "u");
+            sb.AppendLine("[L5] generator " + GenRoomTag + " iso clamped: player→edge min=" + F(IsoClampedMinEdgeU_Gen)
+                          + "u nearestOffscreenWalkable=" + F(IsoClampedNearestOffscreenCellU_Gen) + "u; ortho 6 clamped: min=" + F(OrthoClampedMinEdgeU_Gen)
+                          + "u nearestOffscreenWalkable=" + F(OrthoClampedNearestOffscreenCellU_Gen) + "u");
+            sb.AppendLine("[L5] iso 5.25 clamped 20x16 (compact probe, info): player→edge min=" + F(IsoClampedMinEdgeU_Compact)
+                          + "u nearestOffscreenWalkable=" + F(IsoClampedNearestOffscreenCellU_Compact) + "u");
             sb.AppendLine("[L5] ortho 6 clamped 52x40: player→edge min=" + F(OrthoClampedMinEdgeU_Big)
                           + "u nearestOffscreenWalkable=" + F(OrthoClampedNearestOffscreenCellU_Big) + "u");
             bool stage4 = Stage4Ok();
             sb.AppendLine("[L5] stage4 (iso 5.25 clamped) nearest off-screen walkable cell ≥" + F(L5Rules.Stage4MinOffscreenCellU)
-                          + "u: 52x40=" + F(IsoClampedNearestOffscreenCellU_Big) + "u 20x16=" + F(IsoClampedNearestOffscreenCellU_Painted)
+                          + "u: generator 52x40=" + F(IsoClampedNearestOffscreenCellU_Gen) + "u (synthetic 52x40=" + F(IsoClampedNearestOffscreenCellU_Big)
+                          + "u, 20x16 info=" + F(IsoClampedNearestOffscreenCellU_Compact) + "u)"
                           + "u → " + (stage4 ? "OK" : "SHORT") + " (ranged aggro stays " + F(L5Rules.AggroRangedU) + "u)");
             sb.AppendLine("[L5] spawn spots=" + SpawnSpotsChecked + " nonFallback=" + SpawnNonFallback + " fallback=" + SpawnFallbacks);
             sb.AppendLine("[L5] corner(20x16 iso clamped) fallback dist=" + F(CornerFallbackDistU) + "u warn=" + F(CornerFallbackWarnS)
@@ -336,7 +347,7 @@ namespace RogueShooter.Vision
             SpawnSpotsChecked = 0;
             SpawnFallbacks = 0;
             SpawnNonFallback = 0;
-            var rooms = new[] { BigRoom, MidRoom, PaintedRoom, SmallRoom };
+            var rooms = new[] { BigRoom, MidRoom, CompactRoom, SmallRoom };
             var avoidsBig = new[] { CombatRoomSpawn.FromSite(SiteKind.Chest, 10.5f, 6.5f), CombatRoomSpawn.FromSite(SiteKind.Altar, -15.5f, -8.5f) };
             var q = new Vector2[4];
             for (int m = 0; m < 2; m++)
@@ -436,10 +447,10 @@ namespace RogueShooter.Vision
             float ortho = CameraViewService.PlayOrthoSizeFor(Aspect);
             var none = new SpawnAvoid[0];
 
-            List<Vector2> cells = L5Spawn.WalkableCells(PaintedRoom, none);
+            List<Vector2> cells = L5Spawn.WalkableCells(CompactRoom, none);
             Vector2 corner = Corner(cells, -1f, -1f);
-            ViewSpace.QuadFromViewRect(ClampedViewRect(PaintedRoom, corner, ortho, Aspect, true), true, q);
-            L5Spot[] s = L5Spawn.PlaceWave(PaintedRoom, corner.x, corner.y, 3, none, q, new System.Random(3));
+            ViewSpace.QuadFromViewRect(ClampedViewRect(CompactRoom, corner, ortho, Aspect, true), true, q);
+            L5Spot[] s = L5Spawn.PlaceWave(CompactRoom, corner.x, corner.y, 3, none, q, new System.Random(3));
             if (s.Length != 3 || !s[0].Fallback) return "corner 20x16 iso clamped must fall back";
             CornerFallbackDistU = s[0].DistPlayer;
             CornerFallbackWarnS = s[0].WarnSeconds;
@@ -464,11 +475,22 @@ namespace RogueShooter.Vision
             return null;
         }
 
-        /// <summary>Stage-4 criterion: nearest off-screen walkable cell ≥ 12u (iso 5.25, camera clamped).</summary>
+        /// <summary>
+        /// Stage-4 criterion: nearest off-screen walkable cell ≥ 12u (iso 5.25, camera clamped) in the Stage1 room
+        /// size — every Stage1 room is now a 52×40 generator room (the 20×16 painted rooms are gone).
+        /// </summary>
         public static bool Stage4Ok()
         {
-            return IsoClampedNearestOffscreenCellU_Big >= L5Rules.Stage4MinOffscreenCellU
-                && IsoClampedNearestOffscreenCellU_Painted >= L5Rules.Stage4MinOffscreenCellU;
+            return IsoClampedNearestOffscreenCellU_Gen >= L5Rules.Stage4MinOffscreenCellU
+                && IsoClampedNearestOffscreenCellU_Big >= L5Rules.Stage4MinOffscreenCellU;
+        }
+
+        public static MazeNode GenRoom()
+        {
+            Stage1Maze maze = Stage1MazeGen.Generate(1);
+            MazeNode n = maze.Find("N1");
+            GenRoomTag = "seed1/" + n.Id + " " + F(n.Width) + "x" + F(n.Height) + "@" + F(n.Center.X) + "," + F(n.Center.Y);
+            return n;
         }
 
         static void MeasureClamp()
@@ -476,9 +498,12 @@ namespace RogueShooter.Vision
             IsoConfig.Enabled = true;
             float iso = CameraViewService.PlayOrthoSizeFor(Aspect);
             ClampProbe(BigRoom, iso, true, out IsoClampedMinEdgeU_Big, out IsoClampedNearestOffscreenCellU_Big);
-            ClampProbe(PaintedRoom, iso, true, out IsoClampedMinEdgeU_Painted, out IsoClampedNearestOffscreenCellU_Painted);
+            ClampProbe(CompactRoom, iso, true, out IsoClampedMinEdgeU_Compact, out IsoClampedNearestOffscreenCellU_Compact);
+            MazeNode gen = GenRoom();
+            ClampProbe(gen, iso, true, out IsoClampedMinEdgeU_Gen, out IsoClampedNearestOffscreenCellU_Gen);
             IsoConfig.Enabled = false;
             ClampProbe(BigRoom, 6f, false, out OrthoClampedMinEdgeU_Big, out OrthoClampedNearestOffscreenCellU_Big);
+            ClampProbe(gen, 6f, false, out OrthoClampedMinEdgeU_Gen, out OrthoClampedNearestOffscreenCellU_Gen);
         }
 
         static void ClampProbe(MazeNode room, float ortho, bool iso, out float minEdge, out float nearestOff)
@@ -507,21 +532,11 @@ namespace RogueShooter.Vision
         /// </summary>
         public static Rect ClampedViewRect(MazeNode room, Vector2 playerLogic, float ortho, float aspect, bool iso)
         {
-            float hx = room.Width * 0.5f, hy = room.Height * 0.5f;
-            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
-            for (int i = 0; i < 4; i++)
-            {
-                var c = new Vector3(room.Center.X + ((i & 1) == 0 ? -hx : hx), room.Center.Y + ((i & 2) == 0 ? -hy : hy), 0f);
-                Vector3 v = iso ? IsoProjection.LogicToView(c) : c;
-                minX = Mathf.Min(minX, v.x); maxX = Mathf.Max(maxX, v.x);
-                minY = Mathf.Min(minY, v.y); maxY = Mathf.Max(maxY, v.y);
-            }
-
-            Vector3 pv = iso ? IsoProjection.LogicToView(new Vector3(playerLogic.x, playerLogic.y, 0f)) : new Vector3(playerLogic.x, playerLogic.y, 0f);
-            float halfH = ortho, halfW = ortho * aspect;
-            float cx = maxX - minX <= 2f * halfW ? (minX + maxX) * 0.5f : Mathf.Clamp(pv.x, minX + halfW, maxX - halfW);
-            float cy = maxY - minY <= 2f * halfH ? (minY + maxY) * 0.5f : Mathf.Clamp(pv.y, minY + halfH, maxY - halfH);
-            return ViewSpace.ViewRectAt(new Vector3(cx, cy, 0f), ortho, aspect);
+            // Same math as the runtime camera clamp (CameraFollow2D.RoomBounds in Stage1MazeDemo).
+            var rect = new Rect(room.Center.X - room.Width * 0.5f, room.Center.Y - room.Height * 0.5f, room.Width, room.Height);
+            var pl = new Vector3(playerLogic.x, playerLogic.y, 0f);
+            Vector3 pv = iso ? IsoProjection.LogicToView(pl) : pl;
+            return ViewSpace.ViewRectAt(CameraFollow2D.ClampViewCentre(rect, pv, ortho, aspect, iso), ortho, aspect);
         }
 
         /// <summary>Debug dump for the view-quad / spawn-point picture (scenario,type,x,y,a,b).</summary>
@@ -536,7 +551,7 @@ namespace RogueShooter.Vision
                 DumpScenario(sb, "iso_on_52x40_clamped", BigRoom, new Vector2(-17.5f, -12.5f), true, true);
                 DumpScenario(sb, "iso_off_52x40_clamped", BigRoom, new Vector2(-17.5f, -12.5f), false, true);
                 DumpScenario(sb, "iso_on_52x40_centred", BigRoom, new Vector2(2.5f, 1.5f), true, false);
-                DumpScenario(sb, "iso_on_20x16_corner_fallback", PaintedRoom, Corner(L5Spawn.WalkableCells(PaintedRoom, new SpawnAvoid[0]), -1f, -1f), true, true);
+                DumpScenario(sb, "iso_on_20x16_corner_fallback", CompactRoom, Corner(L5Spawn.WalkableCells(CompactRoom, new SpawnAvoid[0]), -1f, -1f), true, true);
             }
             finally
             {

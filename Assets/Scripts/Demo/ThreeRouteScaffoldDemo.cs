@@ -395,13 +395,71 @@ namespace RogueShooter.Demo
                 _player.position = park;
             Camera cam = Camera.main;
             if (cam != null)
-                cam.transform.position = new Vector3(park.x, park.y, cam.transform.position.z);
+            {
+                // Iso on: the camera lives in view space (same as CameraFollow2D).
+                Vector3 v = ViewSpace.LogicToCamera(park);
+                cam.transform.position = new Vector3(v.x, v.y, cam.transform.position.z);
+            }
+            PlaceEdgeAnchor(park);
             for (int i = 0; i < _demoAnchors.Length; i++)
             {
                 SpawnAnchor a = _demoAnchors[i];
                 _director.EvaluateNamed(a.AnchorId, a.WorldPosition, "start");
             }
         }
+
+        /// <summary>
+        /// Demo_EdgeBuffer must sit just outside the real view but inside the edge buffer. It used to be a fixed
+        /// (10.2, 7.5) = park + 5.2u, which is only off-screen when the half view width (ortho 6 × aspect) is below
+        /// 5.2u (aspect &lt; 0.87, portrait). At 16:9 the half width is 10.67u, so the anchor was 5.5u inside the view
+        /// → IsInMainCameraView true → edgeSkip=False. Now it is placed from the live view: walk +X from the park
+        /// point to the first off-view position, then half the pad further (still in the forbidden band) — valid
+        /// for any aspect / ortho, iso on or off.
+        /// </summary>
+        void PlaceEdgeAnchor(Vector3 park)
+        {
+            if (_demoAnchors == null || _demoAnchors.Length < 4 || _demoAnchors[3] == null)
+                return;
+            float lo = 0f, hi = 1f;
+            while (hi < 400f && SpawnViewGate.IsInMainCameraView(park + new Vector3(hi, 0f, 0f)))
+            {
+                lo = hi;
+                hi *= 2f;
+            }
+
+            for (int i = 0; i < 40; i++)
+            {
+                float mid = (lo + hi) * 0.5f;
+                if (SpawnViewGate.IsInMainCameraView(park + new Vector3(mid, 0f, 0f)))
+                    lo = mid;
+                else
+                    hi = mid;
+            }
+
+            Vector3 pos = park + new Vector3(hi + SpawnViewGate.EffectivePad * 0.5f, 0f, 0f);
+            SpawnAnchor a = _demoAnchors[3];
+            a.transform.position = pos;
+            a.Configure(a.AnchorId, pos);
+            Debug.Log("[ThreeRouteScaffold] Demo_EdgeBuffer placed at " + pos.x.ToString("0.00") + "," + pos.y.ToString("0.00")
+                      + " (view edge +" + (SpawnViewGate.EffectivePad * 0.5f).ToString("0.00") + "u, pad " + SpawnViewGate.EffectivePad.ToString("0.00")
+                      + ", aspect " + (cachedAspect()).ToString("0.000") + ")");
+        }
+
+        static float cachedAspect()
+        {
+            Camera cam = Camera.main;
+            return cam != null ? CameraViewMath.ResolveAspect(cam) : 0f;
+        }
+
+        /// <summary>Test hook: re-place the edge anchor for the current camera aspect, re-evaluate, re-run acceptance.</summary>
+        public string DebugRerunAcceptance()
+        {
+            RunNamedDemoSpawns();
+            RunAcceptance();
+            return _status;
+        }
+
+        public bool Passed => _pass;
 
         void RunAcceptance()
         {
