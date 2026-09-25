@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using RogueShooter.Art;
+using RogueShooter.Iso.Render;
 
 namespace RogueShooter.Tools
 {
@@ -239,6 +240,7 @@ namespace RogueShooter.Tools
             var tr = go.GetComponent<TilemapRenderer>();
             tr.sortingLayerName = layer;
             tr.sortingOrder = order;
+            IsoUrpEditorMaterials.AssignLit(tr);
             return go.GetComponent<Tilemap>();
         }
 
