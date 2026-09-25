@@ -27,10 +27,11 @@ namespace RogueShooter.Iso
     public enum SectorMode
     {
         /// <summary>
-        /// Default. Art directions are 45° steps in logic space. On screen those
-        /// eight rays are the horizontal and vertical axes plus the four diamond
-        /// edges, so the gaps alternate about 26.6° and 63.4°. Classification
-        /// inverse-projects a screen direction and splits at equal 45° in logic space.
+        /// Default. Inverse-project the facing vector into logic space, then take
+        /// the nearest rendered direction: equal 45° sectors, boundaries at
+        /// ±22.5° around each logic center. Not the screen-space angle bisector.
+        /// Those logic boundaries land near 11.7° and 50.3° from screen +X
+        /// (E|NE and NE|N), not 13.3° and 58.3°.
         /// </summary>
         DiamondAligned = 0,
 
@@ -70,9 +71,13 @@ namespace RogueShooter.Iso
     /// logic (-1, -1) / -135° → screen -Y → S;
     /// logic (0, -1) / -90° → diamond down-right (~-26.6°) → SE.
     /// +logic X is NE, not East. Screen East is the horizontal axis.
-    /// Gaps on screen: ~26.6° from E to NE (and W to SW, and the matching
-    /// pairs), ~63.4° from NE to N (and N to NW, and the matching pairs).
-    /// The boundary ray belongs to the counter-clockwise sector.
+    /// Sector boundaries are ±22.5° in logic space around those centers
+    /// (nearest rendered direction). They are not the screen-space bisectors
+    /// between the projected rays. Measured from screen +X, counter-clockwise,
+    /// the E|NE boundary is about 11.7° (not 13.3°) and the NE|N boundary is
+    /// about 50.3° (not 58.3°). The other six boundaries are the same logic
+    /// rule, so the pattern repeats around the circle. The boundary ray
+    /// belongs to the counter-clockwise sector.
     ///
     /// Suffixes are lowercase and match STYLE_SPEC §3.3 / landed frames:
     /// <c>jh_char_archer_walk_s_03.png</c> → suffix <c>s</c>.

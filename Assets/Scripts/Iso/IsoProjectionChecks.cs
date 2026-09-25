@@ -64,8 +64,12 @@ namespace RogueShooter.Iso
                 return "NE screen ray must be atan(0.5)";
             if (ne < 26.0 || ne > 27.0)
                 return "NE screen ray must be about 26.565 deg";
-            if (Math.Abs((90.0 - ne) - 63.434948822922) > 0.01)
-                return "NE to N gap must be about 63.4 deg";
+            double eNe = ScreenDeg(IsoProjection.LogicDirToScreenDir(LogicOnDeg(-22.5)));
+            double neN = ScreenDeg(IsoProjection.LogicDirToScreenDir(LogicOnDeg(22.5)));
+            if (Math.Abs(eNe - 11.70) > 0.15)
+                return "E|NE screen boundary must be about 11.7, not the 13.3 bisector";
+            if (Math.Abs(neN - 50.36) > 0.2)
+                return "NE|N screen boundary must be about 50.3, not the 58.3 bisector";
             return null;
         }
 
@@ -201,6 +205,9 @@ namespace RogueShooter.Iso
                 string err = ExpectDefaultRays();
                 if (err != null)
                     return err;
+                err = CheckAimBands();
+                if (err != null)
+                    return err;
                 if (IsoFacing.FromLogic(new Vector2(1e-3f, 0f), Dir8.S) != Dir8.NE)
                     return "small non-zero +logic X is NE";
 
@@ -258,6 +265,37 @@ namespace RogueShooter.Iso
             if (Ray(new Vector2(-1f, 1f), Dir8.W)) return "screen -X must be W";
             if (Ray(new Vector2(-1f, -1f), Dir8.S)) return "screen -Y must be S";
             return null;
+        }
+
+        /// <summary>
+        /// Hysteresis-free screen aim. NE is about 11.7°..50.3°, so 12°..50° is NE
+        /// and 11° is still E. The screen bisectors (13.3° and 58.3°) are not used.
+        /// The other rows are that same logic-space rule around the circle.
+        /// </summary>
+        static string CheckAimBands()
+        {
+            if (Aim(11.0, Dir8.E) || Aim(0.0, Dir8.E) || Aim(-10.0, Dir8.E))
+                return "screen below 11 must be E";
+            if (Aim(12.0, Dir8.NE) || Aim(30.0, Dir8.NE) || Aim(50.0, Dir8.NE))
+                return "screen 12 to 50 must be NE";
+            if (Aim(51.0, Dir8.N) || Aim(90.0, Dir8.N) || Aim(129.0, Dir8.N))
+                return "screen just past 50.3 through 129 must be N";
+            if (Aim(130.0, Dir8.NW) || Aim(168.0, Dir8.NW))
+                return "screen 130 to 168 must be NW";
+            if (Aim(169.0, Dir8.W) || Aim(180.0, Dir8.W) || Aim(191.0, Dir8.W))
+                return "screen 169 to 191 must be W";
+            if (Aim(192.0, Dir8.SW) || Aim(210.0, Dir8.SW) || Aim(230.0, Dir8.SW))
+                return "screen 192 to 230 must be SW";
+            if (Aim(231.0, Dir8.S) || Aim(270.0, Dir8.S) || Aim(309.0, Dir8.S) || Aim(-51.0, Dir8.S))
+                return "screen 231 to 309 must be S";
+            if (Aim(-50.0, Dir8.SE) || Aim(-12.0, Dir8.SE) || Aim(310.0, Dir8.SE) || Aim(348.0, Dir8.SE))
+                return "screen -50 to -12 must be SE";
+            return null;
+        }
+
+        static bool Aim(double screenDeg, Dir8 expect)
+        {
+            return IsoFacing.FromScreen(ScreenDir(screenDeg), Dir8.S) != expect;
         }
 
         static bool Ray(Vector2 logicDir, Dir8 expect)
@@ -400,6 +438,14 @@ namespace RogueShooter.Iso
         static Vector2 LogicFromScreenDeg(double screenDeg)
         {
             return IsoProjection.ScreenDirToLogicDir(ScreenDir(screenDeg));
+        }
+
+        static double ScreenDeg(Vector2 screen)
+        {
+            double a = Math.Atan2(screen.y, screen.x) * (180.0 / Math.PI);
+            if (a < 0.0)
+                a += 360.0;
+            return a;
         }
 
         static Vector2 ScreenDir(double deg)
