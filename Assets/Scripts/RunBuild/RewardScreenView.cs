@@ -32,6 +32,8 @@ namespace RogueShooter.Build
         GameObject _choiceRoot;
         Image _panel;
         Text _title;
+        Text _coin;
+        int _coinShown = int.MinValue;
         Font _font;
 
         /// <summary>Chest / altar 3-choice title bar copy.</summary>
@@ -80,6 +82,35 @@ namespace RogueShooter.Build
             // Sits in the shop panel's gold title bar (panel 1100x620, bar centre ≈ +262).
             int n = cards != null ? cards.Length : 0;
             _title = AddText(_choiceRoot.transform, ShopTitle(n), 24, new Vector2(0f, 262f), 360f);
+            // Coin box (top-right of jh_ui_shop_panel: 1600x900 art → 1100x620, box text area
+            // right of the coin dot ≈ (+405, +253), pixel-measured). Refreshed every frame from held gold.
+            _coin = AddText(_choiceRoot.transform, "", 22, CoinBoxPos, 124f);
+            _coin.alignment = TextAnchor.MiddleLeft;
+            _coin.color = new Color(1f, 0.86f, 0.45f, 1f);
+            _coinShown = int.MinValue;
+            RefreshCoin();
+        }
+
+        public static readonly Vector2 CoinBoxPos = new Vector2(405f, 253f);
+
+        /// <summary>Coin box copy: the held coin count only (the art already has the coin dot).</summary>
+        public static string CoinText(int gold)
+        {
+            return gold.ToString();
+        }
+
+        /// <summary>Current coin box text ("" when the shop is not open). Tests read this.</summary>
+        public string CoinLabel => _coin != null ? _coin.text : "";
+
+        void RefreshCoin()
+        {
+            if (_coin == null || _director == null)
+                return;
+            int gold = _director.CurrentGold;
+            if (gold == _coinShown)
+                return;
+            _coinShown = gold;
+            _coin.text = CoinText(gold);
         }
 
         public static string ShopTitle(int shelfCount)
@@ -98,6 +129,8 @@ namespace RogueShooter.Build
 
         void Update()
         {
+            if (Session != null && Session.Open && Session.Kind == RewardScreenKind.Shop)
+                RefreshCoin();
             if (Session == null || !Session.Open || Session.ChoicesVisible)
                 return;
             Session.Tick(Time.unscaledDeltaTime);
@@ -192,6 +225,7 @@ namespace RogueShooter.Build
                     Destroy(child.gameObject);
             }
             _title = null;
+            _coin = null;
 
             if (cards == null)
                 return;

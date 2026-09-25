@@ -260,6 +260,24 @@ namespace RogueShooter.Player
             ApplyLifesteal(dealt);
         }
 
+        /// <summary>R14 穿透 back-row fraction (0 = no pierce). The flying arrow uses it per contact.</summary>
+        public float PierceBackAdd => RewardStatHooks.PierceBackAdd(_ownedRewards);
+
+        /// <summary>
+        /// Flying-arrow contact: settle damage on exactly the mob the arrow's trace hit (reward
+        /// ModifyOutgoing, shield, weak-spot stagger / knockback unless pierce packet, lifesteal).
+        /// </summary>
+        public float ResolveArrowContact(MobFourStateAi mob, Vector3 origin, Vector3 aim,
+            float damage, ChargeShotKind kind, float heldSeconds, bool piercePacket)
+        {
+            if (mob == null || mob.IsDead || damage <= 0f)
+                return 0f;
+            RewardStatHooks.SyncClock(Time.time);
+            float dealt = HitMob(mob, damage, kind, heldSeconds, origin, aim, piercePacket);
+            ApplyLifesteal(dealt);
+            return dealt;
+        }
+
         MobFourStateAi FindBehind(MobFourStateAi first, Vector3 aim)
         {
             MobFourStateAi back = null;
@@ -269,7 +287,7 @@ namespace RogueShooter.Player
             for (int i = 0; i < all.Count; i++)
             {
                 MobFourStateAi mob = all[i];
-                if (mob == null || mob == first || !mob.isActiveAndEnabled)
+                if (mob == null || mob == first || !mob.isActiveAndEnabled || mob.IsDead)
                     continue;
                 Vector3 to = mob.transform.position - from;
                 to.z = 0f;

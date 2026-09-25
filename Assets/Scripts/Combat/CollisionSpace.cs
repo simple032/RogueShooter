@@ -172,6 +172,12 @@ namespace RogueShooter.Combat
             return result;
         }
 
+        /// <summary>Ray (unit dir) entry distance into box; 0 if the origin is inside, −1 on miss.</summary>
+        public static float SweepDistance(float ox, float oy, float dx, float dy, CollisionAabb box)
+        {
+            return DistanceToBox(ox, oy, dx, dy, box);
+        }
+
         static float DistanceToBox(float ox, float oy, float dx, float dy, CollisionAabb box)
         {
             float t0 = 0f;

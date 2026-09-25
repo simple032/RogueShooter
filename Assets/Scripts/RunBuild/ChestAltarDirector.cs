@@ -257,6 +257,32 @@ namespace RogueShooter.Build
                 return;
             }
 
+            OpenSite(_nearest);
+        }
+
+        /// <summary>
+        /// Room-clear hook: open this site's UI without E and without the range check
+        /// (same RewardScreenView + offer rules as E). Returns true when a panel opened.
+        /// Empty chests / claimed altar sizes follow the E rules (no panel).
+        /// </summary>
+        public bool AutoOpen(SiteRuntime site, string reason)
+        {
+            if (site == null || _build == null || Offering)
+                return false;
+            if (!site.IsShop && !site.CanOfferBuild && !site.IsEmptyChest)
+                return false;
+            Debug.Log("[AutoOpen] " + site.Id + " kind=" + site.Kind + " reason=" + (reason ?? "-"));
+            _nearest = site;
+            OpenSite(site);
+            return Offering;
+        }
+
+        /// <summary>Held coins for the shop coin box (live).</summary>
+        public int CurrentGold => _build != null ? _build.Gold : 0;
+
+        void OpenSite(SiteRuntime site)
+        {
+            _nearest = site;
             if (_nearest.IsShop)
             {
                 OpenShop();

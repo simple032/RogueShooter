@@ -9,7 +9,7 @@ namespace RogueShooter.Player
 {
     /// <summary>
     /// Flying charge arrow. Visual = jh_proj_arrow_fly (faces +X, program rotates).
-    /// Charge-string tip stays jh_fx_charge_arrow_tip. Stops on wall/door or first mob/boss.
+    /// Charge-string tip stays jh_fx_charge_arrow_tip. Stops on wall/door (shaft radius) or on the mob volume it traces into; damage goes to that mob.
     /// </summary>
     public class ArrowProjectile : MonoBehaviour
     {
@@ -80,88 +80,166 @@ namespace RogueShooter.Player
                       + " art=" + JianHaiArtCatalog.ArrowFlight);
         }
 
+        readonly HashSet<MobFourStateAi> _hitMobs = new HashSet<MobFourStateAi>();
+        bool _bossHit;
+
+        /// <summary>Mobs this arrow already resolved damage on (tests).</summary>
+        public int HitCount => _hitMobs.Count + (_bossHit ? 1 : 0);
+
         void Update()
         {
             if (_dead)
                 return;
-            float step = _speed * Time.deltaTime;
-            Vector3 from = transform.position;
-            CollisionHit block = CollisionWorld.Trace(
-                from.x, from.y, _dir.x, _dir.y, step + 0.02f, ProjectileRules.ArrowHitRadius,
-                CollisionLayer.Wall | CollisionLayer.Door, transform);
-            if (block.Hit)
+            float remaining = _speed * Time.deltaTime;
+            // One frame can resolve several contacts (pierce): walk the segment in order.
+            for (int guard = 0; guard < 8 && remaining > 0f && !_dead; guard++)
             {
-                transform.position = new Vector3(block.X, block.Y, from.z);
-                Despawn(block.Layer == CollisionLayer.Door ? "door" : "wall");
-                return;
+                Vector3 from = transform.position;
+                CollisionHit block = CollisionWorld.Trace(
+                    from.x, from.y, _dir.x, _dir.y, remaining + 0.02f, ProjectileRules.ArrowBlockRadius,
+                    CollisionLayer.Wall | CollisionLayer.Door, transform);
+                float blockD = block.Hit ? block.Distance : float.MaxValue;
+
+                float mobD;
+                MobFourStateAi mob = SweepMob(from, _dir, remaining, _hitMobs, out mobD);
+                float bossD = float.MaxValue;
+                BossFightDriver boss = null;
+                if (!_bossHit)
+                    boss = SweepBoss(from, _dir, remaining, out bossD);
+                if (boss == null)
+                    bossD = float.MaxValue;
+                if (mob == null)
+                    mobD = float.MaxValue;
+
+                if (blockD <= mobD && blockD <= bossD && block.Hit)
+                {
+                    transform.position = new Vector3(block.X, block.Y, from.z);
+                    _traveled += blockD;
+                    Despawn(block.Layer == CollisionLayer.Door ? "door" : "wall");
+                    return;
+                }
+
+                if (boss != null && bossD <= mobD)
+                {
+                    Advance(from, bossD, ref remaining);
+                    _bossHit = true;
+                    ResolveBoss(boss, from);
+                    Despawn("hit boss");
+                    return;
+                }
+
+                if (mob != null)
+                {
+                    Advance(from, mobD, ref remaining);
+                    bool pierce = ResolveMob(mob, from);
+                    if (!pierce)
+                    {
+                        Despawn("hit");
+                        return;
+                    }
+
+                    continue; // pierce: keep tracing behind, this mob is excluded now
+                }
+
+                Advance(from, remaining, ref remaining);
             }
 
-            CollisionHit victim = CollisionWorld.Trace(
-                from.x, from.y, _dir.x, _dir.y, step + ProjectileRules.ArrowHitRadius,
-                ProjectileRules.ArrowHitRadius,
-                CollisionLayer.Mob, _owner);
-            if (victim.Hit)
-            {
-                transform.position = new Vector3(victim.X, victim.Y, from.z);
-                HitNearest(from);
-                return;
-            }
-
-            if (HitNearest(from))
-                return;
-
-            transform.position = from + _dir * step;
-            _traveled += step;
-            if (_traveled >= _maxRange)
+            if (!_dead && _traveled >= _maxRange)
                 Despawn("range");
         }
 
-        bool HitNearest(Vector3 origin)
+        void Advance(Vector3 from, float d, ref float remaining)
         {
+            transform.position = from + _dir * d;
+            _traveled += d;
+            remaining -= d;
+            if (remaining < 0f)
+                remaining = 0f;
+        }
+
+        /// <summary>
+        /// First live mob whose collision volume (inflated by ArrowHitRadius) the segment enters.
+        /// Uses the same AABB as CollisionWorld, so a body-size change moves stop point and hit together.
+        /// Dead mobs are not in MobFourStateAi.All and have their volume disabled.
+        /// </summary>
+        public static MobFourStateAi SweepMob(Vector3 from, Vector3 dir, float maxDist,
+            ICollection<MobFourStateAi> exclude, out float dist)
+        {
+            dist = float.MaxValue;
             MobFourStateAi best = null;
-            float bestD = ProjectileRules.ArrowHitRadius + 0.35f;
             IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
             for (int i = 0; i < all.Count; i++)
             {
                 MobFourStateAi mob = all[i];
-                if (mob == null || !mob.isActiveAndEnabled)
+                if (mob == null || !mob.isActiveAndEnabled || mob.IsDead)
                     continue;
-                Vector3 d = mob.transform.position - transform.position;
-                d.z = 0f;
-                float dist = d.magnitude;
-                if (dist <= bestD)
-                {
-                    bestD = dist;
-                    best = mob;
-                }
+                if (exclude != null && exclude.Contains(mob))
+                    continue;
+                CollisionVolume vol = mob.GetComponent<CollisionVolume>();
+                if (vol == null || !vol.isActiveAndEnabled)
+                    continue;
+                float d = CollisionSpace.SweepDistance(from.x, from.y, dir.x, dir.y,
+                    vol.WorldAabb.Inflated(ProjectileRules.ArrowHitRadius));
+                if (d < 0f || d > maxDist || d >= dist)
+                    continue;
+                dist = d;
+                best = mob;
             }
 
+            return best;
+        }
+
+        static BossFightDriver SweepBoss(Vector3 from, Vector3 dir, float maxDist, out float dist)
+        {
+            dist = float.MaxValue;
             BossFightDriver boss = BossFightDriver.Live;
-            if (boss != null && boss.FightStarted && !boss.FightSettled)
-            {
-                float bd = Vector3.Distance(transform.position, boss.transform.position);
-                if (bd <= bestD)
-                {
-                    PlayerCharge ownerCharge = _owner != null ? _owner.GetComponent<PlayerCharge>() : null;
-                    if (ownerCharge != null)
-                        ownerCharge.ResolveArrowHitBoss(boss, origin, _dir, _dmg, _kind, _held);
-                    else
-                        ChargeShotImpact.ApplyToBoss(boss, origin, _dir, _dmg, _kind, _held, _owned);
-                    Despawn("hit");
-                    return true;
-                }
-            }
+            if (boss == null || !boss.FightStarted || boss.FightSettled)
+                return null;
+            // Boss has no CollisionVolume: keep its proximity disc, swept along the segment.
+            float r = ProjectileRules.ArrowHitRadius + 0.35f;
+            Vector3 to = boss.transform.position - from;
+            to.z = 0f;
+            float along = Vector3.Dot(to, dir);
+            float perp2 = to.sqrMagnitude - along * along;
+            if (perp2 > r * r)
+                return null;
+            float d = along - Mathf.Sqrt(Mathf.Max(0f, r * r - perp2));
+            if (d < 0f)
+                d = to.sqrMagnitude <= r * r ? 0f : -1f;
+            if (d < 0f || d > maxDist)
+                return null;
+            dist = d;
+            return boss;
+        }
 
-            if (best == null)
-                return false;
-            // A's rules (reward ModifyOutgoing / pierce / lifesteal) live on the owner's PlayerCharge.
+        /// <summary>
+        /// Single settlement path for every shot kind (weak / full / crit / focus): the mob the trace hit
+        /// takes the damage. First contact = full packet; with 穿透 (pierce_back) the arrow keeps going and
+        /// the next different mob takes damage × pierceAdd as a pierce packet, then the arrow stops.
+        /// Returns true when the arrow should keep flying.
+        /// </summary>
+        bool ResolveMob(MobFourStateAi mob, Vector3 origin)
+        {
+            bool first = _hitMobs.Count == 0;
+            _hitMobs.Add(mob);
             PlayerCharge charge = _owner != null ? _owner.GetComponent<PlayerCharge>() : null;
+            float pierceAdd = charge != null ? charge.PierceBackAdd : 0f;
             if (charge != null)
-                charge.ResolveArrowHitMob(best, origin, _dir, _dmg, _kind, _held);
+                charge.ResolveArrowContact(mob, origin, _dir, first ? _dmg : _dmg * pierceAdd, _kind, _held, !first);
             else
-                ChargeShotImpact.ApplyToMob(best, origin, _dir, _dmg, _kind, _held, _owned);
-            Despawn("hit");
-            return true;
+                ChargeShotImpact.ApplyToMob(mob, origin, _dir, _dmg, _kind, _held, _owned);
+            Debug.Log("[Arrow] hit " + mob.name + (first ? "" : " (pierce)") + " kind=" + _kind
+                      + " at d=" + _traveled.ToString("0.00"));
+            return first && pierceAdd > 0f;
+        }
+
+        void ResolveBoss(BossFightDriver boss, Vector3 origin)
+        {
+            PlayerCharge ownerCharge = _owner != null ? _owner.GetComponent<PlayerCharge>() : null;
+            if (ownerCharge != null)
+                ownerCharge.ResolveArrowHitBoss(boss, origin, _dir, _dmg, _kind, _held);
+            else
+                ChargeShotImpact.ApplyToBoss(boss, origin, _dir, _dmg, _kind, _held, _owned);
         }
 
         void Despawn(string reason)

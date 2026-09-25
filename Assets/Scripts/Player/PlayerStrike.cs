@@ -31,7 +31,7 @@ namespace RogueShooter.Player
             for (int i = 0; i < all.Count; i++)
             {
                 MobFourStateAi mob = all[i];
-                if (mob == null || !mob.isActiveAndEnabled)
+                if (mob == null || !mob.isActiveAndEnabled || mob.IsDead)
                     continue;
                 float d = Vector2.Distance(
                     new Vector2(transform.position.x, transform.position.y),

@@ -68,7 +68,8 @@ namespace RogueShooter.Combat
         public static int PlayerRollIFrameStartFrame => PlayerRoll.FrameAt(DodgeRules.IFrameStartSeconds);
         public static int PlayerRollIFrameEndFrame => PlayerRoll.FrameAt(DodgeRules.IFrameEndSeconds);
 
-        public static ActionClipDef PlayerIdle => Clip(JianHaiArtCatalog.PlayerIdle, 4, 0.33f, true);
+        // Clip root is the bare name (frames _00.._03); JianHaiArtCatalog.PlayerIdle is already frame _00.
+        public static ActionClipDef PlayerIdle => Clip("jh_char_archer_idle", 4, 0.33f, true);
         public static ActionClipDef PlayerWalk => Clip("jh_char_archer_walk", 6, 0.50f, true);
         public static ActionClipDef PlayerCharge => Clip("jh_char_archer_charge", 6, ChargeFullPoseSeconds, true);
         public static ActionClipDef PlayerFire => Clip("jh_char_archer_atk", 4, 0.33f, false, 1, "OnFire");
@@ -148,6 +149,33 @@ namespace RogueShooter.Combat
             if (heldSeconds <= ChargeShotRules.GreenExitSeconds)
                 return 4;
             return 5;
+        }
+
+        /// <summary>
+        /// Archer grip transition between charge stage 1 (windup _00–_01) and stage 2 (draw _02–_03).
+        /// Frames grip_1to2_01/02 are not delivered yet: play when present, skip when missing.
+        /// Pose only at the spec 12 fps; combat timing (ChargeShotRules) is unchanged.
+        /// </summary>
+        public const string PlayerGrip1to2Root = "jh_char_archer_grip_1to2";
+        public const int PlayerGrip1to2Frames = 2;
+
+        /// <summary>1-based grip frame (1 = _01, 2 = _02) right after the windup pose ends, else 0.</summary>
+        public static int GripFrameAt(float heldSeconds)
+        {
+            if (heldSeconds < ChargeWindupPoseSeconds)
+                return 0;
+            int i = (int)((heldSeconds - ChargeWindupPoseSeconds) * Fps);
+            return i >= 0 && i < PlayerGrip1to2Frames ? i + 1 : 0;
+        }
+
+        public static string GripArtId(int frame)
+        {
+            return PlayerGrip1to2Root + "_" + (frame < 10 ? "0" + frame : frame.ToString());
+        }
+
+        public static bool IsMageKind(string kindId)
+        {
+            return IsMage(kindId);
         }
 
         public static string Cardinal(float x, float y)
