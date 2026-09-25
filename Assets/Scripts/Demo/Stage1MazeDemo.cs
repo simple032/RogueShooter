@@ -625,6 +625,7 @@ namespace RogueShooter.Demo
             int n = drawn.Units != null ? drawn.Units.Length : 0;
             MazeNode node = _maze.Find(session.RoomId);
             string roomId = node != null ? node.Id : session.RoomId;
+            spots = EnforceSpawnSpots(node, drawn, wave, spots);
             for (int i = 0; i < n; i++)
             {
                 DrawnUnit u = drawn.Units[i];
@@ -653,6 +654,44 @@ namespace RogueShooter.Demo
             Flash("wave " + wave + " " + drawn.CompId + " n=" + n);
             if (n <= 0)
                 ApplySteps(session, session.NotifyKilled());
+        }
+
+        /// <summary>
+        /// Spots are rolled when the portal shows; the player keeps moving during the hold. Re-check
+        /// MinPlayerDist against the player's position now and keep PackSep between mobs.
+        /// </summary>
+        Vector3[] EnforceSpawnSpots(MazeNode node, DrawnComposition drawn, int wave, Vector3[] spots)
+        {
+            if (node == null || spots == null || _player == null)
+                return spots;
+            var ss = new SpawnSpot[spots.Length];
+            for (int i = 0; i < spots.Length; i++)
+            {
+                string kind = drawn.Units != null && i < drawn.Units.Length ? drawn.Units[i].KindId : EnemyKindIds.Normal;
+                ss[i] = new SpawnSpot { X = spots[i].x, Y = spots[i].y, KindId = kind, Ranged = CombatRoomSpawn.IsRanged(kind) };
+            }
+
+            Vector3 p = _player.position;
+            int moved = CombatRoomSpawn.EnforceAtSpawn(
+                node, p.x, p.y, ss, CollectAvoids(node), new System.Random(seed * 31 + wave * 7 + node.Id.GetHashCode()));
+            float minD = float.MaxValue;
+            float minPair = float.MaxValue;
+            var outSpots = new Vector3[ss.Length];
+            for (int i = 0; i < ss.Length; i++)
+            {
+                outSpots[i] = new Vector3(ss[i].X, ss[i].Y, 0f);
+                if (ss[i].DistPlayer < minD)
+                    minD = ss[i].DistPlayer;
+                for (int j = 0; j < i; j++)
+                    minPair = Mathf.Min(minPair, Vector2.Distance(outSpots[i], outSpots[j]));
+            }
+
+            Debug.Log("[SpawnLand] enforce room=" + node.Id + " w" + wave + " moved=" + moved
+                      + " minPlayerDist=" + (ss.Length > 0 ? minD.ToString("0.00") : "-")
+                      + " (need>=" + CombatRoomSpawn.MinPlayerDist.ToString("0.00") + ")"
+                      + " minPair=" + (ss.Length > 1 ? minPair.ToString("0.00") : "-")
+                      + " (need>=" + CombatRoomSpawn.PackSep.ToString("0.00") + ")");
+            return outSpots;
         }
 
         Vector3[] PlaceWaveSpots(MazeNode node, DrawnComposition drawn, int wave)
@@ -802,8 +841,14 @@ namespace RogueShooter.Demo
                 GameObject d = _doors[i];
                 if (d == null)
                     continue;
-                if (d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
-                    d.SetActive(locked);
+                if (!d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
+                    continue;
+                // Doors are built non-solid (MazeCollisionBuilder: solid = !Door). Locking must make
+                // them solid so CollisionWorld.Trace (arrows / orbs) and TryMove (mobs) stop too.
+                var vol = d.GetComponent<CollisionVolume>();
+                if (vol != null)
+                    vol.SetSolid(locked);
+                d.SetActive(locked);
             }
 
             GameObject floor;
@@ -1127,6 +1172,9 @@ namespace RogueShooter.Demo
 
         void OnGUI()
         {
+            // Reward/shop panel open: hide the debug HUD so it never covers the left card.
+            if (RewardScreenView.PanelOpen)
+                return;
             const int pad = 8;
             int w = 640;
             int h = 340;

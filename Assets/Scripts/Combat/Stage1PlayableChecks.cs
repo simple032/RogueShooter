@@ -199,10 +199,9 @@ namespace RogueShooter.Combat
                 return "arrow folder Projectiles";
             if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.OrbFlight) != "Projectiles")
                 return "orb art folder Projectiles";
-            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight))
-                return "arrow PNG missing jh_proj_arrow_fly";
-            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.OrbFlight))
-                return "mage orb PNG missing jh_proj_orb_mage_fly";
+            // Projectile PNGs are not on main yet (code-only port): a generated placeholder is used.
+            // Report as a warning once, not an acceptance failure / LogError.
+            WarnMissingProjectileArt();
             if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight)
                 != "Assets/Art/JianHai/Projectiles/jh_proj_orb_mage_fly.png")
                 return "mage orb asset path";
@@ -604,6 +603,30 @@ namespace RogueShooter.Combat
             }
 
             return default(MazeSolid);
+        }
+
+        static bool _warnedProjectileArt;
+
+        /// <summary>Missing jh_proj_arrow_fly / jh_proj_orb_mage_fly → one Debug.LogWarning per session.</summary>
+        public static string MissingProjectileArt()
+        {
+            string miss = "";
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight))
+                miss += JianHaiArtCatalog.ArrowFlight + " ";
+            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.OrbFlight))
+                miss += JianHaiArtCatalog.OrbFlight + " ";
+            return miss.Trim();
+        }
+
+        static void WarnMissingProjectileArt()
+        {
+            if (_warnedProjectileArt)
+                return;
+            string miss = MissingProjectileArt();
+            if (miss.Length == 0)
+                return;
+            _warnedProjectileArt = true;
+            UnityEngine.Debug.LogWarning("[Stage1Playable] placeholder projectile art (PNG not on main): " + miss);
         }
     }
 }

@@ -20,6 +20,9 @@ namespace RogueShooter.Build
     /// </summary>
     public sealed class RewardScreenView : MonoBehaviour
     {
+        /// <summary>True while any reward/shop panel is up. Debug HUDs hide so they never cover cards.</summary>
+        public static bool PanelOpen { get; private set; }
+
         public RewardScreenSession Session { get; private set; }
         public bool ChoicesVisible => Session != null && Session.ChoicesVisible;
 
@@ -28,7 +31,11 @@ namespace RogueShooter.Build
         Image _clip;
         GameObject _choiceRoot;
         Image _panel;
+        Text _title;
         Font _font;
+
+        /// <summary>Chest / altar 3-choice title bar copy.</summary>
+        public const string ChoiceTitle = "选择强化";
 
         public void Bind(ChestAltarDirector director)
         {
@@ -70,8 +77,9 @@ namespace RogueShooter.Build
             _panel.rectTransform.sizeDelta = new Vector2(1100f, 620f);
             BuildCards(cards, shop: true);
             // Title count comes from the shelves actually shown (ShopStock.ShelfCount = 6).
+            // Sits in the shop panel's gold title bar (panel 1100x620, bar centre ≈ +262).
             int n = cards != null ? cards.Length : 0;
-            AddText(_choiceRoot.transform, ShopTitle(n), 30, new Vector2(0f, 250f), 900f);
+            _title = AddText(_choiceRoot.transform, ShopTitle(n), 24, new Vector2(0f, 262f), 360f);
         }
 
         public static string ShopTitle(int shelfCount)
@@ -119,6 +127,10 @@ namespace RogueShooter.Build
                 _panel.sprite = Load("jh_ui_reward_panel_3choice");
                 _panel.rectTransform.sizeDelta = new Vector2(1000f, 475f);
             }
+
+            // Fill the panel's gold title bar (panel 1000x475, bar centre ≈ +199). Once per open.
+            if (_title == null && _choiceRoot != null)
+                _title = AddText(_choiceRoot.transform, ChoiceTitle, 26, new Vector2(0f, 199f), 340f);
         }
 
         void ApplyFrame()
@@ -134,9 +146,15 @@ namespace RogueShooter.Build
         void ApplyPause(bool paused)
         {
             RunPause.InteractOpen = paused;
+            PanelOpen = paused;
             Time.timeScale = paused ? 0f : 1f;
             if (_canvas != null)
                 _canvas.gameObject.SetActive(paused || (Session != null && Session.Open));
+        }
+
+        void OnDisable()
+        {
+            PanelOpen = false;
         }
 
         void EnsureUi()
@@ -173,6 +191,7 @@ namespace RogueShooter.Build
                 if (child != _panel.transform)
                     Destroy(child.gameObject);
             }
+            _title = null;
 
             if (cards == null)
                 return;
@@ -233,7 +252,7 @@ namespace RogueShooter.Build
             }
         }
 
-        void AddText(Transform parent, string value, int size, Vector2 pos, float width)
+        Text AddText(Transform parent, string value, int size, Vector2 pos, float width)
         {
             var go = new GameObject("Label", typeof(RectTransform), typeof(Text));
             go.transform.SetParent(parent, false);
@@ -249,6 +268,7 @@ namespace RogueShooter.Build
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
             text.text = value ?? "";
+            return text;
         }
 
         static Image MakeImage(Transform parent, string name, Vector2 pos, Vector2 size)

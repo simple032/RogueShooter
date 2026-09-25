@@ -35,7 +35,7 @@ namespace RogueShooter.Build
             Line("震矢", "震矢", "蓄满射出时把敌人推得更远", "jh_ui_icon_shock_arrow"),
         };
 
-        /// <summary>Generic card icon for ids with no delivered icon (DODGE / FIRE / unknown).</summary>
+        /// <summary>Generic card icon for ids with no delivered icon (FIRE / unknown).</summary>
         public const string GenericIcon = "jh_ui_icon_luck";
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace RogueShooter.Build
         {
             Demo("VIT", "骨甲", "能承受更多伤害", "jh_ui_icon_bone_armor"),
             Demo("ARM", "护甲", "受到的伤害更少", "jh_ui_icon_bone_armor"),
-            Demo("DODGE", "闪身", "更容易躲开攻击", ""),
+            Demo("DODGE", "闪身", "更容易躲开攻击", "jh_ui_icon_afterimage"),
             Demo("GOLD", "盗墓者", "击杀掉落更多金币", "jh_ui_icon_grave_robber"),
             Demo("HASTE", "残影", "走得更快", "jh_ui_icon_afterimage"),
             Demo("DMG", "锋矢", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"),

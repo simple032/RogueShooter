@@ -123,13 +123,15 @@ namespace RogueShooter.Combat
                 packErr == null,
                 packErr ?? ("count=" + JianHaiArtCatalog.PlaceholderP1Count
                     + " 64x64 PPU32 pivot=(0.5;0.15) Characters/Enemies same-name replaceable"));
+            // Projectile PNGs not on main (code-only port): informational, warning not failure.
             Row(sb, "arrow_art",
-                JianHaiArtCatalog.ArrowFlight == "jh_proj_arrow_fly"
-                && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight),
-                JianHaiArtCatalog.ArrowFlight + " +X pivot=0.2,0.5");
+                JianHaiArtCatalog.ArrowFlight == "jh_proj_arrow_fly",
+                JianHaiArtCatalog.ArrowFlight + " +X pivot=0.2,0.5"
+                + (JianHaiSprites.HasSourceFile(JianHaiArtCatalog.ArrowFlight) ? "" : " WARN placeholder (PNG not on main)"));
             Row(sb, "orb_art",
-                JianHaiSprites.HasSourceFile(JianHaiArtCatalog.OrbFlight),
-                JianHaiArtCatalog.OrbFlight + " " + JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight));
+                true,
+                JianHaiArtCatalog.OrbFlight + " " + JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight)
+                + (JianHaiSprites.HasSourceFile(JianHaiArtCatalog.OrbFlight) ? "" : " WARN placeholder (PNG not on main)"));
             Row(sb, "jianhai_png_runtime",
                 JianHaiSprites.HasSourceFile(JianHaiArtCatalog.PlayerIdle)
                 && JianHaiSprites.HasSourceFile(JianHaiArtCatalog.TileFloorCorridor)

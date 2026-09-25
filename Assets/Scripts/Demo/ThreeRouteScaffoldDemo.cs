@@ -553,6 +553,9 @@ namespace RogueShooter.Demo
 
         void OnGUI()
         {
+            // Reward/shop panel open: hide the debug HUD so it never covers the left card.
+            if (RewardScreenView.PanelOpen)
+                return;
             const int pad = 8;
             int w = 580;
             int h = 360;

@@ -231,17 +231,11 @@ namespace RogueShooter.Spawning
                 true, true, px, py, dist);
 
             if (filled < 1)
-                filled = FillPool(
-                    cx, cy, w, h, playerX, playerY, avoids, occX, occY, occN, rng,
-                    true, false, px, py, dist);
-            if (filled < 1)
-                filled = FillPool(
-                    cx, cy, w, h, playerX, playerY, avoids, null, null, 0, rng,
-                    true, false, px, py, dist);
-            if (filled < 1)
             {
-                ClampToRoom(cx, cy, w, h, playerX + MinPlayerDist, playerY, out x, out y);
-                return false;
+                // Strict: never fall back to a spot closer than MinPlayerDist or on top of another mob.
+                float sx, sy;
+                ClampToRoom(cx, cy, w, h, playerX + MinPlayerDist, playerY, out sx, out sy);
+                return FindFreeNear(cx, cy, w, h, sx, sy, playerX, playerY, avoids, occX, occY, occN, out x, out y);
             }
 
             SortByDist(px, py, dist, filled);
@@ -253,6 +247,97 @@ namespace RogueShooter.Spawning
             x = px[pick];
             y = py[pick];
             return true;
+        }
+
+        /// <summary>Spot keeps MinPlayerDist from the player and PackSep from every occupied spot.</summary>
+        public static bool SpotOk(float x, float y, float playerX, float playerY, float[] occX, float[] occY, int occN)
+        {
+            return Dist(x, y, playerX, playerY) >= MinPlayerDist && !TooClose(x, y, occX, occY, occN);
+        }
+
+        /// <summary>
+        /// Spiral search (0.25u rings, 16 angles, up to the room size) around (sx,sy) for a spot inside
+        /// the room inset that passes <see cref="SpotOk"/> and the site volumes. False = none found
+        /// (x,y = best effort farthest-from-player candidate).
+        /// </summary>
+        public static bool FindFreeNear(
+            float cx, float cy, float w, float h, float sx, float sy,
+            float playerX, float playerY, SpawnAvoid[] avoids,
+            float[] occX, float[] occY, int occN, out float x, out float y)
+        {
+            float maxR = (w > h ? w : h);
+            float bestD = -1f;
+            x = sx;
+            y = sy;
+            for (float r = 0f; r <= maxR; r += 0.25f)
+            {
+                int steps = r < 0.01f ? 1 : 16;
+                for (int k = 0; k < steps; k++)
+                {
+                    double a = k * (Math.PI * 2.0 / steps);
+                    float tx, ty;
+                    ClampToRoom(cx, cy, w, h, sx + (float)Math.Cos(a) * r, sy + (float)Math.Sin(a) * r, out tx, out ty);
+                    if (HitsVolume(tx, ty, avoids))
+                        continue;
+                    if (SpotOk(tx, ty, playerX, playerY, occX, occY, occN))
+                    {
+                        x = tx;
+                        y = ty;
+                        return true;
+                    }
+
+                    float d = Dist(tx, ty, playerX, playerY);
+                    if (!TooClose(tx, ty, occX, occY, occN) && d > bestD)
+                    {
+                        bestD = d;
+                        x = tx;
+                        y = ty;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Re-checks wave spots against the player's position at spawn time (the player moves during
+        /// the portal hold) and against each other. Bad spots are re-rolled via PlaceOne, then spiral.
+        /// Returns how many spots were moved.
+        /// </summary>
+        public static int EnforceAtSpawn(
+            MazeNode room, float playerX, float playerY, SpawnSpot[] spots, SpawnAvoid[] avoids, Random rng)
+        {
+            if (room == null || spots == null)
+                return 0;
+            int n = spots.Length;
+            var occX = new float[n];
+            var occY = new float[n];
+            int moved = 0;
+            for (int i = 0; i < n; i++)
+            {
+                float x = spots[i].X;
+                float y = spots[i].Y;
+                if (!SpotOk(x, y, playerX, playerY, occX, occY, i) || HitsVolume(x, y, avoids))
+                {
+                    if (!PlaceOne(room.Center.X, room.Center.Y, room.Width, room.Height,
+                            playerX, playerY, spots[i].Ranged, avoids, occX, occY, i, rng, out x, out y)
+                        || !SpotOk(x, y, playerX, playerY, occX, occY, i))
+                    {
+                        FindFreeNear(room.Center.X, room.Center.Y, room.Width, room.Height,
+                            spots[i].X, spots[i].Y, playerX, playerY, avoids, occX, occY, i, out x, out y);
+                    }
+
+                    moved++;
+                }
+
+                spots[i].X = x;
+                spots[i].Y = y;
+                spots[i].DistPlayer = Dist(x, y, playerX, playerY);
+                occX[i] = x;
+                occY[i] = y;
+            }
+
+            return moved;
         }
 
         public static CombatRoomSpawnStats SampleSeed42()
