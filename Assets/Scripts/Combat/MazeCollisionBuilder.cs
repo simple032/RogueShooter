@@ -17,8 +17,10 @@ namespace RogueShooter.Combat
     }
 
     /// <summary>
-    /// Punches corridor-width openings in room walls and places door volumes
-    /// on those openings. Geometry matches Stage-1 maze wall thickness.
+    /// Punches door openings in room walls and places door volumes on those openings.
+    /// 走廊宽度_建议_v02: opening = corridor − 2 × 1u stub (5u corridor → 3u door), centred on
+    /// <see cref="MazeRules.DoorAxis"/> so door edges and stubs land on whole cells.
+    /// Geometry matches Stage-1 maze wall thickness.
     /// </summary>
     public static class MazeCollisionBuilder
     {
@@ -32,10 +34,12 @@ namespace RogueShooter.Combat
             return Build(maze, -1f);
         }
 
-        /// <summary>doorOpening &lt;= 0 uses CollisionRules.DoorOpening (procedural corridor width).
-        /// Painted Stage1 passes its 2u corridor width.</summary>
-        public static List<MazeSolid> Build(Stage1Maze maze, float doorOpening)
+        /// <summary>corridorWidth &lt;= 0 uses CollisionRules.DoorOpening (3u).
+        /// Otherwise the opening is <see cref="MazeRules.DoorOpeningFor"/>(corridorWidth):
+        /// painted Stage1 passes its 5u corridor width → 3u door + 1u stub each side.</summary>
+        public static List<MazeSolid> Build(Stage1Maze maze, float corridorWidth)
         {
+            float doorOpening = corridorWidth > 0.01f ? MazeRules.DoorOpeningFor(corridorWidth) : -1f;
             var list = new List<MazeSolid>();
             if (maze == null || maze.Nodes == null)
                 return list;
@@ -86,12 +90,12 @@ namespace RogueShooter.Combat
             if (Abs(dx) > Abs(dy))
             {
                 side = dx > 0f ? SideE : SideW;
-                along = room.Center.Y;
+                along = MazeRules.DoorAxis(room.Center.Y);
             }
             else
             {
                 side = dy > 0f ? SideN : SideS;
-                along = room.Center.X;
+                along = MazeRules.DoorAxis(room.Center.X);
             }
         }
 

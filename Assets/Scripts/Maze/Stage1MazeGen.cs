@@ -629,11 +629,12 @@ namespace RogueShooter.Maze
             if (Math.Abs(dx) >= Math.Abs(dy))
             {
                 float sx = dx >= 0f ? 1f : -1f;
-                return new MazeVec2(self.Center.X + sx * self.Width * 0.5f, self.Center.Y);
+                return new MazeVec2(self.Center.X + sx * self.Width * 0.5f, MazeRules.DoorAxis(self.Center.Y));
             }
 
+            // Door centre on a cell centre (MazeRules.DoorAxis) so the 5u corridor / 3u door / 1u stubs are whole cells.
             float sy = dy >= 0f ? 1f : -1f;
-            return new MazeVec2(self.Center.X, self.Center.Y + sy * self.Height * 0.5f);
+            return new MazeVec2(MazeRules.DoorAxis(self.Center.X), self.Center.Y + sy * self.Height * 0.5f);
         }
 
         static MazeVec2[] BuildCorridor(MazeVec2 a, MazeVec2 b)

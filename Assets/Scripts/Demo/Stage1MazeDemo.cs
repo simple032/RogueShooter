@@ -1063,8 +1063,10 @@ namespace RogueShooter.Demo
 
                 var go = new GameObject("RoomCover_" + n.Id);
                 go.transform.SetParent(root, false);
-                go.transform.position = new Vector3(n.Center.X, n.Center.Y, -0.5f);
-                go.transform.localScale = new Vector3(n.Width, n.Height, 1f);
+                float cx, cy, cw, ch;
+                CoverRect(n, out cx, out cy, out cw, out ch);
+                go.transform.position = new Vector3(cx, cy, -0.5f);
+                go.transform.localScale = new Vector3(cw, ch, 1f);
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = CoverSprite();
                 sr.color = CoverColor();
@@ -1076,6 +1078,18 @@ namespace RogueShooter.Demo
 
             Debug.Log("[RoomCover] covered=" + _covers.Count + " visible=" + string.Join(",", new List<string>(_revealed).ToArray())
                       + " inset=" + RevealInset.ToString("0.00") + " layer=" + JianHaiArtCatalog.LayerEntity + "/" + CoverSortingOrder);
+        }
+
+        /// <summary>
+        /// Cover rect = room rect. Its edge is the room wall line, i.e. the door strip centre plane
+        /// (MazeCollisionBuilder), so the reveal boundary (edge + RevealInset) is measured from the door.
+        /// </summary>
+        public static void CoverRect(MazeNode n, out float cx, out float cy, out float w, out float h)
+        {
+            cx = n.Center.X;
+            cy = n.Center.Y;
+            w = n.Width;
+            h = n.Height;
         }
 
         void RevealRoomAtPlayer()
