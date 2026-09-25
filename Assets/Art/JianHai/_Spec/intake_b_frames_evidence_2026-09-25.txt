@@ -1,0 +1,58 @@
+jianhai B-class catch-up enemy frames intake evidence
+=====================================================
+time_local_CST: 2026-09-25 13:22 (Asia/Shanghai)
+base: origin/main @ 81b8eee747d014794ef168f05bc027de5bdeba93
+spec: D:\Game Provide\02_design\外包催补_三怪B类_v02.md
+source: LZD D:\Game Provide\RogueShooter\Assets\Art\JianHai\Enemies\ untracked only (read/copy); dirty tree untouched
+zip: %TEMP%\jh_b29.zip (58 files = 29 PNG + 29 meta)
+scope rule: untracked PNG on source tree minus PNG already on origin/main (PR#15) = 29, identical to spec list
+
+## Inventory (PNG frame counts)
+e1_skel: alert×3 (00-02), chase×6 (00-05), die×3 (02-04)  total=12
+dog: alert×2 (00-01), chase×6 (00-05), hurt×1 (01), die×2 (02-03)  total=11
+mage: alert×3 (00-02), die×3 (02-04)  total=6
+TOTAL PNG: 29  TOTAL META: 29
+
+## PNG check
+64x64 RGBA (color type 6): 29/29
+
+## Meta check (PPU32 / filterMode 0 / alignment 9 / pivot 0.5,0.15)
+PASS: 29/29
+FAIL: 0
+No spec fields changed.
+
+## GUID
+Source metas carried invalid non-hex guids (base64-like 56 chars) -> regenerated as uuid4 32-hex.
+Only the 'guid:' line changed per meta; all other lines byte-identical to source.
+Unique across whole repo tree (466 existing .meta guids + 29 new + this evidence meta).
+
+## New GUIDs
+jh_enemy_dog_alert_00.png	79593f06110f4045b984e209aaf01323
+jh_enemy_dog_alert_01.png	ffaf88eacbfd4c30b5cf8ec1e6662d32
+jh_enemy_dog_chase_00.png	5ed79c3a7daf45b3afd12ed4f454f82f
+jh_enemy_dog_chase_01.png	0fbea5ae27134f4280014ce9f1ced267
+jh_enemy_dog_chase_02.png	ac433252f13c4511b7a31013fbc8af66
+jh_enemy_dog_chase_03.png	6f0ec5783ee54b7f8c1e0e62ae3a0927
+jh_enemy_dog_chase_04.png	fd3211fb90bb431fbc14e136a2a72cec
+jh_enemy_dog_chase_05.png	ef89f1f24cc545a38aa554091148e415
+jh_enemy_dog_die_02.png	cb4d3ea9f1a84ddf845a5a4185cc6261
+jh_enemy_dog_die_03.png	242fd827f05e4edb97de45f6866e4c93
+jh_enemy_dog_hurt_01.png	ea167a62020143c483afe4c1289cb669
+jh_enemy_e1_skel_alert_00.png	dd188ecab05a491da0b1f2e5241fcb65
+jh_enemy_e1_skel_alert_01.png	10c470d309ce42d3b1c838ea442a1aa2
+jh_enemy_e1_skel_alert_02.png	9fafdf5b440046fbac5aa5fe49c9ac3b
+jh_enemy_e1_skel_chase_00.png	c83d78c7206644219a430a9fa4b37ce9
+jh_enemy_e1_skel_chase_01.png	e14e667ac85841938a530fcf3121fed2
+jh_enemy_e1_skel_chase_02.png	973dba01f9c440e0a742a0bc685223fd
+jh_enemy_e1_skel_chase_03.png	f376c09c9bb341d2afdceae75bc08bf1
+jh_enemy_e1_skel_chase_04.png	0342387766f349159dbabd8d6a29c360
+jh_enemy_e1_skel_chase_05.png	39f1d8ffc1fd4326829679d8621cf5fa
+jh_enemy_e1_skel_die_02.png	29383d8262884546a8bebe2d90d1353d
+jh_enemy_e1_skel_die_03.png	bb9e1afe465f48e1ab632289ce299d8b
+jh_enemy_e1_skel_die_04.png	f5045cd3a57442ceb04c5a14ac2353c1
+jh_enemy_mage_alert_00.png	b7b0413710fc4e46a042e7d577547cb9
+jh_enemy_mage_alert_01.png	60b970c52e4c4fbfb99ccd9e83fcc847
+jh_enemy_mage_alert_02.png	77ec618183284b7199f72f75c87b4a73
+jh_enemy_mage_die_02.png	81d07daf1bd44f298ac77feb5d3bbccb
+jh_enemy_mage_die_03.png	18b48b9d0fbf479c81701957bdd906c5
+jh_enemy_mage_die_04.png	784f4f31df4e415cb7cc893ebd861238
