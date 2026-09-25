@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using RogueShooter.Art;
+using RogueShooter.Player;
 using RogueShooter.Spawning;
 
 namespace RogueShooter.Combat
@@ -208,7 +209,12 @@ namespace RogueShooter.Combat
         /// <summary>Grip 1→2 transition art for this hold time, or null (outside the window or not delivered).</summary>
         public static string GripArt(float heldSeconds)
         {
-            int f = ActionSpecP1.GripFrameAt(heldSeconds);
+            return GripArt(heldSeconds, ChargeProfile.Base);
+        }
+
+        public static string GripArt(float heldSeconds, ChargeProfile profile)
+        {
+            int f = ActionSpecP1.GripFrameAt(heldSeconds, profile);
             if (f <= 0)
                 return null;
             string id = ActionSpecP1.GripArtId(f);

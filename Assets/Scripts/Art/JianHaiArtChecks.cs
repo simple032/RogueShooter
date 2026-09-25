@@ -103,11 +103,11 @@ namespace RogueShooter.Art
                 return "charge reticle must stay ≤ ~0.72u (fig2 / half-head)";
             if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.FxCritFlash) != JianHaiArtCatalog.LayerFx)
                 return "fx layer";
-            if (Math.Abs(ChargeFxHooks.ChargeSeconds - 0.70f) > 0.001f)
-                return "ring fill must be 0.70s";
-            if (Math.Abs(ChargeFxHooks.GreenEnter - 0.68f) > 0.001f
-                || Math.Abs(ChargeFxHooks.GreenExit - 0.72f) > 0.001f)
-                return "weak-spot window 0.68–0.72s";
+            if (Math.Abs(ChargeFxHooks.ChargeSeconds - ChargeShotRules.RingFillSeconds) > 0.001f)
+                return "ring fill must follow ChargeShotRules.RingFillSeconds";
+            if (Math.Abs(ChargeFxHooks.GreenEnter - ChargeShotRules.RingFillSeconds * ChargeShotRules.WeakSpotEnterPct) > 0.001f
+                || Math.Abs(ChargeFxHooks.GreenExit - ChargeShotRules.RingFillSeconds * ChargeShotRules.WeakSpotExitPct) > 0.001f)
+                return "weak-spot window must be WeakSpotEnterPct–ExitPct × full charge";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
                 return "shoot recovery must be 0.20s";
             if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)

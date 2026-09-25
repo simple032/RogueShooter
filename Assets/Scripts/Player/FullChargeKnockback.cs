@@ -73,16 +73,22 @@ namespace RogueShooter.Player
         }
 
         /// <summary>
-        /// Full-charge body (held ≥ 0.70) or weak-spot window (Crit, implied full).
+        /// Full-charge body (held ≥ current full charge; 0.70s at 0B) or weak-spot window (Crit).
         /// Weak / none: no CC.
         /// </summary>
         public static bool Applies(ChargeShotKind kind, float heldSeconds)
+        {
+            return Applies(kind, heldSeconds, ChargeShotRules.RingFillSeconds);
+        }
+
+        /// <summary>Same with the loadout's full charge (疾张 shortens it).</summary>
+        public static bool Applies(ChargeShotKind kind, float heldSeconds, float fullChargeSeconds)
         {
             if (kind == ChargeShotKind.None || kind == ChargeShotKind.Weak)
                 return false;
             if (kind == ChargeShotKind.Crit)
                 return true;
-            return heldSeconds + 0.0001f >= ChargeShotRules.RingFillSeconds;
+            return heldSeconds + ChargeShotRules.EdgeEpsilon >= fullChargeSeconds;
         }
 
         public static bool RootsOnBodyHit(string kindId, bool shieldRaised, bool weakSpot)

@@ -82,6 +82,8 @@ namespace RogueShooter.Combat
             CombatRoomSpawnStats land = CombatRoomSpawn.SampleSeed42();
             string probe = CombatRoomSpawn.ProbeAvoidVolumes();
             Row(sb, "playable_acceptance", err == null, err ?? Stage1PlayableChecks.FormatPass());
+            string chargeErr = ChargeAcceptanceChecks.Run();
+            Row(sb, "charge_window_focus", chargeErr == null, (chargeErr != null ? chargeErr + " | " : "") + ChargeAcceptanceChecks.FormatValues());
             Row(sb, "dodge_duration",
                 System.Math.Abs(DodgeRules.DurationSeconds - 0.40f) < 0.0001f,
                 "dur=" + DodgeRules.DurationSeconds.ToString("0.00") + "s draft/ACTION_SPEC");
