@@ -24,6 +24,8 @@ namespace RogueShooter.Build
     /// shelves are rolled on the first open and kept for the rest of the run (no refresh, no restock);
     /// sold shelves stay sold across leave / re-enter; slot state is judged on the live gold every time.
     /// Confirm has no second step (P3) but is ignored for <see cref="OpenInputLockSeconds"/> after each open.
+    /// v0.3 selection: every open starts with nothing selected (<see cref="NoSelection"/>); the first up/down/confirm
+    /// only selects the first unsold row; up/down then clamp (no wrap) and do not skip sold rows; confirm = 购买.
     /// </summary>
     public sealed class ShopSession
     {
@@ -38,18 +40,20 @@ namespace RogueShooter.Build
         public int GenerateCount { get; private set; }
         public float OpenedAt { get; private set; }
 
-        /// <summary>Focus index: 0..Shelves.Length-1 = shelves, <see cref="LeaveIndex"/> = the 离开 button.</summary>
+        public const int NoSelection = -1;
+
+        /// <summary>Selected row 0..Shelves.Length-1, or <see cref="NoSelection"/>. Buttons are not in the focus order (v0.3 §9 假设4).</summary>
         public int Focus { get; set; }
+
+        public bool HasSelection
+        {
+            get { return Shelves != null && Focus >= 0 && Focus < Shelves.Length; }
+        }
 
         public ShopSession(string siteId)
         {
             SiteId = siteId ?? "";
             Shelves = new ShopShelf[0];
-        }
-
-        public int LeaveIndex
-        {
-            get { return Shelves != null ? Shelves.Length : 0; }
         }
 
         /// <summary>First open only: roll shelves. Later calls keep the same shelves (条目、价格、位置不变).</summary>
@@ -69,7 +73,8 @@ namespace RogueShooter.Build
             IsOpen = true;
             OpenedAt = now;
             OpenCount++;
-            Focus = DefaultFocus(gold);
+            Focus = NoSelection; // v0.3 §5: open / re-enter = nothing selected, not remembered
+            _ = gold;
         }
 
         public void Close()
@@ -93,54 +98,67 @@ namespace RogueShooter.Build
             return gold >= s.Price ? ShopSlotState.Buyable : ShopSlotState.NoGold;
         }
 
-        /// <summary>§8.2 / §8.7: first buyable shelf; none buyable → 离开.</summary>
-        public int DefaultFocus(int gold)
+        /// <summary>v0.3 §7.2: first row that is not sold out; all sold → row 0.</summary>
+        public int FirstUnsold()
         {
-            if (Shelves != null)
+            if (Shelves == null || Shelves.Length == 0)
+                return NoSelection;
+            for (int i = 0; i < Shelves.Length; i++)
             {
-                for (int i = 0; i < Shelves.Length; i++)
-                {
-                    if (StateOf(i, gold) == ShopSlotState.Buyable)
-                        return i;
-                }
+                if (!Shelves[i].Sold && !Shelves[i].Empty)
+                    return i;
             }
 
-            return LeaveIndex;
+            return 0;
         }
 
-        /// <summary>§8.3: 6 shelves in a 2×3 grid then 离开, wrapping. dx/dy in {-1,0,1}.</summary>
-        public int MoveFocus(int dx, int dy, int columns)
+        /// <summary>Mouse click on a row: select it (never buys).</summary>
+        public void Select(int index)
         {
-            int n = LeaveIndex + 1;
-            if (n <= 1)
+            if (Shelves != null && index >= 0 && index < Shelves.Length)
+                Focus = index;
+        }
+
+        /// <summary>
+        /// Up/down (dy = -1 up, +1 down). Nothing selected → select <see cref="FirstUnsold"/>.
+        /// Otherwise move one row, clamped at top/bottom (no wrap), sold rows are not skipped. Not time-locked (假设1).
+        /// </summary>
+        public int MoveSelection(int dy)
+        {
+            if (Shelves == null || Shelves.Length == 0)
+                return Focus;
+            if (!HasSelection)
             {
-                Focus = 0;
+                Focus = FirstUnsold();
                 return Focus;
             }
 
-            if (columns <= 0)
-                columns = 3;
-            int f = Focus;
-            if (dx != 0)
-                f = ((f + dx) % n + n) % n;
-            if (dy != 0)
-            {
-                if (f == LeaveIndex)
-                    f = dy > 0 ? 0 : Math.Max(0, LeaveIndex - columns);
-                else
-                {
-                    int next = f + dy * columns;
-                    if (next >= LeaveIndex)
-                        f = LeaveIndex;
-                    else if (next < 0)
-                        f = LeaveIndex;
-                    else
-                        f = next;
-                }
-            }
-
+            if (dy == 0)
+                return Focus;
+            int f = Focus + (dy > 0 ? 1 : -1);
+            if (f < 0) f = 0;
+            if (f > Shelves.Length - 1) f = Shelves.Length - 1;
             Focus = f;
             return Focus;
+        }
+
+        /// <summary>
+        /// Confirm key (A / Enter / Space). Inside the open lock window: fully ignored (假设1, also no auto-select).
+        /// Nothing selected → only selects the first unsold row (returns <see cref="ShopBuyResult.Invalid"/>, no buy).
+        /// Selected → presses 购买 for that row (§6 state rules).
+        /// </summary>
+        public ShopBuyResult ConfirmKey(float now, RunBuildState build, out ShopShelf shelf)
+        {
+            shelf = default(ShopShelf);
+            if (InputLocked(now))
+                return ShopBuyResult.Locked;
+            if (!HasSelection)
+            {
+                Focus = FirstUnsold();
+                return ShopBuyResult.Invalid;
+            }
+
+            return TryBuy(Focus, now, build, out shelf);
         }
 
         /// <summary>

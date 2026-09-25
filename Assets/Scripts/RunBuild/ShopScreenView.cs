@@ -5,16 +5,17 @@ using UnityEngine.UI;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// 商店购买界面 (制作人 09-25 版式): standalone purchase screen, not the 3-choice reward screen.
-    /// LEFT: shop list — one row per shelf with ONLY icon, name, rarity, price.
-    /// RIGHT: details of the selected row + 购买 button (single press buys, no second confirm) + 离开.
-    /// Sold / can't-afford read clearly on the row (dimmed, 已售 / red price) and on the button (已售 / 金币不足).
-    /// Placeholder styling only: delivered shop panel + reward icons (RewardScreenView.Load / RewardPresent),
-    /// bundled JianHaiUI-SC font, and plain uGUI colour quads. No new PNGs (final art pending, v03 doc pending).
-    /// Input: mouse click row = select, click 购买 = buy; ↑↓/W S/left stick = select row (then 离开, wraps);
-    /// Enter/Space/A = press 购买 for the selected row (or 离开 when it is selected); Esc/B = leave.
-    /// 1–6 = select that row and press 购买 (QA shortcut, same rules). Buy/leave presses are ignored for
-    /// <see cref="ShopSession.OpenInputLockSeconds"/> after each open.
+    /// 商店购买界面 v0.3 (制作人 09-25 版式): standalone purchase screen, not the 3-choice reward screen.
+    /// LEFT: 6-row list (普通→中级→高级→回复→灵活1→灵活2), each row ONLY icon / name / price / rarity
+    /// (rarity = border colour ONLY, no rarity name text anywhere; heal row = neutral border; flex = rolled tier colour).
+    /// Sold rows stay, fully greyed (border too) with 「已售罄」.
+    /// RIGHT: nothing selected → only 「选择一件商品查看详情」, no button. Selected → big icon, name, rarity border colour,
+    /// full effect (叠加方式 + 当前层数), price, 购买 button (已售罄 > 金币不足 > 购买). Gold sits above the detail area.
+    /// Mouse: click row = select (hover never selects, double-click never buys); only 购买 buys; 关闭 closes.
+    /// Keyboard / gamepad: ↑↓ / left stick (first press only selects the first unsold row; clamp, no wrap, sold not skipped),
+    /// left/right do nothing; A / Enter / Space = press 购买 (first press when nothing is selected only selects);
+    /// B / Esc = close. Confirm ignored for <see cref="ShopSession.OpenInputLockSeconds"/> after each open.
+    /// Placeholder styling only: delivered shop panel + reward icons + JianHaiUI-SC font + uGUI colour quads. No new PNGs.
     /// </summary>
     public sealed class ShopScreenView : MonoBehaviour
     {
@@ -25,12 +26,21 @@ namespace RogueShooter.Build
         public const float RowH = 66f;
         public const float RowGap = 8f;
         public const float ShakeSeconds = 0.3f;
-        public const string SoldText = "已售";
-        public const string LeaveText = "离开";
+        public const string SoldText = "已售罄";
+        public const string LeaveText = "关闭";
+        public const string HintText = "选择一件商品查看详情";
         public const string GoldLabel = "金币";
         public const string BuyText = "购买";
         public const string NoGoldText = "金币不足";
 
+        // Rarity border colours (v0.3 §4.1.4, UI 定 placeholder). Hues sampled from the delivered reward-card
+        // frames jh_ui_reward_card_low/mid/high (#5B6E82 / #A97935 / #5BBACB), brightened / saturated so 普通 does not read
+        // as the sold grey. Heal = neutral warm white. Sold = grey border (§6).
+        public static readonly Color RarityLow = new Color32(0x8C, 0xA6, 0xC4, 0xFF);
+        public static readonly Color RarityMid = new Color32(0xE0, 0xA0, 0x40, 0xFF);
+        public static readonly Color RarityHigh = new Color32(0x38, 0xD4, 0xF0, 0xFF);
+        public static readonly Color RarityNeutral = new Color32(0xD8, 0xD2, 0xC4, 0xFF);
+        public static readonly Color SoldBorder = new Color32(0x55, 0x55, 0x55, 0xFF);
         static readonly Color PriceOk = new Color(1f, 0.9f, 0.55f);
         static readonly Color PriceShort = new Color(1f, 0.32f, 0.28f);
         static readonly Color RowIdle = new Color(0.12f, 0.1f, 0.09f, 0.88f);
@@ -41,7 +51,6 @@ namespace RogueShooter.Build
         static readonly Color BtnBuyFocus = new Color(0.3f, 0.7f, 0.32f, 1f);
         static readonly Color BtnDisabled = new Color(0.3f, 0.3f, 0.3f, 0.9f);
         static readonly Color BtnLeave = new Color(0.16f, 0.12f, 0.1f, 0.92f);
-        static readonly Color BtnLeaveFocus = new Color(0.55f, 0.4f, 0.16f, 0.95f);
         static readonly Color DetailBg = new Color(0.07f, 0.06f, 0.05f, 0.85f);
 
         public ShopSession Session { get; private set; }
@@ -64,7 +73,11 @@ namespace RogueShooter.Build
         Text _buyText;
         RectTransform _buyRt;
         Image _leaveImage;
+        Image _detailBorder;
         RectTransform _leaveRt;
+        GameObject _detailRoot;
+        Text _hint;
+        Vector2 _buyHome;
         Row[] _rows = new Row[0];
         AudioSource _audio;
         AudioClip _deny;
@@ -77,10 +90,11 @@ namespace RogueShooter.Build
         {
             public RectTransform Root;
             public Vector2 Home;
+            public Image Border;
             public Image Bg;
             public Image Icon;
+            public Text SoldTag;
             public Text Name;
-            public Text Rarity;
             public Text Price;
         }
 
@@ -157,19 +171,22 @@ namespace RogueShooter.Build
             float now = Time.unscaledTime;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
             {
-                _leaveRequested = true;
+                _leaveRequested = true; // cancel = close, any time
                 return;
             }
 
+            // Up/down only (left/right are ignored, v0.3 §7.2). Not time-locked (§9 假设1).
             int dy = 0;
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)) dy = -1;
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)) dy = 1;
-            bool keyHeld = Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
-                           || Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.S);
+            if (Input.GetKeyDown(KeyCode.UpArrow)) dy = -1;
+            if (Input.GetKeyDown(KeyCode.DownArrow)) dy = 1;
+            bool keyHeld = Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow);
             if (dy == 0 && !keyHeld)
                 dy = ReadStick();
             if (dy != 0)
-                Select(Session.MoveFocus(dy, 0, 1));
+            {
+                Session.MoveSelection(dy);
+                Refresh();
+            }
 
             if (Input.GetMouseButtonDown(0))
             {
@@ -182,8 +199,7 @@ namespace RogueShooter.Build
 
                 if (Hit(_leaveRt, mouse))
                 {
-                    Select(Session.LeaveIndex);
-                    PressLeave(now);
+                    _leaveRequested = true;
                     return;
                 }
 
@@ -191,30 +207,16 @@ namespace RogueShooter.Build
                 {
                     if (_rows[i] != null && Hit(_rows[i].Root, mouse))
                     {
-                        Select(i); // click row = select only
+                        Select(i); // click row = select only (a double click is two selects)
                         return;
                     }
                 }
+                // blank click: keep the current selection (§9 假设5)
             }
 
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)
                 || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.JoystickButton0))
-            {
-                if (Session.Focus == Session.LeaveIndex)
-                    PressLeave(now);
-                else
-                    PressBuy(now);
-                return;
-            }
-
-            for (int i = 0; i < 6 && i < Session.LeaveIndex; i++)
-            {
-                if (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i))
-                {
-                    Confirm(i, now);
-                    return;
-                }
-            }
+                ConfirmKey(now);
         }
 
         int ReadStick()
@@ -248,63 +250,63 @@ namespace RogueShooter.Build
                    && RectTransformUtility.RectangleContainsScreenPoint(rt, mouse, null);
         }
 
-        /// <summary>Select a row (or <see cref="ShopSession.LeaveIndex"/>). Never buys.</summary>
+        /// <summary>Mouse click on a row: select it. Never buys.</summary>
         public void Select(int index)
         {
             if (Session == null)
                 return;
-            if (index < 0 || index > Session.LeaveIndex)
-                return;
-            Session.Focus = index;
+            Session.Select(index);
             Refresh();
         }
 
-        /// <summary>购买 button: buys the selected row at once (no second confirm). Ignored in the open lock window.</summary>
+        /// <summary>
+        /// 购买 button (mouse) — buys the selected row at once, no second confirm.
+        /// Sold: no effect. Not enough gold: deny sound + button shake, gold / Build unchanged.
+        /// </summary>
         public ShopBuyResult PressBuy(float now)
+        {
+            if (Session == null || !Session.HasSelection)
+                return ShopBuyResult.Invalid;
+            ShopShelf shelf;
+            ShopBuyResult r = Session.TryBuy(Session.Focus, now, _build, out shelf);
+            AfterPress(shelf, r, now);
+            return r;
+        }
+
+        /// <summary>Confirm key (A / Enter / Space): first press with nothing selected only selects; then = 购买.</summary>
+        public ShopBuyResult ConfirmKey(float now)
         {
             if (Session == null)
                 return ShopBuyResult.Invalid;
-            int index = Session.Focus;
-            if (index < 0 || index >= Session.LeaveIndex)
-                return ShopBuyResult.Invalid;
             ShopShelf shelf;
-            ShopBuyResult r = Session.TryBuy(index, now, _build, out shelf);
+            ShopBuyResult r = Session.ConfirmKey(now, _build, out shelf);
+            AfterPress(shelf, r, now);
+            return r;
+        }
+
+        void AfterPress(ShopShelf shelf, ShopBuyResult r, float now)
+        {
             if (r == ShopBuyResult.Bought && _onBought != null)
                 _onBought(shelf);
             if (r == ShopBuyResult.NoGold)
             {
-                _shakeIndex = index;
+                _shakeIndex = Session.Focus;
                 _shakeUntil = now + ShakeSeconds;
                 PlayDeny();
             }
 
-            if (_onResult != null)
+            if (_onResult != null && r != ShopBuyResult.Invalid)
                 _onResult(shelf, r);
             Refresh();
-            return r;
         }
 
-        /// <summary>离开 button press (lock window applies; Esc / B always leave).</summary>
-        public bool PressLeave(float now)
+        /// <summary>关闭 button / Esc / B: applied in LateUpdate.</summary>
+        public void RequestClose()
         {
-            if (Session == null || Session.InputLocked(now))
-                return false;
             _leaveRequested = true;
-            return true;
         }
 
-        /// <summary>Select <paramref name="index"/> then press 购买 (or 离开 for the leave index).</summary>
-        public ShopBuyResult Confirm(int index, float now)
-        {
-            if (Session == null)
-                return ShopBuyResult.Invalid;
-            Select(index);
-            if (index == Session.LeaveIndex)
-                return PressLeave(now) ? ShopBuyResult.Invalid : ShopBuyResult.Locked;
-            return PressBuy(now);
-        }
-
-        /// <summary>Re-judge every row on the live gold (即时刷新) and redraw gold / selection / detail / button.</summary>
+        /// <summary>Re-judge every row on the live gold (§6.2 即时刷新) and redraw gold / selection / detail / button.</summary>
         public void Refresh()
         {
             if (Session == null || _build == null || _canvas == null)
@@ -312,95 +314,81 @@ namespace RogueShooter.Build
             int gold = _build.Gold;
             LastShownGold = gold;
             _gold.text = GoldLabel + " " + gold + "   Build " + _build.BuildCount;
-            float now = Time.unscaledTime;
             for (int i = 0; i < _rows.Length; i++)
             {
                 Row r = _rows[i];
+                ShopShelf shelf = Session.Shelves[i];
                 ShopSlotState st = Session.StateOf(i, gold);
+                bool sold = st == ShopSlotState.Sold;
                 bool selected = Session.Focus == i;
-                r.Bg.color = selected ? RowSelected : st == ShopSlotState.Sold ? RowDim : RowIdle;
-                Color text = st == ShopSlotState.Buyable ? Color.white : TextDim;
-                r.Name.color = text;
-                r.Rarity.color = st == ShopSlotState.Buyable ? RarityColor(Session.Shelves[i]) : TextDim;
+                r.Bg.color = selected ? RowSelected : sold ? RowDim : RowIdle;
+                r.Border.color = BorderColor(shelf, sold);
+                r.Name.color = sold ? TextDim : Color.white;
                 if (r.Icon != null)
-                    r.Icon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.25f)
-                        : st == ShopSlotState.NoGold ? new Color(0.6f, 0.6f, 0.6f, 1f) : Color.white;
-                r.Price.text = st == ShopSlotState.Sold ? SoldText : Session.Shelves[i].Price + " " + GoldLabel;
-                r.Price.color = st == ShopSlotState.Sold ? TextDim : st == ShopSlotState.NoGold ? PriceShort : PriceOk;
-                float dx = 0f;
-                if (i == _shakeIndex && now < _shakeUntil)
-                    dx = Mathf.Sin(now * 70f) * 9f * ((_shakeUntil - now) / ShakeSeconds);
-                r.Root.anchoredPosition = r.Home + new Vector2(dx, 0f);
+                    r.Icon.color = sold ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
+                r.Price.color = sold ? TextDim : st == ShopSlotState.NoGold ? PriceShort : PriceOk;
+                r.SoldTag.gameObject.SetActive(sold);
             }
 
             RefreshDetail(gold);
-            _leaveImage.color = Session.Focus == Session.LeaveIndex ? BtnLeaveFocus : BtnLeave;
         }
 
         void RefreshDetail(int gold)
         {
-            int i = Session.Focus;
-            bool shelfSel = Session.Shelves != null && i >= 0 && i < Session.Shelves.Length;
-            if (!shelfSel)
+            bool sel = Session.HasSelection;
+            _hint.gameObject.SetActive(!sel);
+            _detailRoot.SetActive(sel);
+            _buyImage.gameObject.SetActive(sel);
+            if (!sel)
             {
-                _detailIcon.enabled = false;
-                _detailName.text = LeaveText;
-                _detailMeta.text = "";
-                _detailBody.text = "货架不刷新，离开后可再次进入";
-                _buyImage.color = BtnDisabled;
-                _buyText.text = BuyText;
+                _detailBorder.color = DetailBg;
                 return;
             }
 
+            int i = Session.Focus;
             ShopShelf s = Session.Shelves[i];
             ShopSlotState st = Session.StateOf(i, gold);
-            if (s.Empty)
-            {
-                _detailIcon.enabled = false;
-                _detailName.text = SoldText;
-                _detailMeta.text = "";
-                _detailBody.text = "";
-            }
-            else
-            {
-                RewardCardData card = RewardPresent.ToCard(s.Id, s.Tier, "", "", i, false);
-                _detailIcon.enabled = true;
+            _detailBorder.color = BorderColor(s, st == ShopSlotState.Sold);
+            RewardCardData card = s.Empty
+                ? new RewardCardData { Name = SoldText, Desc = "", Icon = "" }
+                : RewardPresent.ToCard(s.Id, s.Tier, "", "", i, false);
+            _detailIcon.enabled = !string.IsNullOrEmpty(card.Icon);
+            if (_detailIcon.enabled)
                 _detailIcon.sprite = RewardScreenView.Load(card.Icon);
-                _detailIcon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.3f) : Color.white;
-                _detailName.text = card.Name;
-                _detailMeta.text = RarityText(s) + " · " + s.Price + " " + GoldLabel;
-                _detailMeta.color = st == ShopSlotState.NoGold ? PriceShort : PriceOk;
-                int stacks = ShopSession.OwnedStacks(_build.OwnedRewardIds, s.Id);
-                string stack = ShopSession.StackLabel(s.Id);
-                _detailBody.text = card.Desc + "\n" + s.Effect + "\n" + stack
-                                   + (s.IsHeal ? "" : " · 已有 " + stacks + " 层");
-            }
+            _detailIcon.color = st == ShopSlotState.Sold ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
+            _detailName.text = card.Name;
+            _detailMeta.text = s.Empty ? "" : s.Price + " " + GoldLabel;
+            _detailMeta.color = st == ShopSlotState.Sold ? TextDim : st == ShopSlotState.NoGold ? PriceShort : PriceOk;
+            int stacks = ShopSession.OwnedStacks(_build.OwnedRewardIds, s.Id);
+            string stack = ShopSession.StackLabel(s.Id);
+            _detailBody.text = s.Empty ? "" : card.Desc + "\n效果：" + s.Effect + "\n叠加：" + stack
+                + (s.IsHeal ? "" : "    当前 " + stacks + " 层");
 
-            bool focusBuy = st == ShopSlotState.Buyable;
-            _buyImage.color = focusBuy ? BtnBuyFocus : BtnDisabled;
-            _buyText.text = st == ShopSlotState.Sold ? SoldText
-                : st == ShopSlotState.NoGold ? NoGoldText + "（" + s.Price + "）"
-                : BuyText + "  " + s.Price + " " + GoldLabel;
-            _buyText.color = st == ShopSlotState.NoGold ? PriceShort : Color.white;
+            // §6: 已售罄 > 金币不足 > 可购买
+            _buyImage.color = st == ShopSlotState.Buyable ? BtnBuyFocus : BtnDisabled;
+            _buyText.text = st == ShopSlotState.Sold ? SoldText : st == ShopSlotState.NoGold ? NoGoldText : BuyText;
+            _buyText.color = st == ShopSlotState.Buyable ? Color.white : TextDim;
+            float now = Time.unscaledTime;
+            float dx = 0f;
+            if (_shakeIndex == i && now < _shakeUntil)
+                dx = Mathf.Sin(now * 70f) * 8f * ((_shakeUntil - now) / ShakeSeconds);
+            _buyRt.anchoredPosition = _buyHome + new Vector2(dx, 0f);
         }
 
-        public static string RarityText(ShopShelf s)
+        /// <summary>
+        /// Rarity border colour (no text). Uses the tier the shelf actually rolled, so a flex row gets its rolled
+        /// tier colour (§4.1.4 / 假设7); heal row = neutral; sold = grey border (§6 / 假设8).
+        /// </summary>
+        public static Color BorderColor(ShopShelf s, bool sold)
         {
-            string tier = s.ContentRole == ShopSlotRole.Heal ? "回复"
-                : s.ContentRole == ShopSlotRole.High ? "高级"
-                : s.ContentRole == ShopSlotRole.Mid ? "中级"
-                : "普通";
-            return s.IsElastic ? tier + "·灵活" : tier;
-        }
-
-        static Color RarityColor(ShopShelf s)
-        {
+            if (sold)
+                return SoldBorder;
             switch (s.ContentRole)
             {
-                case ShopSlotRole.Heal: return new Color(0.5f, 0.95f, 0.55f);
-                case ShopSlotRole.High: return new Color(1f, 0.7f, 0.3f);
-                case ShopSlotRole.Mid: return new Color(0.55f, 0.75f, 1f);
-                default: return new Color(0.85f, 0.85f, 0.85f);
+                case ShopSlotRole.Heal: return RarityNeutral;
+                case ShopSlotRole.High: return RarityHigh;
+                case ShopSlotRole.Mid: return RarityMid;
+                default: return RarityLow;
             }
         }
 
@@ -454,27 +442,40 @@ namespace RogueShooter.Build
             _gold = AddText(root.transform, "", 22, new Vector2(390f, 262f), 260f, TextAnchor.MiddleRight);
             _gold.color = PriceOk;
 
-            // Right: detail panel + buttons.
-            Image detail = MakeImage(root.transform, "Detail", new Vector2(262f, 20f), new Vector2(430f, 400f));
+            // Right: gold above the detail area, hint (unselected) or detail + 购买; 关闭 top-right.
+            _gold.rectTransform.anchoredPosition = new Vector2(262f, 200f);
+            _gold.rectTransform.sizeDelta = new Vector2(430f, 40f);
+            _gold.alignment = TextAnchor.MiddleCenter;
+            _detailBorder = MakeImage(root.transform, "DetailBorder", new Vector2(262f, -10f), new Vector2(438f, 368f));
+            _detailBorder.preserveAspect = false;
+            _detailBorder.raycastTarget = false;
+            _detailBorder.color = DetailBg;
+            Image detail = MakeImage(root.transform, "Detail", new Vector2(262f, -10f), new Vector2(430f, 360f));
             detail.preserveAspect = false;
             detail.color = DetailBg;
-            _detailIcon = MakeImage(detail.transform, "Icon", new Vector2(-150f, 140f), new Vector2(96f, 96f));
-            _detailName = AddText(detail.transform, "", 28, new Vector2(50f, 158f), 290f, TextAnchor.MiddleLeft);
-            _detailMeta = AddText(detail.transform, "", 20, new Vector2(50f, 118f), 290f, TextAnchor.MiddleLeft);
-            _detailBody = AddText(detail.transform, "", 20, new Vector2(0f, -20f), 390f, TextAnchor.UpperLeft);
-            _detailBody.rectTransform.sizeDelta = new Vector2(390f, 200f);
+            _hint = AddText(detail.transform, HintText, 24, Vector2.zero, 400f, TextAnchor.MiddleCenter);
+            _hint.color = TextDim;
+            _detailRoot = new GameObject("Selected", typeof(RectTransform));
+            _detailRoot.transform.SetParent(detail.transform, false);
+            _detailIcon = MakeImage(_detailRoot.transform, "Icon", new Vector2(-150f, 115f), new Vector2(104f, 104f));
+            _detailName = AddText(_detailRoot.transform, "", 28, new Vector2(55f, 135f), 290f, TextAnchor.MiddleLeft);
+            _detailMeta = AddText(_detailRoot.transform, "", 22, new Vector2(55f, 95f), 290f, TextAnchor.MiddleLeft);
+            _detailBody = AddText(_detailRoot.transform, "", 20, new Vector2(0f, -45f), 390f, TextAnchor.UpperLeft);
+            _detailBody.rectTransform.sizeDelta = new Vector2(390f, 180f);
             _detailBody.verticalOverflow = VerticalWrapMode.Overflow;
             _detailBody.lineSpacing = 1.2f;
 
-            _buyImage = MakeImage(root.transform, "Buy", new Vector2(262f, -222f), new Vector2(300f, 56f));
+            _buyHome = new Vector2(262f, -236f);
+            _buyImage = MakeImage(root.transform, "Buy", _buyHome, new Vector2(300f, 56f));
             _buyImage.preserveAspect = false;
             _buyRt = _buyImage.rectTransform;
-            _buyText = AddText(_buyImage.transform, BuyText, 24, Vector2.zero, 300f, TextAnchor.MiddleCenter);
+            _buyText = AddText(_buyImage.transform, BuyText, 26, Vector2.zero, 300f, TextAnchor.MiddleCenter);
 
-            _leaveImage = MakeImage(root.transform, "Leave", new Vector2(460f, -222f), new Vector2(80f, 56f));
+            _leaveImage = MakeImage(root.transform, "Close", new Vector2(500f, 262f), new Vector2(80f, 40f));
             _leaveImage.preserveAspect = false;
+            _leaveImage.color = BtnLeave;
             _leaveRt = _leaveImage.rectTransform;
-            AddText(_leaveImage.transform, LeaveText, 22, Vector2.zero, 80f, TextAnchor.MiddleCenter);
+            AddText(_leaveImage.transform, LeaveText, 20, Vector2.zero, 80f, TextAnchor.MiddleCenter);
 
             _audio = gameObject.GetComponent<AudioSource>();
             if (_audio == null)
@@ -507,22 +508,28 @@ namespace RogueShooter.Build
         Row MakeRow(ShopShelf shelf, int index, Vector2 home)
         {
             var r = new Row { Home = home };
-            r.Bg = MakeImage(_canvas.transform, "Row" + index, home, new Vector2(RowW, RowH));
+            // Rarity border = outer quad in rarity colour, inner row background inset by 3px.
+            r.Border = MakeImage(_canvas.transform, "Row" + index, home, new Vector2(RowW, RowH));
+            r.Border.preserveAspect = false;
+            r.Root = r.Border.rectTransform;
+            r.Bg = MakeImage(r.Root, "Bg", Vector2.zero, new Vector2(RowW - 6f, RowH - 6f));
             r.Bg.preserveAspect = false;
-            r.Root = r.Bg.rectTransform;
+            r.Bg.raycastTarget = false;
             RewardCardData card = shelf.Empty
                 ? new RewardCardData { Name = SoldText, Icon = "" }
                 : RewardPresent.ToCard(shelf.Id, shelf.Tier, "", "", index, false);
             if (!string.IsNullOrEmpty(card.Icon))
             {
-                r.Icon = MakeImage(r.Root, "Icon", new Vector2(-RowW * 0.5f + 36f, 0f), new Vector2(52f, 52f));
+                r.Icon = MakeImage(r.Root, "Icon", new Vector2(-RowW * 0.5f + 36f, 0f), new Vector2(50f, 50f));
                 r.Icon.sprite = RewardScreenView.Load(card.Icon);
                 r.Icon.raycastTarget = false;
             }
 
-            r.Name = AddText(r.Root, card.Name, 24, new Vector2(-40f, 0f), 220f, TextAnchor.MiddleLeft);
-            r.Rarity = AddText(r.Root, RarityText(shelf), 18, new Vector2(95f, 0f), 100f, TextAnchor.MiddleCenter);
-            r.Price = AddText(r.Root, "", 22, new Vector2(RowW * 0.5f - 60f, 0f), 110f, TextAnchor.MiddleRight);
+            r.Name = AddText(r.Root, card.Name, 24, new Vector2(-60f, 0f), 210f, TextAnchor.MiddleLeft);
+            r.Price = AddText(r.Root, shelf.Empty ? "" : shelf.Price + " " + GoldLabel, 22,
+                new Vector2(RowW * 0.5f - 50f, 0f), 90f, TextAnchor.MiddleRight);
+            r.SoldTag = AddText(r.Root, SoldText, 18, new Vector2(90f, 0f), 80f, TextAnchor.MiddleCenter);
+            r.SoldTag.color = new Color(1f, 0.85f, 0.5f);
             return r;
         }
 
