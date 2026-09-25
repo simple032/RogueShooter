@@ -196,9 +196,10 @@ namespace RogueShooter.Build
             if (cards == null)
                 return;
             int n = cards.Length;
-            float cardW = shop ? 150f : 200f;
-            float cardH = shop ? 216f : 288f;
-            float gap = shop ? 12f : 24f;
+            // Reward (chest/altar) cards: 223x335, gap 77 → 3-card centres at x = -300 / 0 / +300.
+            float cardW = shop ? 150f : 223f;
+            float cardH = shop ? 216f : 335f;
+            float gap = shop ? 12f : 77f;
             float total = n * cardW + (n - 1) * gap;
             float x0 = -total * 0.5f + cardW * 0.5f;
             for (int i = 0; i < n; i++)
@@ -213,7 +214,7 @@ namespace RogueShooter.Build
                 var image = go.GetComponent<Image>();
                 image.sprite = Load(CardSprite(card.Tier));
                 image.type = Image.Type.Simple;
-                image.preserveAspect = true;
+                image.preserveAspect = false;
                 int index = card.Index;
                 go.GetComponent<Button>().onClick.AddListener(() =>
                 {
@@ -225,7 +226,7 @@ namespace RogueShooter.Build
                     float iconW = cardW * (96f / 360f);
                     float iconH = cardH * (96f / 520f);
                     Image icon = MakeImage(go.transform, "Icon", new Vector2(0f, cardH * 0.25f), new Vector2(iconW, iconH));
-                    icon.sprite = Load(card.Icon);
+                    icon.sprite = LoadIcon(card.Icon);
                     icon.raycastTarget = false;
                 }
                 AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
@@ -290,6 +291,19 @@ namespace RogueShooter.Build
             if (string.IsNullOrEmpty(id))
                 return null;
             return Resources.Load<Sprite>("JianHaiReward/" + id);
+        }
+
+        /// <summary>
+        /// Card icon: the requested sprite, else its silent stand-in from
+        /// <see cref="RewardPresent.IconFallback"/> (e.g. quick_step → afterimage until the art lands).
+        /// </summary>
+        public static Sprite LoadIcon(string id)
+        {
+            Sprite sprite = Load(id);
+            if (sprite != null)
+                return sprite;
+            string fallback = RewardPresent.IconFallback(id);
+            return string.IsNullOrEmpty(fallback) ? null : Load(fallback);
         }
     }
 }

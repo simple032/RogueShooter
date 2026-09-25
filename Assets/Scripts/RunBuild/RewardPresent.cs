@@ -39,6 +39,19 @@ namespace RogueShooter.Build
         public const string GenericIcon = "jh_ui_icon_luck";
 
         /// <summary>
+        /// DODGE icon. Art not delivered yet: drop Resources/JianHaiReward/jh_ui_icon_quick_step.png
+        /// in and it is picked up with no code change; until then it silently shows <see cref="QuickStepFallback"/>.
+        /// </summary>
+        public const string QuickStepIcon = "jh_ui_icon_quick_step";
+        public const string QuickStepFallback = "jh_ui_icon_afterimage";
+
+        /// <summary>Stand-in icon id for a not-yet-delivered icon ("" = none).</summary>
+        public static string IconFallback(string icon)
+        {
+            return icon == QuickStepIcon ? QuickStepFallback : "";
+        }
+
+        /// <summary>
         /// BalanceLock demo_reward_pool ids (stem before _C/_R/_E). Same number-free copy style.
         /// Icon "" = no delivered icon, card uses <see cref="GenericIcon"/>.
         /// </summary>
@@ -46,7 +59,7 @@ namespace RogueShooter.Build
         {
             Demo("VIT", "骨甲", "能承受更多伤害", "jh_ui_icon_bone_armor"),
             Demo("ARM", "护甲", "受到的伤害更少", "jh_ui_icon_bone_armor"),
-            Demo("DODGE", "闪身", "更容易躲开攻击", "jh_ui_icon_afterimage"),
+            Demo("DODGE", "闪身", "更容易躲开攻击", QuickStepIcon),
             Demo("GOLD", "盗墓者", "击杀掉落更多金币", "jh_ui_icon_grave_robber"),
             Demo("HASTE", "残影", "走得更快", "jh_ui_icon_afterimage"),
             Demo("DMG", "锋矢", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"),
