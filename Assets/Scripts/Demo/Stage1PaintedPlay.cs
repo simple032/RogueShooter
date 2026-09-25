@@ -21,7 +21,12 @@ namespace RogueShooter.Demo
     {
         public const string GridName = "Grid";
         public const float PlayerRadius = 0.28f;
-        public const float CorridorWidth = 2f;
+        /// <summary>
+        /// 走廊宽度_建议_v02: corridor 5u; door opening 3u (= 5 − 2 × 1u stub), see
+        /// <see cref="MazeRules.DoorOpeningFor"/>. Passed to MazeCollisionBuilder as the corridor width.
+        /// </summary>
+        public const float CorridorWidth = MazeRules.CorridorWidth;
+        public const float DoorWidth = MazeRules.DoorWidth;
         /// <summary>Circle centre height above the feet (transform pivot), world units.</summary>
         public const float PlayerFootOffset = 0.08f;
         public const string WallsName = "Walls";
@@ -169,20 +174,28 @@ namespace RogueShooter.Demo
             };
         }
 
+        /// <summary>Corridor centreline on the door axis (cell centre, <see cref="MazeRules.DoorAxis"/>).</summary>
         static MazeEdge Edge(MazeNode a, MazeNode b)
         {
-            float len = a.Center.Dist(b.Center);
+            bool horiz = System.Math.Abs(b.Center.X - a.Center.X) > System.Math.Abs(b.Center.Y - a.Center.Y);
+            MazeVec2 pa = horiz
+                ? new MazeVec2(a.Center.X, MazeRules.DoorAxis(a.Center.Y))
+                : new MazeVec2(MazeRules.DoorAxis(a.Center.X), a.Center.Y);
+            MazeVec2 pb = horiz
+                ? new MazeVec2(b.Center.X, MazeRules.DoorAxis(b.Center.Y))
+                : new MazeVec2(MazeRules.DoorAxis(b.Center.X), b.Center.Y);
+            float len = pa.Dist(pb);
             return new MazeEdge
             {
                 FromId = a.Id,
                 ToId = b.Id,
-                From = a.Center,
-                To = b.Center,
+                From = pa,
+                To = pb,
                 Width = CorridorWidth,
                 Length = len,
                 MaxSegment = len,
                 FoldCount = 0,
-                Points = new[] { a.Center, b.Center }
+                Points = new[] { pa, pb }
             };
         }
     }
