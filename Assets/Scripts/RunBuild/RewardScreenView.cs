@@ -196,10 +196,12 @@ namespace RogueShooter.Build
             if (cards == null)
                 return;
             int n = cards.Length;
-            // Reward (chest/altar) cards: 223x335, gap 77 → 3-card centres at x = -300 / 0 / +300.
-            float cardW = shop ? 150f : 223f;
-            float cardH = shop ? 216f : 335f;
-            float gap = shop ? 12f : 77f;
+            // Reward (chest/altar) cards: 225x325, gap 68.75 → centres (-293.75 / 0 / +293.75, -18.75),
+            // i.e. the painted slots of jh_ui_reward_panel_3choice (1600x760 art shown at 1000x475).
+            float cardW = shop ? 150f : 225f;
+            float cardH = shop ? 216f : 325f;
+            float gap = shop ? 12f : 68.75f;
+            float cardY = shop ? -10f : -18.75f;
             float total = n * cardW + (n - 1) * gap;
             float x0 = -total * 0.5f + cardW * 0.5f;
             for (int i = 0; i < n; i++)
@@ -210,7 +212,7 @@ namespace RogueShooter.Build
                 var rt = go.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.sizeDelta = new Vector2(cardW, cardH);
-                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), shop ? -10f : 0f);
+                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), cardY);
                 var image = go.GetComponent<Image>();
                 image.sprite = Load(CardSprite(card.Tier));
                 image.type = Image.Type.Simple;
