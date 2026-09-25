@@ -135,9 +135,8 @@ namespace RogueShooter.Build
         {
             if (_canvas != null)
                 return;
-            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei UI", 32);
-            if (_font == null)
-                _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Bundled project font first (not Windows-only); see BuiltinUiFont.LoadUi.
+            _font = RogueShooter.Demo.BuiltinUiFont.LoadUi();
 
             var root = new GameObject("RewardScreen", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);

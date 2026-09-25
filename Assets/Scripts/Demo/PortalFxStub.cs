@@ -4,13 +4,23 @@ using RogueShooter.Art;
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// High-contrast ground portal stub at a spawn point. Outsourced art can replace this.
-    /// Must be readable in Play on dark floors (cyan ring + magenta core + pulse).
+    /// Ground portal at a spawn point, shown for MazeRules.PortalHoldSeconds (~1s) before
+    /// the wave spawns (Stage1MazeDemo.PortalThenSpawn). Uses the delivered 2-frame art
+    /// jh_fx_portal_spawn_00/01 (flip-book). Falls back to the high-contrast plate stub
+    /// (cyan ring + magenta core + pulse) only when the PNGs are not importable.
     /// </summary>
     public class PortalFxStub : MonoBehaviour
     {
+        public const string Frame0 = "jh_fx_portal_spawn_00";
+        public const string Frame1 = "jh_fx_portal_spawn_01";
+        /// <summary>Seconds per frame. 2 frames → ~4 flips during the 1.0s hold.</summary>
+        public const float FrameSeconds = 0.12f;
+
         Vector3 _baseScale = Vector3.one;
         SpriteRenderer[] _srs;
+        SpriteRenderer _frameSr;
+        Sprite[] _frames;
+        float _age;
 
         public static GameObject SpawnAt(string name, Vector3 world, Transform parent)
         {
@@ -25,6 +35,8 @@ namespace RogueShooter.Demo
 
         void Build()
         {
+            if (TryBuildFrames())
+                return;
             AddPlate("Ring", Vector3.zero, new Vector2(1.70f, 1.70f),
                 new Color(0.05f, 1f, 1f, 0.95f), 10);
             AddPlate("Band", Vector3.zero, new Vector2(1.22f, 1.22f),
@@ -48,6 +60,21 @@ namespace RogueShooter.Demo
             _baseScale = Vector3.one;
         }
 
+        bool TryBuildFrames()
+        {
+            if (JianHaiSprites.UsedPlaceholder(Frame0) || JianHaiSprites.UsedPlaceholder(Frame1))
+                return false;
+            _frames = new[] { JianHaiSprites.Get(Frame0), JianHaiSprites.Get(Frame1) };
+            var go = new GameObject("Frames");
+            go.transform.SetParent(transform, false);
+            _frameSr = go.AddComponent<SpriteRenderer>();
+            _frameSr.sprite = _frames[0];
+            _frameSr.sortingLayerName = JianHaiArtCatalog.LayerFx;
+            _frameSr.sortingOrder = 10;
+            _age = 0f;
+            return true;
+        }
+
         void AddPlate(string name, Vector3 local, Vector2 size, Color color, int order)
         {
             var go = new GameObject(name);
@@ -60,6 +87,18 @@ namespace RogueShooter.Demo
 
         void Update()
         {
+            if (_frameSr != null)
+            {
+                _age += Time.deltaTime;
+                int idx = Mathf.FloorToInt(_age / FrameSeconds) % _frames.Length;
+                _frameSr.sprite = _frames[idx];
+                // short fade-in so the portal "appears" before the wave.
+                Color c = _frameSr.color;
+                c.a = Mathf.Clamp01(_age / 0.2f);
+                _frameSr.color = c;
+                return;
+            }
+
             float pulse = 1f + 0.16f * Mathf.Sin(Time.time * 10f);
             transform.localScale = _baseScale * pulse;
             if (_srs == null)
