@@ -81,6 +81,12 @@ namespace RogueShooter.Vision
                 err = CheckFallback();
                 if (err != null) return err;
                 MeasureClamp();
+                if (!Stage4Ok())
+                    return "stage4: nearest off-screen walkable cell (iso 5.25 clamped) must be ≥ "
+                           + F(L5Rules.Stage4MinOffscreenCellU) + "u, got " + F(IsoClampedNearestOffscreenCellU_Big)
+                           + "/" + F(IsoClampedNearestOffscreenCellU_Painted);
+                if (L5Rules.AggroRangedU != 10f)
+                    return "ranged aggro stays 10u";
                 return null;
             }
             finally
@@ -111,8 +117,10 @@ namespace RogueShooter.Vision
                           + "u nearestOffscreenWalkable=" + F(IsoClampedNearestOffscreenCellU_Painted) + "u");
             sb.AppendLine("[L5] ortho 6 clamped 52x40: player→edge min=" + F(OrthoClampedMinEdgeU_Big)
                           + "u nearestOffscreenWalkable=" + F(OrthoClampedNearestOffscreenCellU_Big) + "u");
-            bool stage4 = IsoClampedMinEdgeU_Big >= L5Rules.Stage4MinScreenEdgeU;
-            sb.AppendLine("[L5] stage4 need ≥" + F(L5Rules.Stage4MinScreenEdgeU) + "u → " + (stage4 ? "OK" : "SHORT (would drop ranged aggro to " + F(L5Rules.Stage4RangedAggroIfShortU) + "u; report only, value unchanged)"));
+            bool stage4 = Stage4Ok();
+            sb.AppendLine("[L5] stage4 (iso 5.25 clamped) nearest off-screen walkable cell ≥" + F(L5Rules.Stage4MinOffscreenCellU)
+                          + "u: 52x40=" + F(IsoClampedNearestOffscreenCellU_Big) + "u 20x16=" + F(IsoClampedNearestOffscreenCellU_Painted)
+                          + "u → " + (stage4 ? "OK" : "SHORT") + " (ranged aggro stays " + F(L5Rules.AggroRangedU) + "u)");
             sb.AppendLine("[L5] spawn spots=" + SpawnSpotsChecked + " nonFallback=" + SpawnNonFallback + " fallback=" + SpawnFallbacks);
             sb.AppendLine("[L5] corner(20x16 iso clamped) fallback dist=" + F(CornerFallbackDistU) + "u warn=" + F(CornerFallbackWarnS)
                           + "s; small(12x10) dist=" + F(SmallRoomFallbackDistU) + "u warn=" + F(SmallRoomFallbackWarnS) + "s");
@@ -454,6 +462,13 @@ namespace RogueShooter.Vision
             s = L5Spawn.PlaceWave(BigRoom, corner.x, corner.y, 3, none, q, new System.Random(9));
             if (s[0].Fallback) return "ortho big-room corner should find rule spots";
             return null;
+        }
+
+        /// <summary>Stage-4 criterion: nearest off-screen walkable cell ≥ 12u (iso 5.25, camera clamped).</summary>
+        public static bool Stage4Ok()
+        {
+            return IsoClampedNearestOffscreenCellU_Big >= L5Rules.Stage4MinOffscreenCellU
+                && IsoClampedNearestOffscreenCellU_Painted >= L5Rules.Stage4MinOffscreenCellU;
         }
 
         static void MeasureClamp()

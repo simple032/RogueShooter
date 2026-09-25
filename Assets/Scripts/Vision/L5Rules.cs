@@ -53,8 +53,13 @@ namespace RogueShooter.Vision
         /// <summary>Warning when the fallback cell is closer than <see cref="SpawnMinU"/>.</summary>
         public static float FallbackWarnNearSeconds = DefaultFallbackWarnNearSeconds;
 
-        // ---- stage-4 reference (report only, not enforced) ----
-        public const float Stage4MinScreenEdgeU = 12f;
+        // ---- stage-4 acceptance ----
+        /// <summary>
+        /// Stage 4: the nearest off-screen walkable cell must be at least this far from the player
+        /// (iso 5.25, camera clamped). Replaces the old "player → screen edge" criterion.
+        /// </summary>
+        public const float Stage4MinOffscreenCellU = 12f;
+        /// <summary>Ranged aggro fallback if stage 4 were short (reference only; aggro stays 10u).</summary>
         public const float Stage4RangedAggroIfShortU = 9f;
 
         public static float AggroFor(bool ranged)
