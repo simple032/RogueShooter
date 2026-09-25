@@ -38,7 +38,20 @@ namespace RogueShooter.Balance
         public LockKv[] pathClock;
         public float shopInheritRate;
         public float shopInheritCap;
-        public int shopBuildFromShop;
+        /// <summary>balance_shop_gold_locked.csv shelf_count (6 = 1普+1中+1高+1回复+2灵活).</summary>
+        public int shopShelfCount;
+        /// <summary>shelf_fixed, e.g. "low/mid/high/heal".</summary>
+        public string shopShelfFixed;
+        /// <summary>shelf_flex_count (2).</summary>
+        public int shopShelfFlexCount;
+        /// <summary>shelf_flex_w raw "56/32/12" (普/中/高, never heal). Authoritative weights: offer_rules shop.flex_w.</summary>
+        public string shopShelfFlexW;
+        /// <summary>build_per_shop_buy: Build added per successful shop buy.</summary>
+        public int shopBuildPerShopBuy;
+        /// <summary>build_heal_buy: Build added per successful heal-shelf buy (制作人 P2 2026-09-25 = 1).</summary>
+        public int shopBuildHealBuy;
+        /// <summary>price_ref: the only price table (BalanceCrit2/balance_shop_prices_箭骸.csv).</summary>
+        public string shopPriceRef;
         public int shopInPower;
         public float pathPreReadySeconds;
         public string powerFormula;
@@ -56,7 +69,6 @@ namespace RogueShooter.Balance
         public float mobDisengageSpeed;
         public float mobPatrolRadius;
         public float strikeRange;
-        public int shopStubPrice;
         public int shopStartGold;
 
         public ClockBand GetClockBand(string id)
