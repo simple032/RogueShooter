@@ -40,6 +40,12 @@ namespace RogueShooter.Demo
         /// <summary>Painted layout: START(BL) → CHEST(BR) → N1(TR) → ALTAR(TL).</summary>
         public Stage1Maze BuildMaze(int seed)
         {
+            return BuildPaintedMaze(seed);
+        }
+
+        /// <summary>Same layout without an instance (acceptance checks).</summary>
+        public static Stage1Maze BuildPaintedMaze(int seed)
+        {
             MazeNode start = Room("START", MazeNodeKind.Start, 3, 2, 22, 17);
             MazeNode chest = Room("CHEST", MazeNodeKind.Chest, 29, 2, 48, 17);
             MazeNode n1 = Room("N1", MazeNodeKind.Normal, 29, 22, 48, 37);
