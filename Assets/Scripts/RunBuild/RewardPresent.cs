@@ -35,7 +35,7 @@ namespace RogueShooter.Build
             Line("震矢", "震矢", "蓄满射出时把敌人推得更远", "jh_ui_icon_shock_arrow"),
         };
 
-        /// <summary>Generic card icon for ids with no delivered icon (FIRE / unknown).</summary>
+        /// <summary>Generic card icon for ids with no delivered icon (unknown ids).</summary>
         public const string GenericIcon = "jh_ui_icon_luck";
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace RogueShooter.Build
             Demo("HASTE", "残影", "走得更快", "jh_ui_icon_afterimage"),
             Demo("DMG", "锋矢", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"),
             Demo("CRIT", "瞬击预感", "更容易打出暴击", "jh_ui_icon_instant_foresight"),
-            Demo("FIRE", "火矢", "箭矢附带灼烧", ""),
+            Demo("FIRE", "火矢", "箭矢附带灼烧", "jh_ui_icon_fire_arrow"),
         };
 
         /// <summary>demo_reward_pool.csv ids as shipped (R15_* resolve through RewardCatalog).</summary>
