@@ -61,9 +61,16 @@ namespace RogueShooter.Demo
                 return;
             Damaged?.Invoke();
             hitPoints -= amount < 1 ? 1 : amount;
+            if (hitPoints < 0)
+                hitPoints = 0;
             if (hitPoints > 0)
+            {
+                ShowRemainingHp(hitPoints);
                 return;
+            }
+
             _dead = true;
+            ShatterCurrentFrame();
             Died?.Invoke(this);
         }
 
@@ -73,6 +80,55 @@ namespace RogueShooter.Demo
                 return;
             float s = 1f + 0.08f * Mathf.Sin(Time.time * pulse);
             transform.localScale = _baseScale * _pressureScale * s;
+        }
+
+        void ShowRemainingHp(int remaining)
+        {
+            Transform existing = transform.Find("HpReadout");
+            GameObject go = existing != null ? existing.gameObject : new GameObject("HpReadout");
+            if (existing == null)
+            {
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+            }
+
+            TextMesh label = go.GetComponent<TextMesh>();
+            if (label == null)
+                label = go.AddComponent<TextMesh>();
+            label.anchor = TextAnchor.LowerCenter;
+            label.alignment = TextAlignment.Center;
+            label.characterSize = 0.12f;
+            label.fontSize = 32;
+            label.color = Color.white;
+            label.text = remaining.ToString();
+            BuiltinUiFont.Apply(label);
+        }
+
+        void ShatterCurrentFrame()
+        {
+            SpriteRenderer renderer = GetComponent<SpriteRenderer>();
+            Sprite frame = renderer != null ? renderer.sprite : null;
+            Color color = renderer != null ? renderer.color : Color.white;
+            Vector3 scale = transform.localScale * 0.35f;
+            if (renderer != null)
+                renderer.enabled = false;
+            Collider2D[] cols = GetComponents<Collider2D>();
+            for (int i = 0; i < cols.Length; i++)
+                cols[i].enabled = false;
+            const int pieces = 6;
+            for (int i = 0; i < pieces; i++)
+            {
+                float ang = i * (360f / pieces) * Mathf.Deg2Rad;
+                var bit = new GameObject("Shatter");
+                bit.transform.position = transform.position;
+                bit.transform.localScale = scale;
+                var shard = bit.AddComponent<SpriteRenderer>();
+                shard.sprite = frame;
+                shard.color = color;
+                shard.sortingOrder = 8;
+                var kick = bit.AddComponent<MobShatterBit>();
+                kick.Kick(new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 2.4f);
+            }
         }
     }
 }

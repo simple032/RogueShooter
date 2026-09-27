@@ -29,9 +29,10 @@ namespace RogueShooter.Spawning
             return StageId.S1;
         }
 
+        /// <summary>Stage no longer grants lunge. Only shield soldiers lunge.</summary>
         public static bool GrantsLunge(StageId id)
         {
-            return id == StageId.S2 || id == StageId.S3;
+            return false;
         }
 
         public static bool DogsSpawnInPairs(StageId id)

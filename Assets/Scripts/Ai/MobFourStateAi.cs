@@ -9,8 +9,9 @@ using RogueShooter.Vision;
 namespace RogueShooter.Ai
 {
     /// <summary>
-    /// Four-state AI plus Spec v0.5 behaviors (bang, orbs, S2+ lunge, shield).
+    /// Four-state AI plus shield lunge, orbs, and shield raise.
     /// State machine is unchanged: Patrol → Alert → Chase → Attack → Disengage.
+    /// Normals do not lunge.
     /// </summary>
     public class MobFourStateAi : MonoBehaviour
     {
@@ -306,6 +307,9 @@ namespace RogueShooter.Ai
         void Update()
         {
             if (RunPause.IsPaused || _player == null)
+                return;
+            var body = GetComponent<StubEnemy>();
+            if (body != null && body.IsDead)
                 return;
 
             if (_lungeCd > 0f)

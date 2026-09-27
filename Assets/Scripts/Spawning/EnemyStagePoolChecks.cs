@@ -30,7 +30,7 @@ namespace RogueShooter.Spawning
             if (!StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.CultMage)
                 || !StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.Shield)
                 || !StageIdUtil.IncludesCultMage(StageId.S2))
-                return "S2 pool is lunge-normal + paired dogs + shield + cult mage";
+                return "S2 pool is normal + paired dogs + shield + cult mage";
             string s2Mage = CheckS2CultMage();
             if (s2Mage != null)
                 return s2Mage;
@@ -54,13 +54,18 @@ namespace RogueShooter.Spawning
             string enhErr = CheckEnhancePairs();
             if (enhErr != null) return enhErr;
 
-            if (EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S1))
-                return "S1 normal must not lunge";
-            if (!EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S2)
-                || !EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S3))
-                return "S2/S3 normal must lunge";
-            if (EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S2))
-                return "only normal melee lunges";
+            if (EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S1)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S2)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S3))
+                return "normal must not lunge";
+            if (EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S1)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S2)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S1)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S3))
+                return "S1 kinds must not lunge";
+            if (!EnemyCombatRules.CanLunge(EnemyKindIds.Shield, StageId.S2)
+                || !EnemyCombatRules.CanLunge(EnemyKindIds.Shield, StageId.S3))
+                return "shield keeps lunge";
 
             if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2)
                 || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S1))
