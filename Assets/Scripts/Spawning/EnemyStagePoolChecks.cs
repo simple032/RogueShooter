@@ -82,8 +82,8 @@ namespace RogueShooter.Spawning
             if (Math.Abs(EnemyCombatRules.OrbSpeedAbsStub - 12f) > 0.001f
                 || Math.Abs(EnemyPoolDraft.DraftOrbSpeed - 12f) > 0.001f)
                 return "orb speed abs 12 (player 6 × 2)";
-            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f)
-                return "cult mage orb must be 12, not walk×2=7.2";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 6f) > 0.001f)
+                return "cult mage orb must be 6, not walk×2=7.2";
             if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.GrandMage, 3.3f) - 12f) > 0.001f)
                 return "grand orb must be 12";
             if (Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
@@ -305,9 +305,9 @@ namespace RogueShooter.Spawning
 
             if (EnemyCombatRules.OrbCount(EnemyKindIds.CultMage) != 1)
                 return "S2 cult mage same as S1: single linear orb";
-            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 6f) > 0.001f
                 || Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
-                return "S2 cult mage orb player×2=12 / camWidth×0.7 (same as S1)";
+                return "S2 cult mage orb 6 / camWidth×0.7 (same as S1)";
             if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2))
                 return "S2 cult mage must not lunge";
 
@@ -394,15 +394,16 @@ namespace RogueShooter.Spawning
             if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 2.25f))
                 return "WalkSpeed shield raised 2.25";
 
-            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.CultMage), 12f)
-                || !Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.GrandMage), 12f))
-                return "orb_spd 12 from draft CSV";
+            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.CultMage), 6f))
+                return "cult orb_spd 6 from draft CSV";
+            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.GrandMage), 12f))
+                return "grand orb_spd 12 from draft CSV";
 
             DraftEnemyStat dog = EnemyPoolDraft.Stat(EnemyKindIds.Dog);
             if (!Near(dog.Atk, 15f) || !Near(dog.MoveSpeed, 7.2f))
                 return "dog CSV atk 15 move 7.2";
             DraftEnemyStat mage = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
-            if (!Near(mage.Atk, 19f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 12f))
+            if (!Near(mage.Atk, 19f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 6f))
                 return "mage CSV atk 19 move 3.6 orb 12";
             DraftEnemyStat shield = EnemyPoolDraft.Stat(EnemyKindIds.Shield);
             if (!Near(shield.Atk, 30f) || !Near(shield.MoveSpeed, 4.5f)

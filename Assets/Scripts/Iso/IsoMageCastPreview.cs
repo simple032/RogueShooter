@@ -1,16 +1,15 @@
 using UnityEngine;
 using RogueShooter.Ai;
+using RogueShooter.Spawning;
 
 namespace RogueShooter.Iso
 {
     /// <summary>
     /// Sample-room cult mage. One orb leaves the staff and flies. It does not sit beside the caster.
-    /// Preview speed is not the combat orb speed.
+    /// Speed is the combat cult-mage orb speed.
     /// </summary>
     public sealed class IsoMageCastPreview : MonoBehaviour
     {
-        public const float PreviewOrbSpeed = 3f;
-
         public Sprite[] CastFrames;
         public Sprite[] FlyFrames;
         public Sprite SpawnFrame;
@@ -72,7 +71,7 @@ namespace RogueShooter.Iso
             if (Orb == null)
                 return;
             _dir = Vector3.down;
-            _speed = PreviewOrbSpeed;
+            _speed = EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, EnemyCombatRules.WalkMageStub);
             Camera cam = Camera.main;
             float ortho = cam != null && cam.orthographic ? cam.orthographicSize : EnemyCombatRules.PlayOrthoSize;
             float aspect = cam != null && cam.aspect > 0.01f ? cam.aspect : EnemyCombatRules.DefaultAspect;
