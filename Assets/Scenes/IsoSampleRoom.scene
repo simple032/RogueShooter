@@ -135,7 +135,6 @@ GameObject:
   - component: {fileID: 6938431}
   - component: {fileID: 6938434}
   - component: {fileID: 6938433}
-  - component: {fileID: 6938432}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: OrbFly
@@ -143,7 +142,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &6938431
 Transform:
   m_ObjectHideFlags: 0
@@ -159,24 +158,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2117341595}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6938432
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6938430}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57254831b1a1d7f439dbf6924d1b4e26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Frames:
-  - {fileID: 21300000, guid: 81ad9c9bab05e0a4d84decd16af152d0, type: 3}
-  - {fileID: 21300000, guid: e1b32bb0774e5ee47b150313a734a72d, type: 3}
-  - {fileID: 21300000, guid: ade1581be2a880046af23f96da500008, type: 3}
-  - {fileID: 21300000, guid: e692a7fcad80947478810a7ded9bcf87, type: 3}
-  FramesPerSecond: 12
 --- !u!114 &6938433
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2857,7 +2838,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &763922613
 Transform:
   m_ObjectHideFlags: 0
@@ -7941,7 +7922,7 @@ GameObject:
   - component: {fileID: 1899823585}
   - component: {fileID: 1899823588}
   - component: {fileID: 1899823587}
-  - component: {fileID: 1899823586}
+  - component: {fileID: 1899823589}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: MageCast
@@ -7965,28 +7946,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2117341595}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1899823586
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1899823584}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57254831b1a1d7f439dbf6924d1b4e26, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Frames:
-  - {fileID: 21300000, guid: 380ea3bc55bbbb249898ef66c5c28a9f, type: 3}
-  - {fileID: 21300000, guid: 45db7cf8c80167141bef40d11814dc55, type: 3}
-  - {fileID: 21300000, guid: 16c1209b2422ce2418f41f921bd1c43b, type: 3}
-  - {fileID: 21300000, guid: 183a96ff7eb6ff1478d8d0c2fce0b0f2, type: 3}
-  - {fileID: 21300000, guid: ce8a4c8a65a8a1440845112c109c214f, type: 3}
-  - {fileID: 21300000, guid: 9da83ea40d06fe549acd0f88c3ebb443, type: 3}
-  - {fileID: 21300000, guid: 0bb58d107b816f94f92baa49e448a0c0, type: 3}
-  - {fileID: 21300000, guid: ece96b3e9cb540e4aa8e5e0c40b6813f, type: 3}
-  FramesPerSecond: 12
 --- !u!114 &1899823587
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8056,6 +8015,37 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &1899823589
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1899823584}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4d97dc9bc3924e41b07f9e7b1628d73, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  CastFrames:
+  - {fileID: 21300000, guid: 380ea3bc55bbbb249898ef66c5c28a9f, type: 3}
+  - {fileID: 21300000, guid: 45db7cf8c80167141bef40d11814dc55, type: 3}
+  - {fileID: 21300000, guid: 16c1209b2422ce2418f41f921bd1c43b, type: 3}
+  - {fileID: 21300000, guid: 183a96ff7eb6ff1478d8d0c2fce0b0f2, type: 3}
+  - {fileID: 21300000, guid: ce8a4c8a65a8a1440845112c109c214f, type: 3}
+  - {fileID: 21300000, guid: 9da83ea40d06fe549acd0f88c3ebb443, type: 3}
+  - {fileID: 21300000, guid: 0bb58d107b816f94f92baa49e448a0c0, type: 3}
+  - {fileID: 21300000, guid: ece96b3e9cb540e4aa8e5e0c40b6813f, type: 3}
+  FlyFrames:
+  - {fileID: 21300000, guid: 81ad9c9bab05e0a4d84decd16af152d0, type: 3}
+  - {fileID: 21300000, guid: e1b32bb0774e5ee47b150313a734a72d, type: 3}
+  - {fileID: 21300000, guid: ade1581be2a880046af23f96da500008, type: 3}
+  - {fileID: 21300000, guid: e692a7fcad80947478810a7ded9bcf87, type: 3}
+  SpawnFrame: {fileID: 21300000, guid: d19ecc9cdfa6ed44d88c3ce8ee4e4764, type: 3}
+  Orb: {fileID: 6938434}
+  ReleaseFrame: 3
+  FramesPerSecond: 12
+  StaffOffset: {x: 0.44, y: 1.22}
 --- !u!1 &1977783801
 GameObject:
   m_ObjectHideFlags: 0
