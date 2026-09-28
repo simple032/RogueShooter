@@ -7,7 +7,7 @@ Shader "JianHai/IsoSpriteLit"
         [PerRendererData] _EmissionTex ("Emission", 2D) = "black" {}
         [PerRendererData] _HasNormal ("Has Normal", Float) = 0
         [PerRendererData] _HasEmission ("Has Emission", Float) = 0
-        [PerRendererData] _Form ("Form Light", Float) = 0
+        _Form ("Form Light", Float) = 0
         [PerRendererData] _LightDir ("Light Dir", Vector) = (-0.55, 0.75, 0.37, 0)
         [PerRendererData] _LightColor ("Light", Color) = (0.78, 0.86, 1, 1)
         [PerRendererData] _Ambient ("Ambient", Color) = (0.28, 0.30, 0.36, 1)
@@ -82,13 +82,13 @@ Shader "JianHai/IsoSpriteLit"
                 }
                 if (_Form > 0.5)
                 {
-                    float3 form = normalize(float3((i.uv.x - 0.5) * 1.7, (i.uv.y - 0.4) * 1.7, 0.65));
-                    n = normalize(lerp(n, form, 0.72));
+                    float3 form = normalize(float3((i.uv.x - 0.48) * 2.6, (i.uv.y - 0.42) * 2.4, 0.32));
+                    n = normalize(lerp(n, form, 0.88));
                 }
                 float3 L = normalize(_LightDir.xyz);
                 float ndotl = saturate(dot(n, L));
                 if (_Form > 0.5)
-                    ndotl = saturate((ndotl - 0.28) * 2.15);
+                    ndotl = saturate((ndotl - 0.2) * 1.85);
                 fixed3 lit = albedo.rgb * (_Ambient.rgb + _LightColor.rgb * ndotl);
                 fixed3 emission = 0;
                 if (_HasEmission > 0.5)

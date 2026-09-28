@@ -72,27 +72,13 @@ namespace RogueShooter.Iso
                 _block.SetColor("_Ambient", light.Ambient);
             }
 
+            _renderer.SetPropertyBlock(_block);
             if (archer && Application.isPlaying)
             {
                 Material runtime = _renderer.material;
                 runtime.SetFloat("_Form", 1f);
-                runtime.SetFloat("_HasNormal", hasNormal ? 1f : 0f);
-                runtime.SetFloat("_HasEmission", hasEmission ? 1f : 0f);
-                if (light != null)
-                {
-                    runtime.SetVector("_LightDir", light.Direction.normalized);
-                    runtime.SetColor("_LightColor", light.LightColor);
-                    runtime.SetColor("_Ambient", light.Ambient);
-                }
-
-                Texture normal = _block.GetTexture("_NormalMap");
-                if (normal != null)
-                    runtime.SetTexture("_NormalMap", normal);
-                _renderer.SetPropertyBlock(null);
-            }
-            else
-            {
-                _renderer.SetPropertyBlock(_block);
+                if (_renderer.sprite.texture != null)
+                    runtime.SetTexture("_MainTex", _renderer.sprite.texture);
             }
         }
     }
