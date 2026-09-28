@@ -178,6 +178,10 @@ namespace RogueShooter.Demo
                 charge.BindOwnedRewards(_build.OwnedRewardIds);
             _player = player.transform;
             _lastGood = startPos;
+            var hud = GetComponent<Stage1PlayHud>();
+            if (hud == null)
+                hud = gameObject.AddComponent<Stage1PlayHud>();
+            hud.Bind(this);
             _world.Add(player);
             Debug.Log("[MoveSpeed] player=" + PlaySpeed().ToString("0.000")
                       + " ortho=" + orthographicSize.ToString("0")
@@ -248,6 +252,15 @@ namespace RogueShooter.Demo
         }
 
         public Stage1Maze BuiltMaze { get { return _maze; } }
+
+        public RunBuildState RunBuild
+        {
+            get
+            {
+                EnsureBuild();
+                return _build;
+            }
+        }
         public Transform PlayerBody { get { return _player; } }
         public bool DoorHoldActive { get { return _portalWaiting; } }
 

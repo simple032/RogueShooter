@@ -20,6 +20,18 @@ namespace RogueShooter.Player
         public float BuffLeft => _buffLeft;
         public float CooldownLeft => _cdLeft;
 
+        /// <summary>Same copy as the committed focus HUD: ready / active / cooling.</summary>
+        public static string HudText(float buffLeft, float cooldownLeft)
+        {
+            if (buffLeft > 0f)
+                return "凝神窥机 生效 " + buffLeft.ToString("0.0") + "s · 冷却 " + Mathf.CeilToInt(cooldownLeft) + "s";
+            if (cooldownLeft > 0f)
+                return "凝神窥机 冷却 " + Mathf.CeilToInt(cooldownLeft) + "s";
+            return "凝神窥机 [Q] 就绪";
+        }
+
+        public string HudLine => HudText(_buffLeft, _cdLeft);
+
         void Update()
         {
             if (RunPause.IsPaused)
