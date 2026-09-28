@@ -28,6 +28,9 @@ namespace RogueShooter.Demo
         [SerializeField] float moveSpeed = MazeRules.PlayMoveSpeed;
         [SerializeField] int seed = 42;
 
+        public const float IsoPitchDeg = 30f;
+        public const float IsoYawDeg = 45f;
+
         Stage1Maze _maze;
         MazePacing _pace;
         Transform _player;
@@ -226,6 +229,7 @@ namespace RogueShooter.Demo
             CameraFollow2D follow = cam.GetComponent<CameraFollow2D>();
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
+            follow.SetIsoView(IsoPitchDeg, IsoYawDeg, 16f);
             follow.SetTarget(player.transform);
             if (cam.GetComponent<IsoSortAxis>() == null)
                 cam.gameObject.AddComponent<IsoSortAxis>();

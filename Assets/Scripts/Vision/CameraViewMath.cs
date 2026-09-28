@@ -43,8 +43,19 @@ namespace RogueShooter.Vision
         {
             if (cam == null)
                 return Vector3.zero;
-            screen.z = Mathf.Abs(cam.transform.position.z);
-            Vector3 world = cam.ScreenToWorldPoint(screen);
+            Ray ray = cam.ScreenPointToRay(screen);
+            if (Mathf.Abs(ray.direction.z) < 0.0001f)
+            {
+                screen.z = Mathf.Abs(cam.transform.position.z);
+                Vector3 flat = cam.ScreenToWorldPoint(screen);
+                flat.z = 0f;
+                return flat;
+            }
+
+            float t = -ray.origin.z / ray.direction.z;
+            if (t < 0f)
+                t = 0f;
+            Vector3 world = ray.origin + ray.direction * t;
             world.z = 0f;
             return world;
         }

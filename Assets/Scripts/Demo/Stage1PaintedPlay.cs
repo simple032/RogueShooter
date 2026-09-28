@@ -51,8 +51,11 @@ namespace RogueShooter.Demo
             CameraFollow2D follow = cam.GetComponent<CameraFollow2D>();
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
+            follow.SetIsoView(Stage1MazeDemo.IsoPitchDeg, Stage1MazeDemo.IsoYawDeg, 16f);
             follow.SetTarget(player);
-            Debug.Log("[Stage1Play] camera follow " + player.name
+            Debug.Log("[Stage1Play] iso pitch=" + Stage1MazeDemo.IsoPitchDeg.ToString("0")
+                      + " yaw=" + Stage1MazeDemo.IsoYawDeg.ToString("0")
+                      + " follow " + player.name
                       + " start=" + player.position
                       + " portals=" + PortalAName + "," + PortalBName);
         }

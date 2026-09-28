@@ -18,6 +18,15 @@ namespace RogueShooter.Vision
             SnapNow();
         }
 
+        /// <summary>Orthographic iso: pitch is the downward angle, yaw turns the view. Looks at the target.</summary>
+        public void SetIsoView(float pitchDeg, float yawDeg, float distance)
+        {
+            transform.rotation = Quaternion.Euler(pitchDeg, yawDeg, 0f);
+            float back = distance > 0.5f ? distance : 12f;
+            offset = -transform.forward * back;
+            SnapNow();
+        }
+
         public void SnapNow()
         {
             if (target == null)
