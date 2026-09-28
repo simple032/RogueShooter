@@ -7,6 +7,7 @@ using UnityEngine;
 using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Balance;
+using RogueShooter.Iso;
 using RogueShooter.Maze;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
@@ -37,6 +38,7 @@ namespace RogueShooter.Demo
         readonly Dictionary<string, GameObject> _roomFloors = new Dictionary<string, GameObject>();
         readonly List<GameObject> _doors = new List<GameObject>();
         readonly List<GameObject> _live = new List<GameObject>();
+        readonly Dictionary<string, List<GameObject>> _prespawn = new Dictionary<string, List<GameObject>>();
         readonly List<GameObject> _portals = new List<GameObject>();
         readonly List<GameObject> _world = new List<GameObject>();
         CombatRoomSession _active;
@@ -225,6 +227,8 @@ namespace RogueShooter.Demo
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
             follow.SetTarget(player.transform);
+            if (cam.GetComponent<IsoSortAxis>() == null)
+                cam.gameObject.AddComponent<IsoSortAxis>();
 
             _stubPrefab = new GameObject("StubEnemyPrefab");
             _stubPrefab.transform.SetParent(root, false);
@@ -232,6 +236,93 @@ namespace RogueShooter.Demo
             JianHaiBind.ApplyTo(_stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             _stubPrefab.AddComponent<StubEnemy>();
             _world.Add(_stubPrefab);
+            PreplaceOpeningWaves();
+        }
+
+        /// <summary>Wave 1 is already standing in each combat room. AI stays off until the door fight starts.</summary>
+        void PreplaceOpeningWaves()
+        {
+            if (_maze == null || _stubPrefab == null)
+                return;
+            for (int i = 0; i < _maze.Nodes.Length; i++)
+            {
+                MazeNode node = _maze.Nodes[i];
+                if (node == null || !node.SpawnsEnemies || node.WaveCount < 1)
+                    continue;
+                DrawnComposition drawn = StageEnemyPool.DrawComposition(
+                    StageId.S1, node.PoolRoom, Stage1MazeGen.DrawRng(seed, node.Id, 1));
+                Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
+                int n = drawn.Units != null ? drawn.Units.Length : 0;
+                var parked = new List<GameObject>(n);
+                for (int u = 0; u < n; u++)
+                {
+                    GameObject go = PlaceEnemy(node.Id, 1, u, n, drawn.Units[u], center, false);
+                    if (go != null)
+                        parked.Add(go);
+                }
+
+                _prespawn[node.Id] = parked;
+                Debug.Log("[Stage1] prespawn " + node.Id + " " + node.Kind + " n=" + parked.Count);
+            }
+        }
+
+        public Stage1Maze BuiltMaze { get { return _maze; } }
+        public Transform PlayerBody { get { return _player; } }
+        public bool DoorHoldActive { get { return _portalWaiting; } }
+
+        public int LiveEnemyCount
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < _live.Count; i++)
+                {
+                    if (_live[i] == null)
+                        continue;
+                    StubEnemy enemy = _live[i].GetComponent<StubEnemy>();
+                    if (enemy != null && !enemy.IsDead)
+                        n++;
+                }
+
+                return n;
+            }
+        }
+
+        public int PrespawnCount(string roomId)
+        {
+            List<GameObject> parked;
+            if (string.IsNullOrEmpty(roomId) || !_prespawn.TryGetValue(roomId, out parked) || parked == null)
+                return 0;
+            return parked.Count;
+        }
+
+        public CombatRoomPhase RoomPhase(string roomId)
+        {
+            CombatRoomSession session;
+            if (string.IsNullOrEmpty(roomId) || !_sessions.TryGetValue(roomId, out session) || session == null)
+                return CombatRoomPhase.Vacant;
+            return session.Phase;
+        }
+
+        public int RoomWave(string roomId)
+        {
+            CombatRoomSession session;
+            if (string.IsNullOrEmpty(roomId) || !_sessions.TryGetValue(roomId, out session) || session == null)
+                return 0;
+            return session.CurrentWave;
+        }
+
+        public int RoomWaves(string roomId)
+        {
+            CombatRoomSession session;
+            if (string.IsNullOrEmpty(roomId) || !_sessions.TryGetValue(roomId, out session) || session == null)
+                return 0;
+            return session.WavesTotal;
+        }
+
+        public void ProofClearWave()
+        {
+            KillLiveWave();
         }
 
         void AddWalls(MazeNode n, Transform root)
@@ -473,6 +564,14 @@ namespace RogueShooter.Demo
             if (node == null || _stubPrefab == null)
                 yield break;
 
+            List<GameObject> parked;
+            if (wave <= 1 && _prespawn.TryGetValue(session.RoomId, out parked))
+            {
+                _prespawn.Remove(session.RoomId);
+                ActivatePrespawn(session, parked);
+                yield break;
+            }
+
             _portalWaiting = true;
             _skipPortalWait = false;
             DrawnComposition drawn = StageEnemyPool.DrawComposition(
@@ -493,9 +592,10 @@ namespace RogueShooter.Demo
 
             string show = PortalFxHook.PlayShow(session.RoomId, wave);
             Debug.Log(show);
-            Flash("PORTAL " + session.RoomId + " w" + wave + " " + MazeRules.PortalHoldSeconds.ToString("0.0") + "s");
+            Flash("PORTAL " + session.RoomId + " w" + wave + " now");
 
-            float hold = MazeRules.PortalHoldSeconds;
+            // Play does not wait. PortalHoldSeconds stays 1.0 for the existing check only.
+            float hold = 0f;
             float t = 0f;
             while (t < hold && !_skipPortalWait)
             {
@@ -525,29 +625,69 @@ namespace RogueShooter.Demo
             string roomId = node != null ? node.Id : session.RoomId;
             for (int i = 0; i < n; i++)
             {
-                DrawnUnit u = drawn.Units[i];
-                Vector3 pos = SpawnCluster.Offset(center, i, n);
-                GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
-                go.name = "S1_" + roomId + "_w" + wave + "_" + i + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
-                JianHaiBind.ApplyTo(go, JianHaiArtCatalog.EnemyE1Idle);
-                var enemy = go.GetComponent<StubEnemy>();
-                if (enemy == null)
-                    enemy = go.AddComponent<StubEnemy>();
-                enemy.ConfigureKind(u.KindId, u.Hp, u.Elite);
-                var ai = go.GetComponent<MobFourStateAi>();
-                if (ai == null)
-                    ai = go.AddComponent<MobFourStateAi>();
-                ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
-                string capturedId = roomId;
-                enemy.Died += _ => OnEnemyDied(capturedId);
-                go.SetActive(true);
-                _live.Add(go);
+                GameObject go = PlaceEnemy(roomId, wave, i, n, drawn.Units[i], center, true);
+                if (go != null)
+                    _live.Add(go);
             }
 
             session.MarkSpawned(n);
             Flash("wave " + wave + " " + drawn.CompId + " n=" + n);
             if (n <= 0)
                 ApplySteps(session, session.NotifyKilled());
+        }
+
+        void ActivatePrespawn(CombatRoomSession session, List<GameObject> parked)
+        {
+            _portalWaiting = false;
+            ClearPortals();
+            if (_cadence != null)
+            {
+                _cadence = null;
+            }
+
+            int n = 0;
+            if (parked != null)
+            {
+                for (int i = 0; i < parked.Count; i++)
+                {
+                    GameObject go = parked[i];
+                    if (go == null)
+                        continue;
+                    MobFourStateAi ai = go.GetComponent<MobFourStateAi>();
+                    if (ai != null)
+                        ai.enabled = true;
+                    _live.Add(go);
+                    n++;
+                }
+            }
+
+            session.MarkSpawned(n);
+            Debug.Log("[Stage1] door " + session.RoomId + " prespawn n=" + n + " hold=0");
+            if (n <= 0)
+                ApplySteps(session, session.NotifyKilled());
+        }
+
+        GameObject PlaceEnemy(string roomId, int wave, int index, int n, DrawnUnit u, Vector3 center, bool aiOn)
+        {
+            if (_stubPrefab == null)
+                return null;
+            Vector3 pos = SpawnCluster.Offset(center, index, n);
+            GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
+            go.name = "S1_" + roomId + "_w" + wave + "_" + index + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
+            JianHaiBind.ApplyTo(go, JianHaiArtCatalog.EnemyE1Idle);
+            StubEnemy enemy = go.GetComponent<StubEnemy>();
+            if (enemy == null)
+                enemy = go.AddComponent<StubEnemy>();
+            enemy.ConfigureKind(u.KindId, u.Hp, u.Elite);
+            MobFourStateAi ai = go.GetComponent<MobFourStateAi>();
+            if (ai == null)
+                ai = go.AddComponent<MobFourStateAi>();
+            ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
+            ai.enabled = aiOn;
+            string capturedId = roomId;
+            enemy.Died += _ => OnEnemyDied(capturedId);
+            go.SetActive(true);
+            return go;
         }
 
         void OnEnemyDied(string roomId)
@@ -886,7 +1026,7 @@ namespace RogueShooter.Demo
             GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 70),
                 "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
                 "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock → [PortalFx] show 1.0s → spawn → clear → open  |  Chest/Altar two waves, same cadence\n" +
+                "enter combat → lock → wave already in the room → clear → next wave same frame  |  Chest/Altar two waves\n" +
                 "full charge KB DRAFT · weak-spot ×1.5+stagger · shield-raised body root 0.5s · weak charge none\n" +
                 "F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢",
                 style);
@@ -905,7 +1045,7 @@ namespace RogueShooter.Demo
                 ? "active " + _active.RoomId + " " + _active.Phase + " wave=" + _active.CurrentWave
                   + "/" + _active.WavesTotal + " doors=" + (_active.DoorsLocked ? "LOCKED" : "OPEN")
                   + " live=" + _live.Count
-                  + (_portalWaiting ? " PORTAL 1.0s" : "")
+                  + (_portalWaiting ? " PORTAL" : "")
                 : "walk a combat room to lock + portal + spawn";
             GUI.Label(new Rect(pad + 8, pad + 156, w - 16, 18), room, style);
             string status = _pass
