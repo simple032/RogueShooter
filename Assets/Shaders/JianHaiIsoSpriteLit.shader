@@ -6,6 +6,7 @@ Shader "JianHai/IsoSpriteLit"
         [PerRendererData] _NormalMap ("Normal", 2D) = "bump" {}
         [PerRendererData] _EmissionTex ("Emission", 2D) = "black" {}
         [PerRendererData] _HasNormal ("Has Normal", Float) = 0
+        [PerRendererData] _NormalGain ("Normal Gain", Float) = 1
         [PerRendererData] _HasEmission ("Has Emission", Float) = 0
         _Form ("Form Light", Float) = 0
         [PerRendererData] _LightDir ("Light Dir", Vector) = (-0.55, 0.75, 0.37, 0)
@@ -54,6 +55,7 @@ Shader "JianHai/IsoSpriteLit"
             sampler2D _NormalMap;
             sampler2D _EmissionTex;
             float _HasNormal;
+            float _NormalGain;
             float _HasEmission;
             float _Form;
             float4 _LightDir;
@@ -79,6 +81,11 @@ Shader "JianHai/IsoSpriteLit"
                 {
                     fixed3 packed = tex2D(_NormalMap, i.uv).rgb;
                     n = normalize(packed * 2.0 - 1.0);
+                    if (_NormalGain > 1.01)
+                    {
+                        n.xy *= _NormalGain;
+                        n = normalize(n);
+                    }
                 }
                 if (_Form > 0.5)
                 {

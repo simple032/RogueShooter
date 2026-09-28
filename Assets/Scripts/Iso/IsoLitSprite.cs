@@ -21,6 +21,7 @@ namespace RogueShooter.Iso
             if (_renderer == null || _renderer.sprite == null || LitMaterial == null)
                 return;
             bool archer = _renderer.sprite.name.StartsWith("jh_archer_");
+            bool wall = _renderer.sprite.name.StartsWith("jh_iso_wall_");
             if (!archer)
             {
                 if (_renderer.sharedMaterial != LitMaterial)
@@ -59,6 +60,7 @@ namespace RogueShooter.Iso
             }
 
             _block.SetFloat("_HasNormal", hasNormal ? 1f : 0f);
+            _block.SetFloat("_NormalGain", wall ? 8f : 1f);
             _block.SetFloat("_HasEmission", hasEmission ? 1f : 0f);
             if (!(archer && Application.isPlaying))
                 _block.SetFloat("_Form", archer ? 1f : 0f);
