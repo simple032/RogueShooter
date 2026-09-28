@@ -16,10 +16,6 @@ namespace RogueShooter.Demo
 
         void Awake()
         {
-            var demo = GetComponent<Stage1MazeDemo>();
-            if (demo != null)
-                demo.enabled = false;
-
             Transform player = transform.Find("Player");
             if (player == null)
             {
