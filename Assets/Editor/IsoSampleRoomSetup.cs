@@ -168,15 +168,15 @@ public static class IsoSampleRoomSetup
         wallMap.SetTile(new Vector3Int(4, 3, 0), wallR);
 
         var litRoot = new GameObject("Lit").transform;
-        Place(litRoot, "WallL", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_l_00.png"), At(grid, 1, 2), mat, false);
-        Place(litRoot, "Corner", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_corner_in_00.png"), At(grid, 1, 3), mat, false);
-        Place(litRoot, "WallR_2", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_r_00.png"), At(grid, 2, 3), mat, false);
-        Place(litRoot, "WallR_3", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_r_00.png"), At(grid, 3, 3), mat, false);
-        Place(litRoot, "WallR_4", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_r_00.png"), At(grid, 4, 3), mat, false);
-        Place(litRoot, "Door", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_door_l_00.png"), (At(grid, 1, 1) + At(grid, 1, 2)) * 0.5f, mat, false);
-        Place(litRoot, "LowL", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_low_l_00.png"), At(grid, 2, 0), mat, false);
-        Place(litRoot, "LowR", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_low_r_00.png"), At(grid, 4, 0), mat, false);
-        Place(litRoot, "LowCorner", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_low_corner_00.png"), At(grid, 3, 0), mat, false);
+        Place(litRoot, "WallL", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_l_00.png"), OnDiamondEdge(grid, 1, 2), mat, false);
+        Place(litRoot, "Corner", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_corner_in_00.png"), OnDiamondEdge(grid, 1, 3), mat, false);
+        Place(litRoot, "WallR_2", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_r_00.png"), OnDiamondEdge(grid, 2, 3), mat, false);
+        Place(litRoot, "WallR_3", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_r_00.png"), OnDiamondEdge(grid, 3, 3), mat, false);
+        Place(litRoot, "WallR_4", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_r_00.png"), OnDiamondEdge(grid, 4, 3), mat, false);
+        Place(litRoot, "Door", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_door_l_00.png"), (At(grid, 1, 1) + At(grid, 1, 2)) * 0.5f + new Vector3(0f, -0.25f, 0f), mat, false);
+        Place(litRoot, "LowL", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_low_l_00.png"), LowOnDiamondEdge(grid, 2, 0), mat, false);
+        Place(litRoot, "LowR", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_low_r_00.png"), LowOnDiamondEdge(grid, 4, 0), mat, false);
+        Place(litRoot, "LowCorner", LoadSprite(Root + "/Tiles/S1/Wall/jh_iso_wall_s1_low_corner_00.png"), LowOnDiamondEdge(grid, 3, 0), mat, false);
         Place(litRoot, "Rubble", LoadSprite(Root + "/Tiles/S1/Decal/jh_iso_decal_s1_rubble_00.png"), At(grid, 3, 1), mat, false);
         Place(litRoot, "Brazier", LoadSprite(Root + "/Props/jh_iso_prop_brazier_00.png"), At(grid, 3, 2), mat, false);
 
@@ -200,9 +200,13 @@ public static class IsoSampleRoomSetup
                 return "archer " + dir;
             if (!IsoFacing.TrySkeleton(dir, out string source, out bool flip))
                 return "skel facing " + dir;
+            Vector3 skelAt = At(grid, 9, i);
+            Place(facing, "SkelFloor_" + dir,
+                LoadSprite(Root + "/Tiles/S1/Floor/jh_iso_floor_s1_room_00.png"),
+                skelAt, mat, false);
             var skel = Place(facing, "Skel_" + dir,
                 LoadSprite(Root + "/Enemies/Skel/jh_skel_idle_" + source + "_00.png"),
-                At(grid, 9, i), mat, flip);
+                skelAt, mat, flip);
             if (skel.GetComponent<SpriteRenderer>().sprite == null)
                 return "skel " + dir;
         }
@@ -231,6 +235,18 @@ public static class IsoSampleRoomSetup
     static Vector3 At(Grid grid, int x, int y)
     {
         return grid.GetCellCenterWorld(new Vector3Int(x, y, 0));
+    }
+
+    /// <summary>Tall-wall foot sits on the cell's south diamond corner, not the brick center.</summary>
+    static Vector3 OnDiamondEdge(Grid grid, int x, int y)
+    {
+        return At(grid, x, y) + new Vector3(0f, -0.25f, 0f);
+    }
+
+    /// <summary>Low-wall art foot is a quarter-cell below its pivot, so this lands that foot on the next cell's south corner.</summary>
+    static Vector3 LowOnDiamondEdge(Grid grid, int x, int y)
+    {
+        return At(grid, x, y) + new Vector3(-0.5f, 0.25f, 0f);
     }
 
     static Tile MakeTile(string spritePath, string tilePath)
