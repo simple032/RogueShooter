@@ -20,8 +20,16 @@ namespace RogueShooter.Iso
                 _renderer = GetComponent<SpriteRenderer>();
             if (_renderer == null || _renderer.sprite == null || LitMaterial == null)
                 return;
-            if (_renderer.sharedMaterial != LitMaterial)
+            bool archer = _renderer.sprite.name.StartsWith("jh_archer_");
+            if (!archer)
+            {
+                if (_renderer.sharedMaterial != LitMaterial)
+                    _renderer.sharedMaterial = LitMaterial;
+            }
+            else if (_renderer.sharedMaterial == null || _renderer.sharedMaterial.shader != LitMaterial.shader)
+            {
                 _renderer.sharedMaterial = LitMaterial;
+            }
             if (_block == null)
                 _block = new MaterialPropertyBlock();
             _renderer.GetPropertyBlock(_block);
@@ -52,6 +60,8 @@ namespace RogueShooter.Iso
 
             _block.SetFloat("_HasNormal", hasNormal ? 1f : 0f);
             _block.SetFloat("_HasEmission", hasEmission ? 1f : 0f);
+            if (!(archer && Application.isPlaying))
+                _block.SetFloat("_Form", archer ? 1f : 0f);
             IsoLight2D light = IsoLight2D.Current;
             if (light == null)
                 light = FindObjectOfType<IsoLight2D>();
@@ -62,7 +72,28 @@ namespace RogueShooter.Iso
                 _block.SetColor("_Ambient", light.Ambient);
             }
 
-            _renderer.SetPropertyBlock(_block);
+            if (archer && Application.isPlaying)
+            {
+                Material runtime = _renderer.material;
+                runtime.SetFloat("_Form", 1f);
+                runtime.SetFloat("_HasNormal", hasNormal ? 1f : 0f);
+                runtime.SetFloat("_HasEmission", hasEmission ? 1f : 0f);
+                if (light != null)
+                {
+                    runtime.SetVector("_LightDir", light.Direction.normalized);
+                    runtime.SetColor("_LightColor", light.LightColor);
+                    runtime.SetColor("_Ambient", light.Ambient);
+                }
+
+                Texture normal = _block.GetTexture("_NormalMap");
+                if (normal != null)
+                    runtime.SetTexture("_NormalMap", normal);
+                _renderer.SetPropertyBlock(null);
+            }
+            else
+            {
+                _renderer.SetPropertyBlock(_block);
+            }
         }
     }
 }
