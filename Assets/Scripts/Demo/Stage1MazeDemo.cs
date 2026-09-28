@@ -28,6 +28,11 @@ namespace RogueShooter.Demo
         [SerializeField] float moveSpeed = MazeRules.PlayMoveSpeed;
         [SerializeField] int seed = 42;
 
+        void Awake()
+        {
+            Stage1IsoArt.HideHandPlaced(gameObject);
+        }
+
         public const float IsoPitchDeg = 30f;
         public const float IsoYawDeg = 45f;
 
@@ -139,40 +144,12 @@ namespace RogueShooter.Demo
         void BuildWorld()
         {
             Transform root = transform;
-            Color floor = new Color(0.165f, 0.188f, 0.220f);
-            for (int i = 0; i < _maze.Edges.Length; i++)
-            {
-                MazeEdge e = _maze.Edges[i];
-                MazeVec2[] pts = e.Points;
-                if (pts == null || pts.Length < 2)
-                {
-                    pts = new[] { e.From, e.To };
-                }
-
-                for (int s = 0; s < pts.Length - 1; s++)
-                {
-                    GameObject cor = DemoPrimitives.Corridor(
-                        "Corridor_" + e.FromId + "_" + e.ToId + "_" + s,
-                        new Vector3(pts[s].X, pts[s].Y, 0f),
-                        new Vector3(pts[s + 1].X, pts[s + 1].Y, 0f),
-                        e.Width, floor, 1, root);
-                    JianHaiBind.SetLayer(cor, JianHaiArtCatalog.LayerGround, 1);
-                    _world.Add(cor);
-                }
-            }
+            _world.Add(Stage1IsoArt.BuildFloors(_maze, root));
 
             for (int i = 0; i < _maze.Nodes.Length; i++)
             {
                 MazeNode n = _maze.Nodes[i];
-                Color c = FloorColor(n.Kind);
-                GameObject go = DemoPrimitives.Quad(
-                    "Room_" + n.Id,
-                    new Vector3(n.Center.X, n.Center.Y, 1.1f),
-                    new Vector2(n.Width, n.Height),
-                    c, 0, root);
-                JianHaiBind.SetLayer(go, JianHaiArtCatalog.LayerGround, 0);
-                _roomFloors[n.Id] = go;
-                _world.Add(go);
+                _roomFloors[n.Id] = null;
                 AddWalls(n, root);
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
                     new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
@@ -189,7 +166,7 @@ namespace RogueShooter.Demo
 
             GameObject player = new GameObject("Player");
             player.transform.position = startPos;
-            JianHaiBind.ApplyTo(player, JianHaiArtCatalog.PlayerIdle);
+            player.AddComponent<Stage1IsoActor>().Bind("archer");
             player.AddComponent<PlayerMotor2D>().Configure(PlaySpeed());
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
@@ -331,16 +308,26 @@ namespace RogueShooter.Demo
 
         void AddWalls(MazeNode n, Transform root)
         {
-            Color wall = new Color(0.07f, 0.08f, 0.09f);
-            float t = 0.45f;
-            float x = n.Center.X;
-            float y = n.Center.Y;
-            float hw = n.Width * 0.5f;
-            float hh = n.Height * 0.5f;
-            _world.Add(DemoPrimitives.Quad("WallN_" + n.Id, new Vector3(x, y + hh, 1f), new Vector2(n.Width + t, t), wall, 2, root));
-            _world.Add(DemoPrimitives.Quad("WallS_" + n.Id, new Vector3(x, y - hh, 1f), new Vector2(n.Width + t, t), wall, 2, root));
-            _world.Add(DemoPrimitives.Quad("WallW_" + n.Id, new Vector3(x - hw, y, 1f), new Vector2(t, n.Height), wall, 2, root));
-            _world.Add(DemoPrimitives.Quad("WallE_" + n.Id, new Vector3(x + hw, y, 1f), new Vector2(t, n.Height), wall, 2, root));
+            var gaps = new List<Vector3>();
+            for (int i = 0; i < _maze.Edges.Length; i++)
+            {
+                MazeEdge e = _maze.Edges[i];
+                MazeNode other = null;
+                if (e.FromId == n.Id)
+                    other = _maze.Find(e.ToId);
+                else if (e.ToId == n.Id)
+                    other = _maze.Find(e.FromId);
+                if (other == null)
+                    continue;
+                Vector3 dir = new Vector3(other.Center.X - n.Center.X, other.Center.Y - n.Center.Y, 0f);
+                if (dir.sqrMagnitude < 0.01f)
+                    continue;
+                dir.Normalize();
+                float reach = Mathf.Abs(dir.x) > Mathf.Abs(dir.y) ? n.Width * 0.5f : n.Height * 0.5f;
+                gaps.Add(new Vector3(n.Center.X, n.Center.Y, 0f) + dir * reach);
+            }
+
+            Stage1IsoArt.RingRoom(n, gaps, root, _world);
         }
 
         void AddProp(MazeNode n, Transform root)
@@ -352,22 +339,7 @@ namespace RogueShooter.Demo
                 : n.Kind == MazeNodeKind.Connector ? "CONN_STUB"
                 : "Chest_S1";
             Vector3 pos = new Vector3(n.Center.X, n.Center.Y + 0.4f, 0f);
-            GameObject go;
-            if (n.Kind == MazeNodeKind.Connector)
-            {
-                go = DemoPrimitives.Quad(hook, pos, new Vector2(1.1f, 1.1f),
-                    new Color(0.25f, 0.72f, 0.62f), 5, root);
-            }
-            else
-            {
-                string rootArt = n.Kind == MazeNodeKind.Altar
-                    ? JianHaiArtCatalog.AltarRoot
-                    : JianHaiArtCatalog.ChestArtRoot(n.Kind == MazeNodeKind.LargeChest);
-                string state = n.Kind == MazeNodeKind.Altar ? "idle" : "closed";
-                go = JianHaiBind.Spawn(hook, pos, JianHaiArtCatalog.SpriteName(rootArt, state), root);
-            }
-
-            _world.Add(go);
+            _world.Add(Stage1IsoArt.Prop(hook, pos, n.Kind, root));
         }
 
         void AddDoors(Transform root)
@@ -386,22 +358,6 @@ namespace RogueShooter.Demo
 
         void PlaceDoor(Transform root, MazeNode room, MazeNode other)
         {
-            Vector3 dir = new Vector3(other.Center.X - room.Center.X, other.Center.Y - room.Center.Y, 0f);
-            if (dir.sqrMagnitude < 0.01f)
-                return;
-            dir.Normalize();
-            float hw = room.Width * 0.5f;
-            float hh = room.Height * 0.5f;
-            Vector3 pos = new Vector3(room.Center.X, room.Center.Y, 0f) + dir * (Mathf.Abs(dir.x) > Mathf.Abs(dir.y) ? hw : hh);
-            GameObject door = DemoPrimitives.Quad(
-                "Door_" + room.Id + "_" + other.Id,
-                pos, new Vector2(2.4f, 0.28f),
-                new Color(0.72f, 0.16f, 0.16f), 6, root);
-            if (Mathf.Abs(dir.x) > Mathf.Abs(dir.y))
-                door.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
-            door.SetActive(false);
-            _doors.Add(door);
-            _world.Add(door);
         }
 
         void LogDryRun()
@@ -678,7 +634,10 @@ namespace RogueShooter.Demo
             Vector3 pos = SpawnCluster.Offset(center, index, n);
             GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
             go.name = "S1_" + roomId + "_w" + wave + "_" + index + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
-            JianHaiBind.ApplyTo(go, JianHaiArtCatalog.EnemyE1Idle);
+            string family = u.KindId == EnemyKindIds.Dog ? "dog"
+                : u.KindId == EnemyKindIds.CultMage ? "mage"
+                : "skel";
+            go.AddComponent<Stage1IsoActor>().Bind(family);
             StubEnemy enemy = go.GetComponent<StubEnemy>();
             if (enemy == null)
                 enemy = go.AddComponent<StubEnemy>();
@@ -1019,45 +978,6 @@ namespace RogueShooter.Demo
 
         void OnGUI()
         {
-            const int pad = 8;
-            int w = 620;
-            int h = 308;
-            GUI.Box(new Rect(pad, pad, w, h), "");
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            var title = new GUIStyle(style) { fontSize = 15, fontStyle = FontStyle.Bold };
-            var rich = new GUIStyle(style) { richText = true };
-            GUI.Label(new Rect(pad + 8, pad + 4, w - 16, 22), "Stage-1 maze skeleton · Spec v0.5", title);
-            GUI.Label(new Rect(pad + 8, pad + 28, w - 16, 70),
-                "WASD · hold LMB/C charge · F strike · E interact · K skip-wave · N new seed · R same seed · F9 log\n" +
-                "F1 START · F2 CONN stub · F3 ALTAR · F4 CHEST · 1/2 N1/N2\n" +
-                "enter combat → lock → wave already in the room → clear → next wave same frame  |  Chest/Altar two waves\n" +
-                "full charge KB DRAFT · weak-spot ×1.5+stagger · shield-raised body root 0.5s · weak charge none\n" +
-                "F6 震矢C +20% · F7 震矢R +40% · F8 clear 震矢",
-                style);
-            string graph = _maze != null ? Stage1MazeGen.FormatGraph(_maze) : "";
-            GUI.Label(new Rect(pad + 8, pad + 100, w - 16, 36), graph, style);
-            string pace = _maze != null
-                ? "firstHop " + _pace.FirstHopSeconds.ToString("0.0") + "s (~3s feel) · START→CONN "
-                  + _pace.ShortestWalkSeconds.ToString("0") + "s · maxSeg "
-                  + _pace.MaxCorridorSeg.ToString("0") + "u (≤30) · move=" + PlaySpeed().ToString("0")
-                  + " pitch=" + MazeRules.PitchX.ToString("0") + "/" + MazeRules.PitchY.ToString("0")
-                  + " rooms=" + MazeRules.CombatWidth.ToString("0") + "x" + MazeRules.CombatHeight.ToString("0")
-                  + " altar=" + MazeRules.AltarWidth.ToString("0") + "x" + MazeRules.AltarHeight.ToString("0")
-                : "";
-            GUI.Label(new Rect(pad + 8, pad + 136, w - 16, 18), pace, style);
-            string room = _active != null
-                ? "active " + _active.RoomId + " " + _active.Phase + " wave=" + _active.CurrentWave
-                  + "/" + _active.WavesTotal + " doors=" + (_active.DoorsLocked ? "LOCKED" : "OPEN")
-                  + " live=" + _live.Count
-                  + (_portalWaiting ? " PORTAL" : "")
-                : "walk a combat room to lock + portal + spawn";
-            GUI.Label(new Rect(pad + 8, pad + 156, w - 16, 18), room, style);
-            string status = _pass
-                ? "<color=#88ff88>" + _status + "</color>"
-                : "<color=#ffcc88>" + _status + "</color>";
-            GUI.Label(new Rect(pad + 8, pad + 176, w - 16, 48), status, rich);
-            if (!string.IsNullOrEmpty(_flash) && Time.unscaledTime < _flashUntil)
-                GUI.Label(new Rect(pad + 8, pad + 226, w - 16, 18), _flash, style);
         }
     }
 }
