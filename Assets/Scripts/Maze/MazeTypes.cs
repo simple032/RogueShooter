@@ -144,6 +144,8 @@ namespace RogueShooter.Maze
         public MazeEdge[] Edges;
         public string Signature;
 
+        public const float WalkInset = 0.15f;
+
         public MazeNode Find(string id)
         {
             if (Nodes == null || string.IsNullOrEmpty(id))
@@ -155,6 +157,30 @@ namespace RogueShooter.Maze
             }
 
             return null;
+        }
+
+        /// <summary>Inside a room or corridor. Outside this is wall.</summary>
+        public bool OpenAt(float x, float y)
+        {
+            if (Nodes != null)
+            {
+                for (int i = 0; i < Nodes.Length; i++)
+                {
+                    if (Nodes[i].Contains(x, y, WalkInset))
+                        return true;
+                }
+            }
+
+            if (Edges != null)
+            {
+                for (int i = 0; i < Edges.Length; i++)
+                {
+                    if (Edges[i].Contains(x, y, WalkInset))
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         public int CountKind(MazeNodeKind kind)

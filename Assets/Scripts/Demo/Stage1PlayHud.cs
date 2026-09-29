@@ -35,6 +35,7 @@ namespace RogueShooter.Demo
         readonly HashSet<string> _visited = new HashSet<string>();
         readonly List<string> _iconNames = new List<string>();
         readonly Dictionary<string, Sprite> _icons = new Dictionary<string, Sprite>();
+        int _loggedOwned = -1;
 
         Stage1MazeDemo _demo;
         PlayerVitals _vitals;
@@ -58,6 +59,10 @@ namespace RogueShooter.Demo
         public int InheritGold { get { return _inherit; } }
         public int IconCount { get { return _iconNames.Count; } }
         public int VisitedCount { get { return _visited.Count; } }
+        public float ShownDamageProduct { get; private set; }
+        public float ShownChargeSeconds { get; private set; }
+        public float ShownGreenEnter { get; private set; }
+        public float ShownGreenExit { get; private set; }
 
         public string VisitedIds
         {
@@ -114,8 +119,23 @@ namespace RogueShooter.Demo
             int gold = _demo.RunBuild != null ? _demo.RunBuild.Gold : 0;
             GoldText = "金币 " + gold;
             float held = _charge != null ? _charge.HeldSeconds : 0f;
-            float fill = ChargeShotRules.Progress(held);
+            ShotRead read = _charge != null ? _charge.CurrentRead : ShotRead.From(null);
+            float fill = read.Progress(held);
             ChargeText = "蓄力 " + Mathf.RoundToInt(fill * 100f) + "%";
+            ShownDamageProduct = read.DamageProduct;
+            ShownChargeSeconds = read.ChargeSeconds;
+            ShownGreenEnter = read.GreenEnter;
+            ShownGreenExit = read.GreenExit;
+            int ownedN = _demo.RunBuild != null && _demo.RunBuild.OwnedRewardIds != null
+                ? _demo.RunBuild.OwnedRewardIds.Count : 0;
+            if (ownedN != _loggedOwned)
+            {
+                _loggedOwned = ownedN;
+                Debug.Log("[Stage1] hud-read dmg×=" + read.DamageProduct.ToString("0.00")
+                          + " charge=" + read.ChargeSeconds.ToString("0.000")
+                          + " window=" + read.GreenEnter.ToString("0.000")
+                          + "-" + read.GreenExit.ToString("0.000"));
+            }
             Vignette01 = Mathf.Clamp01(1f - hp / max);
             if (_flash > 0f)
                 _flash = Mathf.MoveTowards(_flash, 0f, Time.deltaTime * 2.5f);
@@ -199,7 +219,8 @@ namespace RogueShooter.Demo
             float max = _vitals != null && _vitals.MaxHp > 0.01f ? _vitals.MaxHp : 1f;
             DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 24f, 180f, 22f), hp / max);
             float held = _charge != null ? _charge.HeldSeconds : 0f;
-            DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 52f, 180f, 10f), ChargeShotRules.Progress(held));
+            ShotRead read = _charge != null ? _charge.CurrentRead : ShotRead.From(null);
+            DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 52f, 180f, 10f), read.Progress(held));
             int gold = _demo.RunBuild != null ? _demo.RunBuild.Gold : 0;
             var style = new GUIStyle(GUI.skin.label) { fontSize = 14 };
             Sprite coin = Stage1IsoArt.PickupCoin();
