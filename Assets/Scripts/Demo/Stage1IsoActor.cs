@@ -18,6 +18,7 @@ namespace RogueShooter.Demo
         float _attackT = -1f;
         bool _attackHit;
         System.Action _onAttackHit;
+        float _swingClock;
 
         public const float WalkFps = 12f;
         public const float AttackFps = 12f;
@@ -94,6 +95,27 @@ namespace RogueShooter.Demo
                 return;
             }
 
+            var ai = GetComponent<RogueShooter.Ai.MobFourStateAi>();
+            if (ai != null && ai.InMeleeWindup && _family == "skel")
+            {
+                if (ai.Facing.sqrMagnitude > 0.0001f)
+                    _facing = FacingFrom(ai.Facing);
+                _moving = false;
+                _last = transform.position;
+                _swingClock += Time.deltaTime * AttackFps;
+                if (_renderer != null)
+                {
+                    bool swingFlip;
+                    Sprite sprite = Stage1IsoArt.ActorAction("skel", "atk", _facing, Mathf.FloorToInt(_swingClock), 4, out swingFlip);
+                    if (sprite != null)
+                        _renderer.sprite = sprite;
+                    _renderer.flipX = swingFlip;
+                }
+                return;
+            }
+
+            _swingClock = 0f;
+
             if (_attackT >= 0f)
             {
                 _attackT += Time.deltaTime;
@@ -127,7 +149,7 @@ namespace RogueShooter.Demo
             _last = transform.position;
             float fps = 4f;
             if (_moving)
-                fps = _family == "archer" ? WalkFps : 8f;
+                fps = (_family == "archer" || _family == "dog") ? WalkFps : 8f;
             _clock += Time.deltaTime * fps;
             Apply();
         }

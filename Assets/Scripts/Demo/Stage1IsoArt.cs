@@ -100,11 +100,13 @@ namespace RogueShooter.Demo
             var positions = new List<Vector3Int>();
             var tiles = new List<TileBase>();
 
+            Tile[] roomTiles = FloorTiles(MazeNodeKind.Connector);
+            Tile[] chestTiles = FloorTiles(MazeNodeKind.Chest);
+            Tile[] altarTiles = FloorTiles(MazeNodeKind.Altar);
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
                 MazeNode n = maze.Nodes[i];
                 CellRect rc = RectCells(n);
-                Tile[] variants = FloorTiles(n.Kind);
                 for (int p = rc.PMin; p <= rc.PMax; p++)
                 {
                     for (int q = rc.QMin; q <= rc.QMax; q++)
@@ -115,7 +117,7 @@ namespace RogueShooter.Demo
                         if (!owned.Add(id))
                             continue;
                         positions.Add(new Vector3Int((p + q) / 2, (q - p) / 2, 0));
-                        tiles.Add(variants[WrapIndex(p + q, variants.Length)]);
+                        tiles.Add(FloorForCell(n, p, q, rc, roomTiles, chestTiles, altarTiles));
                     }
                 }
             }
@@ -217,13 +219,27 @@ namespace RogueShooter.Demo
 
         public static Sprite ActorSprite(string family, bool moving, string facing, int frame, out bool flip)
         {
+            string action = "idle";
+            int span = 3;
+            if (moving && (family == "archer" || family == "dog"))
+            {
+                action = "walk";
+                span = 6;
+            }
+            return ActorAction(family, action, facing, frame, span, out flip);
+        }
+
+        public static Sprite ActorAction(string family, string action, string facing, int frame, int span, out bool flip)
+        {
             flip = false;
             string src = facing;
             if (family != "archer" && !IsoFacing.TrySkeleton(facing, out src, out flip))
                 src = "s";
-            string action = moving && family == "archer" ? "walk" : "idle";
+            if (string.IsNullOrEmpty(action))
+                action = "idle";
+            if (span < 1)
+                span = 1;
             int f = frame < 0 ? 0 : frame;
-            int span = action == "walk" ? 6 : 3;
             Sprite sprite = LoadActor(family, action, src, f % span);
             if (sprite == null && action != "idle")
                 sprite = LoadActor(family, "idle", src, f % 3);
@@ -299,6 +315,47 @@ namespace RogueShooter.Demo
 
         // ---- floors ----
 
+        /// <summary>
+        /// Field is room stone. Chest and altar keep a pad of their own tiles
+        /// so the room reads. Not one repeating set across every cell.
+        /// </summary>
+        static Tile FloorForCell(MazeNode n, int p, int q, CellRect rc, Tile[] room, Tile[] chest, Tile[] altar)
+        {
+            Vector3 world = CellCenter((p + q) / 2, (q - p) / 2);
+            if ((n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.LargeChest) && chest != null && chest.Length > 0)
+            {
+                Vector3 anchor = NearestRoomCellCenter(n);
+                if ((world - anchor).sqrMagnitude <= 2.6f * 2.6f)
+                    return chest[CellHash(p, q, 1) % chest.Length];
+            }
+            if (n.Kind == MazeNodeKind.Altar && altar != null && altar.Length > 0)
+            {
+                Vector3 pivot = AltarPivot(n);
+                if ((world - pivot).sqrMagnitude <= 2.8f * 2.8f)
+                    return altar[CellHash(p, q, 2) % altar.Length];
+            }
+
+            if (room == null || room.Length == 0)
+                return null;
+            bool rim = p - rc.PMin <= 2 || rc.PMax - p <= 2 || q - rc.QMin <= 2 || rc.QMax - q <= 2;
+            int patch = CellHash(p / 5, q / 5, n.Id.GetHashCode());
+            if (rim)
+                return room[patch % 2];
+            int speck = CellHash(p, q, n.Id.GetHashCode());
+            if (room.Length >= 4 && (speck % 5) == 0)
+                return room[2 + (speck % 2)];
+            return room[patch % room.Length];
+        }
+
+        static int CellHash(int a, int b, int salt)
+        {
+            unchecked
+            {
+                int h = a * 73856093 ^ b * 19349663 ^ salt * 83492791;
+                return h & 0x7fffffff;
+            }
+        }
+
         static Tile[] FloorTiles(MazeNodeKind kind)
         {
             switch (kind)
@@ -355,7 +412,7 @@ namespace RogueShooter.Demo
                         continue;
                     owned.Add(id);
                     positions.Add(new Vector3Int((p + q) / 2, (q - p) / 2, 0));
-                    tiles.Add(corridorTiles[WrapIndex(p + q, 3)]);
+                    tiles.Add(corridorTiles[CellHash(p, q, 3) % corridorTiles.Length]);
                 }
             }
         }
@@ -738,11 +795,11 @@ namespace RogueShooter.Demo
             if (family == "archer")
                 path = ActorRoot + action + "_" + facing + "_" + file + ".png";
             else if (family == "dog")
-                path = EnemyRoot + "Dog/jh_dog_idle_" + facing + "_" + file + ".png";
+                path = EnemyRoot + "Dog/jh_dog_" + action + "_" + facing + "_" + file + ".png";
             else if (family == "mage")
                 path = EnemyRoot + "Mage/jh_mage_idle_" + facing + "_" + file + ".png";
             else
-                path = EnemyRoot + "Skel/jh_skel_idle_" + facing + "_" + file + ".png";
+                path = EnemyRoot + "Skel/jh_skel_" + action + "_" + facing + "_" + file + ".png";
             return Load(path);
         }
 

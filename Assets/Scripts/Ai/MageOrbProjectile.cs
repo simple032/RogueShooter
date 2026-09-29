@@ -1,7 +1,6 @@
 using UnityEngine;
 using RogueShooter.Demo;
 using RogueShooter.Player;
-using RogueShooter.Vision;
 
 namespace RogueShooter.Ai
 {
@@ -94,11 +93,15 @@ namespace RogueShooter.Ai
         bool OffCamera()
         {
             Camera cam = Camera.main;
-            if (cam == null || !cam.orthographic)
+            if (cam == null)
                 return false;
-            Rect rect = CameraViewMath.GetOrthographicWorldRect(
-                cam.transform.position, cam.orthographicSize, CameraViewMath.ResolveAspect(cam));
-            return !CameraViewMath.ContainsInclusive(rect, transform.position);
+            // The play camera is pitched. An axis-aligned rect on the camera
+            // position sits off the floor and was deleting the orb the same frame it spawned.
+            Vector3 vp = cam.WorldToViewportPoint(transform.position);
+            if (vp.z < 0f)
+                return true;
+            const float pad = 0.04f;
+            return vp.x < -pad || vp.x > 1f + pad || vp.y < -pad || vp.y > 1f + pad;
         }
 
         void Despawn(string reason)
