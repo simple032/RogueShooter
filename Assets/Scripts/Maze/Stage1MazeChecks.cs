@@ -32,7 +32,9 @@ namespace RogueShooter.Maze
             sb.Append("ACCEPTANCE PASS stage1-maze ");
             sb.Append("quota=Chest×2+Altar×1+Normal×2+CONN-stub ");
             sb.Append("seeded=1 corridors=noSpawn ");
-            sb.Append("combat=enter→lock→PortalFx→1.0s→spawn→clear→open ");
+            sb.Append("combat=enter→lock→PortalFx→");
+            sb.Append(MazeRules.PlayPortalWaitSeconds.ToString("0.0"));
+            sb.Append("s→spawn→clear→open ");
             sb.Append("everyWave=PortalFx-visible ");
             sb.Append("chestAltar=2waves+[PortalFx] ");
             sb.Append("normal=1wave+[PortalFx] ");
@@ -428,8 +430,14 @@ namespace RogueShooter.Maze
             string show = PortalFxHook.FormatShow("ALTAR", 1);
             if (show != "[PortalFx] room=ALTAR wave=1 show")
                 return "portal show contract " + show;
-            string spawn = PortalFxHook.FormatSpawn("N1", 1);
-            if (spawn != "[PortalFx] room=N1 wave=1 spawn after 1.0s")
+            string spawn = PortalFxHook.FormatSpawn("N1", 1, MazeRules.PlayPortalWaitSeconds);
+            if (Math.Abs(MazeRules.PlayPortalWaitSeconds) < 0.001f
+                && (spawn.IndexOf("spawn after 1.0s", StringComparison.Ordinal) >= 0
+                    || spawn == PortalFxHook.FormatSpawn("N1", 1)))
+                return "portal check treated 0s as 1s";
+            string expect = "[PortalFx] room=N1 wave=1 spawn after "
+                + MazeRules.PlayPortalWaitSeconds.ToString("0.0") + "s";
+            if (spawn != expect)
                 return "portal spawn contract " + spawn;
             return null;
         }
@@ -444,8 +452,12 @@ namespace RogueShooter.Maze
                     return false;
                 if (!StartsWith(steps[i].Line, "[PortalFx] ") || steps[i].Line.IndexOf(" show", StringComparison.Ordinal) < 0)
                     return false;
+                string waited = " spawn after " + MazeRules.PlayPortalWaitSeconds.ToString("0.0") + "s";
                 if (!StartsWith(steps[i + 1].Line, "[PortalFx] ")
-                    || steps[i + 1].Line.IndexOf(" spawn after 1.0s", StringComparison.Ordinal) < 0)
+                    || steps[i + 1].Line.IndexOf(waited, StringComparison.Ordinal) < 0)
+                    return false;
+                if (Math.Abs(MazeRules.PlayPortalWaitSeconds - 1f) > 0.001f
+                    && steps[i + 1].Line.IndexOf(" spawn after 1.0s", StringComparison.Ordinal) >= 0)
                     return false;
             }
 

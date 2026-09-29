@@ -271,8 +271,10 @@ namespace RogueShooter.Maze
         public const float StartDoorGap = 22f;
         public const float StartPitchY = 50f;
         public const float WavePacingEstimateSeconds = 28f;
-        /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
+        /// <summary>Old portal stub constant. Stage-1 play does not wait this long.</summary>
         public const float PortalHoldSeconds = 1.0f;
+        /// <summary>Seconds Stage-1 play actually waits before a wave appears. Checks must use this.</summary>
+        public const float PlayPortalWaitSeconds = 0f;
         public const int QuotaNormal = 2;
         public const int QuotaChest = 2;
         public const int QuotaAltar = 1;

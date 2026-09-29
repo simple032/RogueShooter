@@ -361,6 +361,7 @@ namespace RogueShooter.Maze
             sb.Append(" move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" ortho=").Append(MazeRules.PlayOrtho.ToString("0"));
             sb.Append(" portalHold=").Append(MazeRules.PortalHoldSeconds.ToString("0.0")).Append("s");
+            sb.Append(" playWait=").Append(MazeRules.PlayPortalWaitSeconds.ToString("0.0")).Append("s");
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
             sb.Append(" altar=").Append(MazeRules.AltarWidth.ToString("0")).Append("x")
