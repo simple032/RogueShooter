@@ -11,6 +11,7 @@ namespace RogueShooter.Player
         [SerializeField] float speed = MoveSpeeds.Player;
 
         PlayerCharge _charge;
+        PlayerRoll _roll;
         Rigidbody2D _body;
 
         public float BaseSpeed => speed;
@@ -31,6 +32,7 @@ namespace RogueShooter.Player
         void Awake()
         {
             _charge = GetComponent<PlayerCharge>();
+            _roll = GetComponent<PlayerRoll>();
             _body = GetComponent<Rigidbody2D>();
         }
 
@@ -58,9 +60,20 @@ namespace RogueShooter.Player
             }
             if (_charge == null)
                 _charge = GetComponent<PlayerCharge>();
+            if (_roll == null)
+                _roll = GetComponent<PlayerRoll>();
             Vector2 input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             if (input.sqrMagnitude > 1f)
                 input.Normalize();
+            if (_roll != null && _roll.IsRolling)
+            {
+                // Roll keeps the existing move speed and locks the direction.
+                if (!physics)
+                    transform.position += (Vector3)(_roll.RollDirection * BaseSpeed * dt);
+                else
+                    _body.velocity = _roll.RollDirection * BaseSpeed;
+                return;
+            }
             if (!physics)
             {
                 transform.position += (Vector3)(input * CurrentSpeed * dt);

@@ -272,7 +272,7 @@ namespace RogueShooter.Demo
             if (!IconByName.TryGetValue(rewardName, out file))
                 return null;
 #if UNITY_EDITOR
-            string path = "Assets/Art/JianHai/UI/" + file + ".png";
+            string path = "Assets/Resources/JianHaiReward/" + file + ".png";
             sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
 #endif
             if (sprite != null)

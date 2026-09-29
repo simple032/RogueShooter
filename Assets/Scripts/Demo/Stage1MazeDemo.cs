@@ -44,6 +44,7 @@ namespace RogueShooter.Demo
         GameObject _stubPrefab;
         readonly Dictionary<string, CombatRoomSession> _sessions = new Dictionary<string, CombatRoomSession>();
         readonly Dictionary<string, GameObject> _roomFloors = new Dictionary<string, GameObject>();
+        readonly Dictionary<string, GameObject> _chests = new Dictionary<string, GameObject>();
         readonly List<GameObject> _doors = new List<GameObject>();
         readonly List<GameObject> _live = new List<GameObject>();
         readonly Dictionary<string, List<GameObject>> _prespawn = new Dictionary<string, List<GameObject>>();
@@ -150,10 +151,16 @@ namespace RogueShooter.Demo
             {
                 MazeNode n = _maze.Nodes[i];
                 _roomFloors[n.Id] = null;
-                AddWalls(n, root);
+                Stage1IsoArt.BuildRoomShell(n, _maze, root, _world, seed);
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
                     new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
-                AddProp(n, root);
+                GameObject prop = Stage1IsoArt.BuildProp(n, root);
+                if (prop != null)
+                {
+                    _world.Add(prop);
+                    if (n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.LargeChest)
+                        _chests[n.Id] = prop;
+                }
                 _sessions[n.Id] = new CombatRoomSession(n);
             }
 
@@ -171,6 +178,7 @@ namespace RogueShooter.Demo
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
             player.AddComponent<PlayerCharge>();
+            player.AddComponent<PlayerRoll>();
             player.AddComponent<GuaranteedCritActive>();
             EnsureBuild();
             var charge = player.GetComponent<PlayerCharge>();
@@ -317,42 +325,6 @@ namespace RogueShooter.Demo
         public void ProofClearWave()
         {
             KillLiveWave();
-        }
-
-        void AddWalls(MazeNode n, Transform root)
-        {
-            var gaps = new List<Vector3>();
-            for (int i = 0; i < _maze.Edges.Length; i++)
-            {
-                MazeEdge e = _maze.Edges[i];
-                MazeNode other = null;
-                if (e.FromId == n.Id)
-                    other = _maze.Find(e.ToId);
-                else if (e.ToId == n.Id)
-                    other = _maze.Find(e.FromId);
-                if (other == null)
-                    continue;
-                Vector3 dir = new Vector3(other.Center.X - n.Center.X, other.Center.Y - n.Center.Y, 0f);
-                if (dir.sqrMagnitude < 0.01f)
-                    continue;
-                dir.Normalize();
-                float reach = Mathf.Abs(dir.x) > Mathf.Abs(dir.y) ? n.Width * 0.5f : n.Height * 0.5f;
-                gaps.Add(new Vector3(n.Center.X, n.Center.Y, 0f) + dir * reach);
-            }
-
-            Stage1IsoArt.RingRoom(n, gaps, root, _world);
-        }
-
-        void AddProp(MazeNode n, Transform root)
-        {
-            if (n.Kind != MazeNodeKind.Chest && n.Kind != MazeNodeKind.LargeChest
-                && n.Kind != MazeNodeKind.Altar && n.Kind != MazeNodeKind.Connector)
-                return;
-            string hook = n.Kind == MazeNodeKind.Altar ? "A_S1"
-                : n.Kind == MazeNodeKind.Connector ? "CONN_STUB"
-                : "Chest_S1";
-            Vector3 pos = new Vector3(n.Center.X, n.Center.Y + 0.4f, 0f);
-            _world.Add(Stage1IsoArt.Prop(hook, pos, n.Kind, root));
         }
 
         void AddDoors(Transform root)
@@ -521,6 +493,7 @@ namespace RogueShooter.Demo
                 if (step.ShouldOpen)
                 {
                     SetDoors(session.RoomId, false);
+                    OpenRoomProps(session.RoomId);
                     Flash("open " + session.RoomId);
                     if (_active == session)
                         _active = null;
@@ -729,6 +702,13 @@ namespace RogueShooter.Demo
             Flash("interact " + n.Id);
         }
 
+        void OpenRoomProps(string roomId)
+        {
+            GameObject chest;
+            if (_chests.TryGetValue(roomId, out chest))
+                Stage1IsoArt.OpenChest(chest);
+        }
+
         void SetDoors(string roomId, bool locked)
         {
             for (int i = 0; i < _doors.Count; i++)
@@ -932,6 +912,7 @@ namespace RogueShooter.Demo
             ClearLive();
             _sessions.Clear();
             _roomFloors.Clear();
+            _chests.Clear();
             _doors.Clear();
             _active = null;
             if (_player != null)
