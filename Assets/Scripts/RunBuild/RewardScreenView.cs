@@ -20,24 +20,16 @@ namespace RogueShooter.Build
     /// </summary>
     public sealed class RewardScreenView : MonoBehaviour
     {
-        /// <summary>True while any reward/shop panel is up. Debug HUDs hide so they never cover cards.</summary>
-        public static bool PanelOpen { get; private set; }
-
         public RewardScreenSession Session { get; private set; }
         public bool ChoicesVisible => Session != null && Session.ChoicesVisible;
 
         ChestAltarDirector _director;
+        public System.Action<int> OnPick;
         Canvas _canvas;
         Image _clip;
         GameObject _choiceRoot;
         Image _panel;
-        Text _title;
-        Text _coin;
-        int _coinShown = int.MinValue;
         Font _font;
-
-        /// <summary>Chest / altar 3-choice title bar copy.</summary>
-        public const string ChoiceTitle = "选择强化";
 
         public void Bind(ChestAltarDirector director)
         {
@@ -49,6 +41,8 @@ namespace RogueShooter.Build
         public void ShowChest(RewardCardData[] cards)
         {
             EnsureUi();
+            if (Session == null)
+                Session = new RewardScreenSession();
             Session.OpenChest();
             ApplyPause(true);
             _clip.gameObject.SetActive(true);
@@ -60,6 +54,8 @@ namespace RogueShooter.Build
         public void ShowAltar(RewardCardData[] cards)
         {
             EnsureUi();
+            if (Session == null)
+                Session = new RewardScreenSession();
             Session.OpenAltar();
             ApplyPause(true);
             _clip.gameObject.SetActive(true);
@@ -78,44 +74,6 @@ namespace RogueShooter.Build
             _panel.sprite = Load("jh_ui_shop_panel");
             _panel.rectTransform.sizeDelta = new Vector2(1100f, 620f);
             BuildCards(cards, shop: true);
-            // Title count comes from the shelves actually shown (ShopStock.ShelfCount = 6).
-            // Sits in the shop panel's gold title bar (panel 1100x620, bar centre ≈ +262).
-            int n = cards != null ? cards.Length : 0;
-            _title = AddText(_choiceRoot.transform, ShopTitle(n), 24, new Vector2(0f, 262f), 360f);
-            // Coin box (top-right of jh_ui_shop_panel: 1600x900 art → 1100x620, box text area
-            // right of the coin dot ≈ (+405, +253), pixel-measured). Refreshed every frame from held gold.
-            _coin = AddText(_choiceRoot.transform, "", 22, CoinBoxPos, 124f);
-            _coin.alignment = TextAnchor.MiddleLeft;
-            _coin.color = new Color(1f, 0.86f, 0.45f, 1f);
-            _coinShown = int.MinValue;
-            RefreshCoin();
-        }
-
-        public static readonly Vector2 CoinBoxPos = new Vector2(405f, 253f);
-
-        /// <summary>Coin box copy: the held coin count only (the art already has the coin dot).</summary>
-        public static string CoinText(int gold)
-        {
-            return gold.ToString();
-        }
-
-        /// <summary>Current coin box text ("" when the shop is not open). Tests read this.</summary>
-        public string CoinLabel => _coin != null ? _coin.text : "";
-
-        void RefreshCoin()
-        {
-            if (_coin == null || _director == null)
-                return;
-            int gold = _director.CurrentGold;
-            if (gold == _coinShown)
-                return;
-            _coinShown = gold;
-            _coin.text = CoinText(gold);
-        }
-
-        public static string ShopTitle(int shelfCount)
-        {
-            return "商店 · " + shelfCount + " 件商品 · 不刷新";
         }
 
         public void Hide()
@@ -129,8 +87,6 @@ namespace RogueShooter.Build
 
         void Update()
         {
-            if (Session != null && Session.Open && Session.Kind == RewardScreenKind.Shop)
-                RefreshCoin();
             if (Session == null || !Session.Open || Session.ChoicesVisible)
                 return;
             Session.Tick(Time.unscaledDeltaTime);
@@ -160,10 +116,6 @@ namespace RogueShooter.Build
                 _panel.sprite = Load("jh_ui_reward_panel_3choice");
                 _panel.rectTransform.sizeDelta = new Vector2(1000f, 475f);
             }
-
-            // Fill the panel's gold title bar (panel 1000x475, bar centre ≈ +199). Once per open.
-            if (_title == null && _choiceRoot != null)
-                _title = AddText(_choiceRoot.transform, ChoiceTitle, 26, new Vector2(0f, 199f), 340f);
         }
 
         void ApplyFrame()
@@ -179,23 +131,25 @@ namespace RogueShooter.Build
         void ApplyPause(bool paused)
         {
             RunPause.InteractOpen = paused;
-            PanelOpen = paused;
             Time.timeScale = paused ? 0f : 1f;
             if (_canvas != null)
                 _canvas.gameObject.SetActive(paused || (Session != null && Session.Open));
-        }
-
-        void OnDisable()
-        {
-            PanelOpen = false;
         }
 
         void EnsureUi()
         {
             if (_canvas != null)
                 return;
-            // Bundled project font first (not Windows-only); see BuiltinUiFont.LoadUi.
-            _font = RogueShooter.Demo.BuiltinUiFont.LoadUi();
+            _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei UI", 32);
+            if (_font == null)
+                _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            if (UnityEngine.EventSystems.EventSystem.current == null)
+            {
+                var events = new GameObject("EventSystem");
+                events.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                events.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            }
 
             var root = new GameObject("RewardScreen", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);
@@ -224,18 +178,13 @@ namespace RogueShooter.Build
                 if (child != _panel.transform)
                     Destroy(child.gameObject);
             }
-            _title = null;
-            _coin = null;
 
             if (cards == null)
                 return;
             int n = cards.Length;
-            // Reward (chest/altar) cards: 225x325, gap 68.75 → centres (-293.75 / 0 / +293.75, -18.75),
-            // i.e. the painted slots of jh_ui_reward_panel_3choice (1600x760 art shown at 1000x475).
-            float cardW = shop ? 150f : 225f;
-            float cardH = shop ? 216f : 325f;
-            float gap = shop ? 12f : 68.75f;
-            float cardY = shop ? -10f : -18.75f;
+            float cardW = shop ? 150f : 200f;
+            float cardH = shop ? 216f : 288f;
+            float gap = shop ? 12f : 24f;
             float total = n * cardW + (n - 1) * gap;
             float x0 = -total * 0.5f + cardW * 0.5f;
             for (int i = 0; i < n; i++)
@@ -246,40 +195,33 @@ namespace RogueShooter.Build
                 var rt = go.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.sizeDelta = new Vector2(cardW, cardH);
-                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), cardY);
+                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), shop ? -10f : 0f);
                 var image = go.GetComponent<Image>();
                 image.sprite = Load(CardSprite(card.Tier));
                 image.type = Image.Type.Simple;
-                image.preserveAspect = false;
+                image.preserveAspect = true;
                 int index = card.Index;
                 go.GetComponent<Button>().onClick.AddListener(() =>
                 {
                     if (_director != null)
                         _director.NotifyUiPick(index);
+                    else if (OnPick != null)
+                        OnPick(index);
                 });
                 if (!string.IsNullOrEmpty(card.Icon))
                 {
                     float iconW = cardW * (96f / 360f);
                     float iconH = cardH * (96f / 520f);
                     Image icon = MakeImage(go.transform, "Icon", new Vector2(0f, cardH * 0.25f), new Vector2(iconW, iconH));
-                    icon.sprite = LoadIcon(card.Icon);
+                    icon.sprite = Load(card.Icon);
                     icon.raycastTarget = false;
                 }
-                // Rarity badge: the card art's pips + tier colour carry the rarity, so tier text
-                // (低/中/高/普) is not drawn. Non-tier marks (shop "回血") still show.
-                if (!IsTierMark(card.Mark))
-                    AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
+                AddText(go.transform, card.Mark, Scale(cardH, 0.07f), new Vector2(0f, cardH * 0.38f), cardW * 0.7f);
                 AddText(go.transform, card.Name, Scale(cardH, 0.062f), new Vector2(0f, cardH * 0.029f), cardW * (272f / 360f));
                 AddText(go.transform, card.Desc, Scale(cardH, 0.046f), new Vector2(0f, -cardH * 0.204f), cardW * (292f / 360f));
                 if (!string.IsNullOrEmpty(card.Price))
                     AddText(go.transform, card.Price, Scale(cardH, 0.05f), new Vector2(0f, -cardH * 0.402f), cardW * (176f / 360f));
             }
-        }
-
-        /// <summary>True for the plain rarity labels that the badge art already shows.</summary>
-        public static bool IsTierMark(string mark)
-        {
-            return mark == "低" || mark == "中" || mark == "高" || mark == "普";
         }
 
         static int Scale(float cardH, float fraction)
@@ -298,7 +240,7 @@ namespace RogueShooter.Build
             }
         }
 
-        Text AddText(Transform parent, string value, int size, Vector2 pos, float width)
+        void AddText(Transform parent, string value, int size, Vector2 pos, float width)
         {
             var go = new GameObject("Label", typeof(RectTransform), typeof(Text));
             go.transform.SetParent(parent, false);
@@ -314,7 +256,6 @@ namespace RogueShooter.Build
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
             text.text = value ?? "";
-            return text;
         }
 
         static Image MakeImage(Transform parent, string name, Vector2 pos, Vector2 size)
@@ -336,19 +277,6 @@ namespace RogueShooter.Build
             if (string.IsNullOrEmpty(id))
                 return null;
             return Resources.Load<Sprite>("JianHaiReward/" + id);
-        }
-
-        /// <summary>
-        /// Card icon: the requested sprite, else its silent stand-in from
-        /// <see cref="RewardPresent.IconFallback"/> (e.g. quick_step → afterimage until the art lands).
-        /// </summary>
-        public static Sprite LoadIcon(string id)
-        {
-            Sprite sprite = Load(id);
-            if (sprite != null)
-                return sprite;
-            string fallback = RewardPresent.IconFallback(id);
-            return string.IsNullOrEmpty(fallback) ? null : Load(fallback);
         }
     }
 }

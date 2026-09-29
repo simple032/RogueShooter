@@ -137,9 +137,13 @@ namespace RogueShooter.Ai
             return 0;
         }
 
+        /// <summary>
+        /// Lunge belongs to shield soldiers only. Normals do not lunge on any stage.
+        /// S1 does not spawn shields; the rule is ready for when they appear.
+        /// </summary>
         public static bool CanLunge(string kindId, StageId stage)
         {
-            return kindId == EnemyKindIds.Normal && StageIdUtil.GrantsLunge(stage);
+            return kindId == EnemyKindIds.Shield;
         }
     }
 }

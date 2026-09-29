@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using RogueShooter.Ai;
 using RogueShooter.Player;
-using RogueShooter.Vision;
 
 namespace RogueShooter.Spawning
 {
@@ -31,7 +30,7 @@ namespace RogueShooter.Spawning
             if (!StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.CultMage)
                 || !StageEnemyPool.HasKind(StageId.S2, EnemyKindIds.Shield)
                 || !StageIdUtil.IncludesCultMage(StageId.S2))
-                return "S2 pool is lunge-normal + paired dogs + shield + cult mage";
+                return "S2 pool is normal + paired dogs + shield + cult mage";
             string s2Mage = CheckS2CultMage();
             if (s2Mage != null)
                 return s2Mage;
@@ -55,13 +54,18 @@ namespace RogueShooter.Spawning
             string enhErr = CheckEnhancePairs();
             if (enhErr != null) return enhErr;
 
-            if (EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S1))
-                return "S1 normal must not lunge";
-            if (!EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S2)
-                || !EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S3))
-                return "S2/S3 normal must lunge";
-            if (EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S2))
-                return "only normal melee lunges";
+            if (EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S1)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S2)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.Normal, StageId.S3))
+                return "normal must not lunge";
+            if (EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S1)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.Dog, StageId.S2)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S1)
+                || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S3))
+                return "S1 kinds must not lunge";
+            if (!EnemyCombatRules.CanLunge(EnemyKindIds.Shield, StageId.S2)
+                || !EnemyCombatRules.CanLunge(EnemyKindIds.Shield, StageId.S3))
+                return "shield keeps lunge";
 
             if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2)
                 || EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S1))
@@ -78,13 +82,12 @@ namespace RogueShooter.Spawning
             if (Math.Abs(EnemyCombatRules.OrbSpeedAbsStub - 12f) > 0.001f
                 || Math.Abs(EnemyPoolDraft.DraftOrbSpeed - 12f) > 0.001f)
                 return "orb speed abs 12 (player 6 × 2)";
-            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f)
-                return "cult mage orb must be 12, not walk×2=7.2";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 6f) > 0.001f)
+                return "cult mage orb must be 6, not walk×2=7.2";
             if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.GrandMage, 3.3f) - 12f) > 0.001f)
                 return "grand orb must be 12";
-            if (Math.Abs(EnemyCombatRules.OrbMaxRange(12f) - L5Rules.OrbRangeU) > 0.001f
-                || Math.Abs(L5Rules.DefaultOrbRangeU - 12f) > 0.001f)
-                return "L5 orb range 12u / 1.0s (replaces camera width×0.7)";
+            if (Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
+                return "orb range ≤ camera width×0.7";
             if (EnemyCombatRules.LungeDamageMinEasyStub != 30
                 || EnemyCombatRules.LungeDamageMaxEasyStub != 40)
                 return "lunge easy DRAFT [30,40]";
@@ -114,8 +117,8 @@ namespace RogueShooter.Spawning
                 return "ring full @0.70";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
                 return "shot recovery 0.2s";
-            if (!L5VisionChecks.OrthoMatchesMode(EnemyCombatRules.PlayOrthoSize))
-                return "play ortho 6 ortho / 5.25 iso";
+            if (Math.Abs(EnemyCombatRules.PlayOrthoSize - 6f) > 0.001f)
+                return "play ortho 6";
 
             if (EnemyKindCatalog.StubHp(EnemyKindIds.Normal) != 39)
                 return "DRAFT HP normal mid 39";
@@ -302,9 +305,9 @@ namespace RogueShooter.Spawning
 
             if (EnemyCombatRules.OrbCount(EnemyKindIds.CultMage) != 1)
                 return "S2 cult mage same as S1: single linear orb";
-            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 12f) > 0.001f
-                || Math.Abs(EnemyCombatRules.OrbMaxRange(12f) - L5Rules.OrbRangeU) > 0.001f)
-                return "S2 cult mage orb player×2=12 / L5 range 12u (same as S1)";
+            if (Math.Abs(EnemyCombatRules.OrbSpeedForKind(EnemyKindIds.CultMage, 3.6f) - 6f) > 0.001f
+                || Math.Abs(EnemyCombatRules.OrbRangeCameraWidthFrac - 0.7f) > 0.001f)
+                return "S2 cult mage orb 6 / camWidth×0.7 (same as S1)";
             if (EnemyCombatRules.CanLunge(EnemyKindIds.CultMage, StageId.S2))
                 return "S2 cult mage must not lunge";
 
@@ -391,15 +394,16 @@ namespace RogueShooter.Spawning
             if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 2.25f))
                 return "WalkSpeed shield raised 2.25";
 
-            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.CultMage), 12f)
-                || !Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.GrandMage), 12f))
-                return "orb_spd 12 from draft CSV";
+            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.CultMage), 6f))
+                return "cult orb_spd 6 from draft CSV";
+            if (!Near(EnemyPoolDraft.OrbSpeedFor(EnemyKindIds.GrandMage), 12f))
+                return "grand orb_spd 12 from draft CSV";
 
             DraftEnemyStat dog = EnemyPoolDraft.Stat(EnemyKindIds.Dog);
             if (!Near(dog.Atk, 15f) || !Near(dog.MoveSpeed, 7.2f))
                 return "dog CSV atk 15 move 7.2";
             DraftEnemyStat mage = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
-            if (!Near(mage.Atk, 19f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 12f))
+            if (!Near(mage.Atk, 19f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 6f))
                 return "mage CSV atk 19 move 3.6 orb 12";
             DraftEnemyStat shield = EnemyPoolDraft.Stat(EnemyKindIds.Shield);
             if (!Near(shield.Atk, 30f) || !Near(shield.MoveSpeed, 4.5f)

@@ -1,6 +1,5 @@
 using System;
 using RogueShooter.Spawning;
-using RogueShooter.Vision;
 
 namespace RogueShooter.Maze
 {
@@ -145,6 +144,8 @@ namespace RogueShooter.Maze
         public MazeEdge[] Edges;
         public string Signature;
 
+        public const float WalkInset = 0.15f;
+
         public MazeNode Find(string id)
         {
             if (Nodes == null || string.IsNullOrEmpty(id))
@@ -156,6 +157,30 @@ namespace RogueShooter.Maze
             }
 
             return null;
+        }
+
+        /// <summary>Inside a room or corridor. Outside this is wall.</summary>
+        public bool OpenAt(float x, float y)
+        {
+            if (Nodes != null)
+            {
+                for (int i = 0; i < Nodes.Length; i++)
+                {
+                    if (Nodes[i].Contains(x, y, WalkInset))
+                        return true;
+                }
+            }
+
+            if (Edges != null)
+            {
+                for (int i = 0; i < Edges.Length; i++)
+                {
+                    if (Edges[i].Contains(x, y, WalkInset))
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         public int CountKind(MazeNodeKind kind)
@@ -221,81 +246,35 @@ namespace RogueShooter.Maze
     }
 
     /// <summary>
-    /// Spec v0.5 S1 maze. v2e lock: rooms 52×40 (Normal/Chest/Altar same),
-    /// pitch 82×70, ortho door gap 30u. START neighbor is a fixed Normal.
+    /// Spec v0.5 S1 maze. Rooms 36×28 (Normal/Chest/Altar/START/CONN),
+    /// pitch 58×50, ortho door gap 22u. START neighbor is a fixed Normal.
     /// Four combat slots shuffle Altar×1+Chest×2+Normal×1; CONN follows Altar.
     /// No pure-walk time gate. Folds only on diagonal links.
     /// </summary>
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
-        /// <summary>Forwards to <see cref="CameraViewService.PlayOrthoSize"/> (6 ortho / 5.25 iso).</summary>
-        public static float PlayOrtho => CameraViewService.PlayOrthoSize;
-        /// <summary>v2e. Pitch = room + 30u gap. START door is a shorter feel hop (~18u), not a clock lock.</summary>
-        public const float CombatWidth = 52f;
-        public const float CombatHeight = 40f;
-        public const float PitchX = 82f;
-        public const float PitchY = 70f;
-        public const float HubWidth = 52f;
-        public const float HubHeight = 40f;
-        public const float AltarWidth = 52f;
-        public const float AltarHeight = 40f;
-        /// <summary>
-        /// 走廊宽度_建议_v02 (定稿 2026-09-25): corridor 5u, door opening 3u, 1u wall stub on
-        /// each side (3 + 1 + 1 = 5). All whole cells (1 cell = 1u = 32px).
-        /// </summary>
-        public const float CorridorWidth = 5f;
-        public const float DoorWidth = 3f;
-        public const float DoorStub = 1f;
+        public const float PlayOrtho = 6f;
+        /// <summary>Pitch = room + 22u gap. Not a clock lock.</summary>
+        public const float CombatWidth = 36f;
+        public const float CombatHeight = 28f;
+        public const float PitchX = 58f;
+        public const float PitchY = 50f;
+        public const float HubWidth = 36f;
+        public const float HubHeight = 28f;
+        public const float AltarWidth = 36f;
+        public const float AltarHeight = 28f;
+        public const float CorridorWidth = 8f;
         public const float CorridorSegMax = 30f;
         public const float CorridorSegMaxSeconds = 5f;
-        /// <summary>START→N口 door gap feel (~3s @ 6). Not an ACCEPTANCE clock.</summary>
-        public const float StartDoorGap = 18f;
-        public const float StartPitchY = 58f;
+        /// <summary>START→N口 uses the same 22u door gap. Not an ACCEPTANCE clock.</summary>
+        public const float StartDoorGap = 22f;
+        public const float StartPitchY = 50f;
         public const float WavePacingEstimateSeconds = 28f;
-        /// <summary>
-        /// Producer cadence table. PortalFx stays visible for the hold (clock starts at show).
-        /// Wave 1 (enter): 1.0s. Inter-wave (chest/altar after clear w1): 2.5s.
-        /// Inter-wave must be &gt;2.0s and ≤3.0s — not 1.0s and not 2.0s.
-        /// </summary>
+        /// <summary>Old portal stub constant. Stage-1 play does not wait this long.</summary>
         public const float PortalHoldSeconds = 1.0f;
-        public const float InterWavePortalHoldSeconds = 2.5f;
-        /// <summary>Exclusive lower bound: inter-wave hold must be greater than this.</summary>
-        public const float InterWavePortalHoldMinSeconds = 2.0f;
-        public const float InterWavePortalHoldMaxSeconds = 3.0f;
-
-        public static float PortalHoldForWave(int wave)
-        {
-            if (wave <= 1)
-                return PortalHoldSeconds;
-            float hold = InterWavePortalHoldSeconds;
-            if (hold > InterWavePortalHoldMaxSeconds)
-                hold = InterWavePortalHoldMaxSeconds;
-            if (hold < 0f)
-                hold = 0f;
-            return hold;
-        }
-
-        /// <summary>
-        /// Door / corridor centreline on the wall axis (Y for E/W walls, X for N/S walls).
-        /// Odd widths (5u corridor, 3u door) sit on a cell centre so every corridor edge,
-        /// door edge and stub lands on a whole cell: an integer room centre shifts +0.5.
-        /// </summary>
-        public static float DoorAxis(float roomCentre)
-        {
-            bool odd = ((int)Math.Round(CorridorWidth) & 1) == 1;
-            return odd
-                ? (float)Math.Floor(roomCentre) + 0.5f
-                : (float)Math.Round(roomCentre);
-        }
-
-        /// <summary>Door opening for a corridor of <paramref name="corridorWidth"/>: corridor − 2 × stub.</summary>
-        public static float DoorOpeningFor(float corridorWidth)
-        {
-            float d = corridorWidth - 2f * DoorStub;
-            return d > 0.5f ? d : corridorWidth;
-        }
-
+        /// <summary>Seconds Stage-1 play actually waits before a wave appears. Checks must use this.</summary>
+        public const float PlayPortalWaitSeconds = 0f;
         public const int QuotaNormal = 2;
         public const int QuotaChest = 2;
         public const int QuotaAltar = 1;

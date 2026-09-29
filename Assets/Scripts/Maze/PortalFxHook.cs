@@ -2,7 +2,7 @@ namespace RogueShooter.Maze
 {
     /// <summary>
     /// Ground portal cadence: visible stub at spawn points, then wait
-    /// <see cref="MazeRules.PortalHoldForWave"/>, then spawn. Art can replace the stub later.
+    /// <see cref="MazeRules.PortalHoldSeconds"/>, then spawn. Art can replace the stub later.
     /// </summary>
     public static class PortalFxHook
     {
@@ -16,7 +16,7 @@ namespace RogueShooter.Maze
 
         public static string FormatSpawn(string roomId, int wave)
         {
-            return FormatSpawn(roomId, wave, MazeRules.PortalHoldForWave(wave));
+            return FormatSpawn(roomId, wave, MazeRules.PortalHoldSeconds);
         }
 
         public static string FormatSpawn(string roomId, int wave, float holdSeconds)
@@ -45,7 +45,12 @@ namespace RogueShooter.Maze
 
         public static string PlaySpawn(string roomId, int wave)
         {
-            LastLine = FormatSpawn(roomId, wave);
+            return PlaySpawn(roomId, wave, MazeRules.PortalHoldSeconds);
+        }
+
+        public static string PlaySpawn(string roomId, int wave, float holdSeconds)
+        {
+            LastLine = FormatSpawn(roomId, wave, holdSeconds);
             return LastLine;
         }
 

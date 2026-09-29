@@ -5,14 +5,13 @@ using RogueShooter.Demo;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
-using RogueShooter.Combat;
-using RogueShooter.Art;
 
 namespace RogueShooter.Ai
 {
     /// <summary>
-    /// Four-state AI plus Spec v0.5 behaviors (bang, orbs, S2+ lunge, shield).
+    /// Four-state AI plus shield lunge, orbs, and shield raise.
     /// State machine is unchanged: Patrol → Alert → Chase → Attack → Disengage.
+    /// Normals do not lunge.
     /// </summary>
     public class MobFourStateAi : MonoBehaviour
     {
@@ -29,9 +28,7 @@ namespace RogueShooter.Ai
         float _patrolRadius = 1.8f;
         float _patrolT;
         bool _pendingDamage;
-        TextMesh _label;
         SpriteRenderer _sr;
-        Color _base = new Color(0.86f, 0.28f, 0.24f);
         EnemyPressureState _pressure;
         PlayerVitals _playerVitals;
         float _windupLeft;
@@ -58,28 +55,20 @@ namespace RogueShooter.Ai
         float _knockSpeed;
         float _rootUntil;
 
-        float _hurtUntil;
-        int _attackCycle;
-        float _lastMovedAt = -999f;
-        bool _dead;
-        float _corpseUntil = -1f;
-
-        /// <summary>
-        /// Walk/idle hold: the mob counts as moving for this long after its last real displacement
-        /// while it intends to move, so a slow patrol at high fps (tiny per-frame steps) or a
-        /// one-frame wall stall does not flip walk↔idle.
-        /// </summary>
-        public const float MoveHoldSeconds = 0.15f;
-        /// <summary>Corpse stays for the death clip plus this hold, then the object is destroyed.</summary>
-        public const float CorpseLingerSeconds = 0.25f;
-
         public MobAiState State => _brain.State;
+        public bool InMeleeWindup
+        {
+            get
+            {
+                if (EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb)
+                    return false;
+                return _inWindup || _brain.State == MobAiState.Attack;
+            }
+        }
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
         public bool IsStaggered => Time.time < _staggerUntil;
-        public bool InWindup => _inWindup;
-        public bool IsHurting => Time.time < _hurtUntil;
         public StageId Stage => _stage;
         public bool ShieldRaised => _shieldRaised;
         public bool Elite => _elite;
@@ -87,13 +76,6 @@ namespace RogueShooter.Ai
         public string KindId => CurrentKindId();
         public bool IsKnocking => _knockLeft > 0.001f;
         public bool IsRooted => Time.time < _rootUntil;
-        /// <summary>+1 every time a windup (telegraph → hit/orb) starts; the anim view restarts atk/cast on change.</summary>
-        public int AttackCycle => _attackCycle;
-        /// <summary>Movement intent this frame (patrol/alert/chase/disengage step requested and made recently).</summary>
-        public bool IsMoving => !_dead && Time.time - _lastMovedAt <= MoveHoldSeconds;
-        public bool IsDead => _dead;
-        /// <summary>Time the corpse object is destroyed (−1 while alive).</summary>
-        public float CorpseUntil => _corpseUntil;
 
         public static IReadOnlyList<MobFourStateAi> All => Live;
 
@@ -135,9 +117,8 @@ namespace RogueShooter.Ai
                 if (data.mobPatrolRadius > 0f) _patrolRadius = data.mobPatrolRadius;
             }
 
-            // L5: Patrol → Alert radius is a logic distance from L5Rules (melee 8u / ranged 10u),
-            // independent of the camera size; replaces the lock-CSV mobDetectRadius (5.5).
-            detect = DetectRadiusFor(profile.RangedOrb, attack);
+            if (profile.RangedOrb && detect < attack + 0.5f)
+                detect = attack + 1.0f;
 
             var stub = GetComponent<StubEnemy>();
             string kind = stub != null ? stub.KindId : "E1";
@@ -149,10 +130,7 @@ namespace RogueShooter.Ai
             _brain.Configure(detect, mul, alert, attack);
             _sr = GetComponent<SpriteRenderer>();
             if (_sr != null)
-            {
-                _base = KindTint(kind, _sr.color);
-                _sr.color = _base;
-            }
+                _sr.color = Color.white;
 
             _pressure = GetComponent<EnemyPressureState>();
             if (_player != null)
@@ -168,7 +146,6 @@ namespace RogueShooter.Ai
             _lungeCd = 0f;
             _knockLeft = 0f;
             _rootUntil = 0f;
-            _hurtUntil = 0f;
             _orbs.Clear();
             EnsureLabel();
             _bang = GetComponent<MobBangMarker>();
@@ -185,8 +162,6 @@ namespace RogueShooter.Ai
             }
 
             ApplyVisual();
-            CollisionVolume.Add(gameObject, CollisionLayer.Mob, false, CollisionRules.MobHalfX, CollisionRules.MobHalfY);
-            EntityAnimView.Add(gameObject, false);
             Debug.Log($"[MobAI] {name} Patrol home={_home} stage={StageIdUtil.Label(_stage)} kind={kind} " +
                       $"elite={_elite} detect={detect:0.0} alert={alert:0.00}s attack={attack:0.00} DRAFT");
         }
@@ -215,7 +190,6 @@ namespace RogueShooter.Ai
         public void NotifyDamaged()
         {
             _pendingDamage = true;
-            _hurtUntil = Time.time + ActionSpecP1.EnemyHurt(CurrentKindId()).Duration;
             if (_player != null)
                 _lastKnown = _player.position;
         }
@@ -232,9 +206,7 @@ namespace RogueShooter.Ai
             if (_shieldRaised)
                 ShatterShield();
             if (_sr != null)
-                _sr.color = new Color(0.92f, 0.92f, 0.88f);
-            if (_label != null)
-                _label.text = "STAGGER";
+                _sr.color = Color.white;
             Debug.Log($"[MobAI] {name} weak-spot stagger {dur:0.00}s");
         }
 
@@ -276,8 +248,6 @@ namespace RogueShooter.Ai
             _knockLeft = 0f;
             _lunging = false;
             NotifyDamaged();
-            if (_label != null)
-                _label.text = "ROOT";
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
                       + " root=" + dur.ToString("0.00") + "s kb=0 shield=1 elite="
                       + (_elite ? 1 : 0) + " (same-species)");
@@ -316,17 +286,13 @@ namespace RogueShooter.Ai
 
         void OnEnable()
         {
-            var stub = GetComponent<StubEnemy>();
-            if (stub != null && stub.IsDead)
-                _dead = true;
-            if (!_dead && !Live.Contains(this))
+            if (!Live.Contains(this))
                 Live.Add(this);
+            var stub = GetComponent<StubEnemy>();
             if (stub != null)
             {
                 stub.Damaged -= NotifyDamaged;
                 stub.Damaged += NotifyDamaged;
-                stub.Died -= OnStubDied;
-                stub.Died += OnStubDied;
             }
         }
 
@@ -335,61 +301,15 @@ namespace RogueShooter.Ai
             Live.Remove(this);
             var stub = GetComponent<StubEnemy>();
             if (stub != null)
-            {
                 stub.Damaged -= NotifyDamaged;
-                stub.Died -= OnStubDied;
-            }
-        }
-
-        /// <summary>
-        /// Death: leave Live (arrow / hitscan / strike / screen-cap all iterate Live), drop the mob
-        /// collision volume so arrows and bodies pass through, hide the state label + bang, then
-        /// destroy the object once the death clip has played.
-        /// </summary>
-        void OnStubDied(StubEnemy stub)
-        {
-            if (_dead)
-                return;
-            _dead = true;
-            Live.Remove(this);
-            _inWindup = false;
-            _lunging = false;
-            _knockLeft = 0f;
-            SetBang(false);
-            if (_label != null)
-                _label.gameObject.SetActive(false);
-            if (_shieldVis != null)
-                _shieldVis.SetRaised(false, _facing);
-            var vol = GetComponent<CollisionVolume>();
-            if (vol != null)
-                vol.enabled = false;
-            var box = GetComponent<BoxCollider2D>();
-            if (box != null)
-                box.enabled = false;
-            _corpseUntil = Time.time + ActionSpecP1.EnemyDeath(CurrentKindId()).Duration + CorpseLingerSeconds;
-            Debug.Log($"[MobAI] {name} died → collision off, corpse until +{_corpseUntil - Time.time:0.00}s");
         }
 
         void Update()
         {
-            if (RunPause.IsPaused)
+            if (RunPause.IsPaused || _player == null)
                 return;
-
-            if (_dead)
-            {
-                if (_corpseUntil > 0f && Time.time >= _corpseUntil)
-                    Destroy(gameObject);
-                return;
-            }
-
-            var stub = GetComponent<StubEnemy>();
-            if (stub != null && stub.IsDead)
-            {
-                OnStubDied(stub);
-                return;
-            }
-
-            if (_player == null)
+            var body = GetComponent<StubEnemy>();
+            if (body != null && body.IsDead)
                 return;
 
             if (_lungeCd > 0f)
@@ -419,8 +339,8 @@ namespace RogueShooter.Ai
             DistToPlayer = delta.magnitude;
             if (DistToPlayer <= _brain.DetectRadius)
                 _lastKnown = _player.position;
-            if (_brain.State != MobAiState.Patrol)
-                _facing = FacingToward(delta, _facing);
+            if (delta.sqrMagnitude > 0.0001f && _brain.State != MobAiState.Patrol)
+                _facing = delta.normalized;
 
             TickShield();
 
@@ -437,7 +357,7 @@ namespace RogueShooter.Ai
                 ApplyVisual();
                 if (_brain.State == MobAiState.Attack && prev != MobAiState.Attack)
                     BeginAttackCycle();
-                if (_brain.State != MobAiState.Attack)
+                if (_brain.State != MobAiState.Attack && (!_inWindup || DistToPlayer > _brain.DisengageRadius))
                 {
                     _inWindup = false;
                     _windupLeft = 0f;
@@ -455,9 +375,7 @@ namespace RogueShooter.Ai
 
             if (IsRooted)
             {
-                if (_label != null)
-                    _label.text = "ROOT";
-                if (_brain.State == MobAiState.Attack)
+                if (_brain.State == MobAiState.Attack || _inWindup)
                     TickAttack(Time.deltaTime);
                 return;
             }
@@ -477,7 +395,7 @@ namespace RogueShooter.Ai
                 return;
             }
 
-            if (_brain.State == MobAiState.Attack)
+            if (_brain.State == MobAiState.Attack || _inWindup)
                 TickAttack(Time.deltaTime);
 
             Move(delta);
@@ -539,60 +457,8 @@ namespace RogueShooter.Ai
                 return;
             }
 
-            TryStartWindup(profile);
-        }
-
-        /// <summary>L5 Patrol → Alert radius (logic u). Ranged keeps the legacy "≥ attack + 1" guard.</summary>
-        public static float DetectRadiusFor(bool ranged, float attackRange)
-        {
-            float detect = L5Rules.AggroFor(ranged);
-            if (ranged && detect < attackRange + 0.5f)
-                detect = attackRange + 1.0f;
-            return detect;
-        }
-
-        /// <summary>Logic-space unit facing toward <paramref name="delta"/>; keeps previous (normalized) when zero.</summary>
-        public static Vector3 FacingToward(Vector3 delta, Vector3 previous)
-        {
-            delta.z = 0f;
-            if (delta.sqrMagnitude > 0.0001f)
-                return delta.normalized;
-            previous.z = 0f;
-            return previous.sqrMagnitude > 0.0001f ? previous.normalized : Vector3.right;
-        }
-
-        /// <summary>L5 hard rule: a ranged caster fires only from inside the screen view quad.</summary>
-        public static bool RangedMayFire(bool ranged, bool insideViewQuad)
-        {
-            return !ranged || !L5Rules.RangedFireRequiresInView || insideViewQuad;
-        }
-
-        /// <summary>Count of windups / fires refused by the view rule (probe / log).</summary>
-        public int BlockedFireCount { get; private set; }
-
-        bool FireBlockedByView(EnemyKindProfile profile)
-        {
-            if (RangedMayFire(profile.RangedOrb, ViewSpace.InViewQuad(transform.position)))
-                return false;
-            BlockedFireCount++;
-            _inWindup = false;
-            SetBang(false);
-            _cooldownLeft = Mathf.Max(0.02f, L5Rules.BlockedFireRetrySeconds);
-            return true;
-        }
-
-        void TryStartWindup(EnemyKindProfile profile)
-        {
-            if (FireBlockedByView(profile))
-                return;
-            StartWindup(profile);
-        }
-
-        void StartWindup(EnemyKindProfile profile)
-        {
             _inWindup = true;
             _windupLeft = profile.WindupSeconds;
-            _attackCycle++;
             SetBang(true);
         }
 
@@ -616,9 +482,9 @@ namespace RogueShooter.Ai
                     return;
                 if (profile.RangedOrb && LiveOrbCount() > 0)
                     return;
-                TryStartWindup(profile);
-                if (!_inWindup)
-                    return;
+                _inWindup = true;
+                _windupLeft = profile.WindupSeconds;
+                SetBang(true);
             }
 
             if (!_inWindup)
@@ -628,13 +494,11 @@ namespace RogueShooter.Ai
             if (_windupLeft > 0f)
                 return;
 
-            if (FireBlockedByView(profile))
-                return;
             _inWindup = false;
             SetBang(false);
             if (profile.RangedOrb)
                 FireOrbs(profile);
-            else
+            else if (DistToPlayer <= _brain.AttackRange + 0.08f)
                 DealMeleeHit();
             _cooldownLeft = profile.AttackIntervalSeconds;
         }
@@ -647,8 +511,6 @@ namespace RogueShooter.Ai
                 _playerVitals.ApplyHit(dmg, CurrentKindId());
             else
                 Debug.Log($"[MobAI] {name} hit dmg={dmg:0.#} (no PlayerVitals)");
-            Debug.Log("[ActionSpec] OnHitOpen kind=" + CurrentKindId()
-                      + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
         }
 
         void FireOrbs(EnemyKindProfile profile)
@@ -663,8 +525,10 @@ namespace RogueShooter.Ai
             dir.Normalize();
             float walk = _chaseSpeed > 0.01f ? _chaseSpeed : profile.WalkSpeedPlayStub;
             float speed = EnemyCombatRules.OrbSpeedForKind(CurrentKindId(), walk);
-            // L5: logic range 12u / flight 1.0s (not camera width × 0.7).
-            float maxRange = EnemyCombatRules.OrbMaxRange(speed);
+            Camera cam = Camera.main;
+            float ortho = cam != null ? cam.orthographicSize : EnemyCombatRules.PlayOrthoSize;
+            float aspect = cam != null ? CameraViewMath.ResolveAspect(cam) : EnemyCombatRules.DefaultAspect;
+            float maxRange = EnemyCombatRules.OrbMaxRange(ortho, aspect);
             float dmg = HitDamage();
             int n = EnemyCombatRules.OrbCount(CurrentKindId());
             for (int i = 0; i < n; i++)
@@ -678,26 +542,45 @@ namespace RogueShooter.Ai
 
                 float ox, oy;
                 EnemyCombatRules.RotateDeg(dir.x, dir.y, deg, out ox, out oy);
-                Color col = CurrentKindId() == EnemyKindIds.GrandMage
-                    ? new Color(0.25f, 0.95f, 1f)
-                    : new Color(0.95f, 0.2f, 0.95f);
-                var orb = MageOrbProjectile.SpawnVisual(origin + new Vector3(ox, oy, 0f) * 0.35f, col);
-                orb.gameObject.name = "Orb_" + CurrentKindId();
+                Vector3 shot = new Vector3(ox, oy, 0f);
+                var go = new GameObject("Orb_" + CurrentKindId());
+                go.transform.position = StaffTip(shot);
+                SpriteRenderer orbSprite = go.AddComponent<SpriteRenderer>();
+                orbSprite.sortingOrder = 40;
+                Sprite fly = Stage1IsoArt.MageOrbSprite(0);
+                if (fly != null)
+                {
+                    orbSprite.sprite = fly;
+                    float wide = fly.bounds.size.x;
+                    if (wide > 0.01f && wide < 0.8f)
+                    {
+                        float fit = 0.8f / wide;
+                        go.transform.localScale = new Vector3(fit, fit, 1f);
+                    }
+                }
+                var orb = go.AddComponent<MageOrbProjectile>();
                 _orbs.Add(orb);
-                orb.Launch(orb.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
+                orb.Launch(go.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
             }
 
             _lastDealt = dmg;
-            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, L5 range/flight)");
-            Debug.Log("[ActionSpec] OnOrbSpawn kind=" + CurrentKindId()
-                      + " clip=" + ActionSpecP1.EnemyAttack(CurrentKindId()).Root);
+            Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
+        }
+
+        /// <summary>Staff point from the sample-room mage, turned from its south pose into the shot.</summary>
+        Vector3 StaffTip(Vector3 dir)
+        {
+            Vector2 tip = new Vector2(0.44f, 1.22f);
+            float rad = (Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + 90f) * Mathf.Deg2Rad;
+            float c = Mathf.Cos(rad);
+            float s = Mathf.Sin(rad);
+            Vector2 turned = new Vector2(tip.x * c - tip.y * s, tip.x * s + tip.y * c);
+            return transform.position + new Vector3(turned.x, turned.y, 0f);
         }
 
         void OnOrbDespawn(MageOrbProjectile orb, string reason)
         {
             _orbs.Remove(orb);
-            if (this == null)
-                return; // caster corpse already destroyed; the orb outlived it.
             Debug.Log($"[Orb] {name} despawn {reason} live={LiveOrbCount()}");
         }
 
@@ -723,7 +606,7 @@ namespace RogueShooter.Ai
             float max = _knockSpeed * _knockLeft;
             if (step > max)
                 step = max;
-            Shift(_knockDir * step);
+            transform.position += _knockDir * step;
             _knockLeft -= dt;
             if (_knockLeft < 0f)
                 _knockLeft = 0f;
@@ -734,8 +617,6 @@ namespace RogueShooter.Ai
             _lunging = true;
             _lungeLeft = EnemyCombatRules.LungeDistanceStub;
             _lungeDir = toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.right;
-            if (_label != null)
-                _label.text = "LUNGE";
             Debug.Log($"[Lunge] {name} start dist={DistToPlayer:0.00} DRAFT dmg=[{EnemyCombatRules.LungeDamageMinEasyStub},{EnemyCombatRules.LungeDamageMaxEasyStub}]");
         }
 
@@ -744,7 +625,7 @@ namespace RogueShooter.Ai
             float step = EnemyCombatRules.LungeSpeedStub * dt;
             if (step > _lungeLeft)
                 step = _lungeLeft;
-            Shift(_lungeDir * step);
+            transform.position += _lungeDir * step;
             _lungeLeft -= step;
             if (DistToPlayer <= EnemyCombatRules.LungeContactRadiusStub)
             {
@@ -805,57 +686,25 @@ namespace RogueShooter.Ai
                 case MobAiState.Patrol:
                     _patrolT += dt * 0.85f;
                     Vector3 patrol = _home + new Vector3(Mathf.Cos(_patrolT), Mathf.Sin(_patrolT), 0f) * _patrolRadius;
-                    ShiftTowards(patrol, _patrolSpeed * mul * dt);
+                    transform.position = Vector3.MoveTowards(transform.position, patrol, _patrolSpeed * mul * dt);
                     break;
                 case MobAiState.Alert:
-                    ShiftTowards(_lastKnown, _patrolSpeed * 0.75f * mul * dt);
+                    transform.position = Vector3.MoveTowards(transform.position, _lastKnown, _patrolSpeed * 0.75f * mul * dt);
                     break;
                 case MobAiState.Chase:
                     if (DistToPlayer > 0.2f)
-                        Shift(toPlayer.normalized * (_chaseSpeed * mul * dt));
+                        transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
                     break;
                 case MobAiState.Attack:
                     break;
                 case MobAiState.Disengage:
-                    ShiftTowards(_home, _disengageSpeed * mul * dt);
+                    transform.position = Vector3.MoveTowards(transform.position, _home, _disengageSpeed * mul * dt);
                     break;
             }
         }
 
-        void Shift(Vector3 delta)
-        {
-            Vector3 before = transform.position;
-            CollisionWorld.TryMove(
-                transform,
-                CollisionRules.MobHalfX,
-                CollisionRules.MobHalfY,
-                delta.x, delta.y);
-            Vector3 moved = transform.position - before;
-            moved.z = 0f;
-            if (moved.sqrMagnitude > 1e-10f && !IsKnocking)
-                _lastMovedAt = Time.time;
-        }
-
-        void ShiftTowards(Vector3 target, float maxDelta)
-        {
-            Vector3 next = Vector3.MoveTowards(transform.position, target, maxDelta);
-            Shift(next - transform.position);
-        }
-
         void EnsureLabel()
         {
-            if (_label != null)
-                return;
-            var go = new GameObject("AiState");
-            go.transform.SetParent(transform, false);
-            go.transform.localPosition = new Vector3(0f, 0.85f, 0f);
-            _label = go.AddComponent<TextMesh>();
-            _label.anchor = TextAnchor.LowerCenter;
-            _label.alignment = TextAlignment.Center;
-            _label.characterSize = 0.14f;
-            _label.fontSize = 24;
-            _label.color = Color.white;
-            BuiltinUiFont.Apply(_label);
         }
 
         void SetBang(bool on)
@@ -863,62 +712,13 @@ namespace RogueShooter.Ai
             if (_bang == null)
                 return;
             _bang.SetVisible(on);
-            if (on && _label != null)
-                _label.text = "!";
         }
 
         void ApplyVisual()
         {
-            if (_label != null)
-            {
-                if (IsRooted)
-                    _label.text = "ROOT";
-                else if (_shieldRaised)
-                    _label.text = "SHIELD";
-                else if (_elite)
-                    _label.text = "ELITE " + _brain.State.ToString().ToUpperInvariant();
-                else
-                    _label.text = _brain.State.ToString().ToUpperInvariant();
-            }
-
-            if (_sr == null)
-                return;
-            if (_shieldRaised)
-            {
-                _sr.color = new Color(0.40f, 0.70f, 1f);
-                return;
-            }
-
-            switch (_brain.State)
-            {
-                case MobAiState.Alert:
-                    _sr.color = new Color(0.98f, 0.86f, 0.22f);
-                    break;
-                case MobAiState.Chase:
-                    _sr.color = new Color(1f, 0.18f, 0.12f);
-                    break;
-                case MobAiState.Attack:
-                    _sr.color = new Color(1f, 0.05f, 0.35f);
-                    break;
-                case MobAiState.Disengage:
-                    _sr.color = new Color(0.95f, 0.55f, 0.18f);
-                    break;
-                default:
-                    _sr.color = _base;
-                    break;
-            }
+            if (_sr != null)
+                _sr.color = Color.white;
         }
 
-        static Color KindTint(string kind, Color fallback)
-        {
-            switch (kind)
-            {
-                case EnemyKindIds.Dog: return new Color(0.95f, 0.55f, 0.18f);
-                case EnemyKindIds.CultMage: return new Color(0.78f, 0.22f, 0.85f);
-                case EnemyKindIds.Shield: return new Color(0.35f, 0.55f, 0.92f);
-                case EnemyKindIds.GrandMage: return new Color(0.20f, 0.82f, 0.95f);
-                default: return fallback;
-            }
-        }
     }
 }

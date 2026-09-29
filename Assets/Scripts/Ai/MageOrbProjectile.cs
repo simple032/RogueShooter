@@ -1,8 +1,6 @@
 using UnityEngine;
-using RogueShooter.Art;
-using RogueShooter.Combat;
+using RogueShooter.Demo;
 using RogueShooter.Player;
-using RogueShooter.Vision;
 
 namespace RogueShooter.Ai
 {
@@ -20,22 +18,10 @@ namespace RogueShooter.Ai
         Transform _player;
         System.Action<MageOrbProjectile, string> _onDespawn;
         bool _dead;
+        float _fly;
+        SpriteRenderer _renderer;
 
         public bool Alive => !_dead && isActiveAndEnabled;
-
-        public static MageOrbProjectile SpawnVisual(Vector3 origin, Color tint)
-        {
-            var go = new GameObject("Orb");
-            go.transform.position = origin;
-            JianHaiBind.ApplyTo(go, JianHaiArtCatalog.OrbFlight);
-            var sr = go.GetComponent<SpriteRenderer>();
-            if (sr != null)
-                sr.color = tint;
-            CollisionVolume.Add(go, CollisionLayer.Projectile, false, ProjectileRules.OrbHitRadius, ProjectileRules.OrbHitRadius);
-            go.AddComponent<ProjectileTrail>().Configure(
-                JianHaiArtCatalog.OrbFlight, 0.05f, 0.18f, 0.36f);
-            return go.AddComponent<MageOrbProjectile>();
-        }
 
         public void Launch(
             Vector3 origin,
@@ -58,8 +44,6 @@ namespace RogueShooter.Ai
             _player = player;
             _onDespawn = onDespawn;
             _dead = false;
-            if (GetComponent<CollisionVolume>() == null)
-                CollisionVolume.Add(gameObject, CollisionLayer.Projectile, false, ProjectileRules.OrbHitRadius, ProjectileRules.OrbHitRadius);
         }
 
         void Update()
@@ -68,19 +52,17 @@ namespace RogueShooter.Ai
                 return;
             float dt = Time.deltaTime;
             float step = _speed * dt;
-            Vector3 from = transform.position;
-            CollisionHit block = CollisionWorld.Trace(
-                from.x, from.y, _dir.x, _dir.y, step + 0.02f, ProjectileRules.OrbHitRadius,
-                CollisionLayer.Wall | CollisionLayer.Door, transform);
-            if (block.Hit)
-            {
-                transform.position = new Vector3(block.X, block.Y, from.z);
-                Despawn(block.Layer == CollisionLayer.Door ? "door" : "wall");
-                return;
-            }
-
-            transform.position = from + _dir * step;
+            transform.position += _dir * step;
             _traveled += step;
+            _fly += dt;
+            if (_renderer == null)
+                _renderer = GetComponent<SpriteRenderer>();
+            if (_renderer != null)
+            {
+                Sprite frame = Stage1IsoArt.MageOrbSprite(Mathf.FloorToInt(_fly * 12f));
+                if (frame != null)
+                    _renderer.sprite = frame;
+            }
 
             if (_traveled >= _maxRange)
             {
@@ -88,8 +70,7 @@ namespace RogueShooter.Ai
                 return;
             }
 
-            // L5 (default on): orbs end only on range / wall-door / player hit, never on the screen edge.
-            if (!L5Rules.OrbRangeOrWallOnly && OffCamera())
+            if (OffCamera())
             {
                 Despawn("edge");
                 return;
@@ -99,7 +80,7 @@ namespace RogueShooter.Ai
             {
                 Vector3 d = _player.position - transform.position;
                 d.z = 0f;
-                if (d.sqrMagnitude <= ProjectileRules.OrbHitRadius * ProjectileRules.OrbHitRadius)
+                if (d.sqrMagnitude <= EnemyCombatRules.OrbHitRadiusStub * EnemyCombatRules.OrbHitRadiusStub)
                 {
                     var vitals = _player.GetComponent<PlayerVitals>();
                     if (vitals != null)
@@ -111,8 +92,16 @@ namespace RogueShooter.Ai
 
         bool OffCamera()
         {
-            // Legacy (switch off): screen view rect (ortho) / view quad (iso).
-            return !ViewSpace.InViewQuad(transform.position);
+            Camera cam = Camera.main;
+            if (cam == null)
+                return false;
+            // The play camera is pitched. An axis-aligned rect on the camera
+            // position sits off the floor and was deleting the orb the same frame it spawned.
+            Vector3 vp = cam.WorldToViewportPoint(transform.position);
+            if (vp.z < 0f)
+                return true;
+            const float pad = 0.04f;
+            return vp.x < -pad || vp.x > 1f + pad || vp.y < -pad || vp.y > 1f + pad;
         }
 
         void Despawn(string reason)

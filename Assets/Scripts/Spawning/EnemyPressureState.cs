@@ -31,6 +31,11 @@ namespace RogueShooter.Spawning
             ApplyMinutes(_clock != null ? _clock.WallMinutes : 0f, log: true);
         }
 
+        void Update()
+        {
+            SyncUnengaged();
+        }
+
         public void SyncUnengaged()
         {
             if (_locked || _clock == null)

@@ -61,9 +61,17 @@ namespace RogueShooter.Demo
                 return;
             Damaged?.Invoke();
             hitPoints -= amount < 1 ? 1 : amount;
+            if (hitPoints < 0)
+                hitPoints = 0;
             if (hitPoints > 0)
+            {
+                RefreshHpBar();
                 return;
+            }
+
             _dead = true;
+            SetHpBar(false);
+            ShatterCurrentFrame();
             Died?.Invoke(this);
         }
 
@@ -73,6 +81,76 @@ namespace RogueShooter.Demo
                 return;
             float s = 1f + 0.08f * Mathf.Sin(Time.time * pulse);
             transform.localScale = _baseScale * _pressureScale * s;
+        }
+
+        void RefreshHpBar()
+        {
+            float ratio = _maxHp > 0 ? hitPoints / (float)_maxHp : 1f;
+            if (ratio >= 0.999f)
+            {
+                SetHpBar(false);
+                return;
+            }
+
+            Transform bar = transform.Find("HpBar");
+            if (bar == null)
+            {
+                Sprite track = Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/jh_ui_bar_mob_hp_track.png");
+                Sprite fill = Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/jh_ui_bar_mob_hp_fill.png");
+                if (track == null || fill == null)
+                    return;
+                var root = new GameObject("HpBar");
+                root.transform.SetParent(transform, false);
+                root.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+                SpriteRenderer trackRenderer = root.AddComponent<SpriteRenderer>();
+                trackRenderer.sprite = track;
+                trackRenderer.sortingOrder = 8;
+                var fillGo = new GameObject("Fill");
+                fillGo.transform.SetParent(root.transform, false);
+                SpriteRenderer fillRenderer = fillGo.AddComponent<SpriteRenderer>();
+                fillRenderer.sprite = fill;
+                fillRenderer.sortingOrder = 9;
+                bar = root.transform;
+            }
+
+            SetHpBar(true);
+            Transform fillTransform = bar.Find("Fill");
+            if (fillTransform != null)
+                fillTransform.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
+        }
+
+        void SetHpBar(bool visible)
+        {
+            Transform bar = transform.Find("HpBar");
+            if (bar != null)
+                bar.gameObject.SetActive(visible);
+        }
+
+        void ShatterCurrentFrame()
+        {
+            SpriteRenderer renderer = GetComponent<SpriteRenderer>();
+            Sprite frame = renderer != null ? renderer.sprite : null;
+            Color color = renderer != null ? renderer.color : Color.white;
+            Vector3 scale = transform.localScale * 0.35f;
+            if (renderer != null)
+                renderer.enabled = false;
+            Collider2D[] cols = GetComponents<Collider2D>();
+            for (int i = 0; i < cols.Length; i++)
+                cols[i].enabled = false;
+            const int pieces = 6;
+            for (int i = 0; i < pieces; i++)
+            {
+                float ang = i * (360f / pieces) * Mathf.Deg2Rad;
+                var bit = new GameObject("Shatter");
+                bit.transform.position = transform.position;
+                bit.transform.localScale = scale;
+                var shard = bit.AddComponent<SpriteRenderer>();
+                shard.sprite = frame;
+                shard.color = color;
+                shard.sortingOrder = 8;
+                var kick = bit.AddComponent<MobShatterBit>();
+                kick.Kick(new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 2.4f);
+            }
         }
     }
 }

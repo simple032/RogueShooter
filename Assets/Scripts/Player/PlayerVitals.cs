@@ -15,6 +15,7 @@ namespace RogueShooter.Player
 
         public float MaxHp => maxHp;
         public float Hp { get; private set; }
+        public bool IsDown => Hp <= 0.001f;
         public float LastHitDamage { get; private set; }
         public string LastHitKind { get; private set; }
         public bool IsDead => Hp <= 0.001f;

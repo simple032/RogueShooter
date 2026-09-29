@@ -52,6 +52,13 @@ namespace RogueShooter.Ai
 
         public MobAiState Tick(float distToPlayer, bool damaged, float dt, bool atHome)
         {
+            // Already in reach: swing or cast now. Do not sit in Alert at contact range.
+            if (distToPlayer <= AttackRange)
+            {
+                SetState(MobAiState.Attack);
+                return State;
+            }
+
             if (damaged)
                 EnterAlert();
 
