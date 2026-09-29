@@ -1,9 +1,10 @@
 using UnityEngine;
+using RogueShooter.Player;
 
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// Swaps an accepted iso actor between idle and walk, eight facings.
+    /// Swaps an accepted iso actor between idle, walk and roll, eight facings.
     /// </summary>
     public sealed class Stage1IsoActor : MonoBehaviour
     {
@@ -13,6 +14,7 @@ namespace RogueShooter.Demo
         string _facing = "s";
         float _clock;
         bool _moving;
+        PlayerRoll _roll;
 
         public string Family
         {
@@ -36,7 +38,7 @@ namespace RogueShooter.Demo
                 _renderer = GetComponent<SpriteRenderer>();
             if (_renderer == null)
                 _renderer = gameObject.AddComponent<SpriteRenderer>();
-            _renderer.sortingOrder = 20;
+            _renderer.sortingOrder = 0;
             _renderer.color = Color.white;
             transform.localScale = Vector3.one;
             _last = transform.position;
@@ -45,6 +47,26 @@ namespace RogueShooter.Demo
 
         void LateUpdate()
         {
+            if (_roll == null)
+                _roll = GetComponent<PlayerRoll>();
+
+            if (_roll != null && _roll.IsRolling)
+            {
+                // True 8-direction roll: 8 frames at 20 fps, no walk frames mixed in.
+                _facing = FacingFrom((Vector3)_roll.RollDirection);
+                _moving = true;
+                _last = transform.position;
+                if (_renderer != null)
+                {
+                    int frame = Mathf.Clamp(Mathf.FloorToInt(_roll.RollElapsed * 20f), 0, 7);
+                    Sprite sprite = Stage1IsoArt.RollSprite(_facing, frame);
+                    if (sprite != null)
+                        _renderer.sprite = sprite;
+                    _renderer.flipX = false;
+                }
+                return;
+            }
+
             Vector3 delta = transform.position - _last;
             delta.z = 0f;
             _moving = delta.sqrMagnitude > 0.0004f;
