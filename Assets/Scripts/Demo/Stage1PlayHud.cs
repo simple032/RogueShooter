@@ -190,7 +190,10 @@ namespace RogueShooter.Demo
             DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 52f, 180f, 10f), ChargeShotRules.Progress(held));
             int gold = _demo.RunBuild != null ? _demo.RunBuild.Gold : 0;
             var style = new GUIStyle(GUI.skin.label) { fontSize = 14 };
-            GUI.Label(new Rect(96f, 66f, 80f, 18f), gold.ToString(), style);
+            Sprite coin = Stage1IsoArt.PickupCoin();
+            if (coin != null && coin.texture != null)
+                GUI.DrawTexture(new Rect(96f, 64f, 18f, 18f), coin.texture, ScaleMode.ScaleToFit);
+            GUI.Label(new Rect(118f, 66f, 80f, 18f), gold.ToString(), style);
         }
 
         void DrawTimeRing(Rect rect)
@@ -198,8 +201,8 @@ namespace RogueShooter.Demo
             Sprite ring = Ui("jh_ui_ring_time");
             if (ring == null || ring.texture == null)
                 return;
-            float minutes = Time.timeSinceLevelLoad / 60f;
-            float angle = minutes / 10f * 360f;
+            // Second hand of the wall clock. No lap length in minutes.
+            float angle = Time.timeSinceLevelLoad * 6f;
             Matrix4x4 prev = GUI.matrix;
             GUIUtility.RotateAroundPivot(angle, rect.center);
             GUI.DrawTexture(rect, ring.texture);
