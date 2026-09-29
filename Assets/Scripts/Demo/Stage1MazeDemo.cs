@@ -141,6 +141,7 @@ namespace RogueShooter.Demo
             Debug.Log("[Stage1] restart gold=" + (_build != null ? _build.Gold : 0)
                       + " rewards=0 timer=0");
             Debug.Log(Stage1IsoArt.PackLine());
+            Debug.Log(Stage1IsoArt.ProportionLine());
             LogDryRun();
             if (!Application.isEditor && Application.isBatchMode)
                 Application.Quit();
@@ -255,7 +256,8 @@ namespace RogueShooter.Demo
             CameraFollow2D follow = cam.GetComponent<CameraFollow2D>();
             if (follow == null)
                 follow = cam.gameObject.AddComponent<CameraFollow2D>();
-            follow.SetIsoView(IsoPitchDeg, IsoYawDeg, 16f);
+            // Art is already isometric. Do not pitch the camera on top of it.
+            follow.SetFaceOn(16f);
             follow.SetTarget(player.transform);
             if (cam.GetComponent<IsoSortAxis>() == null)
                 cam.gameObject.AddComponent<IsoSortAxis>();
