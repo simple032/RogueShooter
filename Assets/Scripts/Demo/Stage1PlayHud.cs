@@ -74,6 +74,17 @@ namespace RogueShooter.Demo
             _demo = demo;
         }
 
+        public void BeginRun()
+        {
+            _dead = false;
+            _inherit = 0;
+            _prevHp = -1f;
+            _flash = 0f;
+            _peakFlash = 0f;
+            _visited.Clear();
+            _iconNames.Clear();
+        }
+
         public void ClearPeakFlash()
         {
             _peakFlash = 0f;
@@ -93,7 +104,7 @@ namespace RogueShooter.Demo
             NoteHit();
             NoteIcons();
 
-            float minutes = Time.timeSinceLevelLoad / 60f;
+            float minutes = _demo.RunSeconds / 60f;
             PhaseText = TimePressure.PhaseLabel(minutes);
             CritText = _focus != null ? _focus.HudLine : GuaranteedCritActive.HudText(0f, 0f);
 
@@ -109,10 +120,11 @@ namespace RogueShooter.Demo
             if (_flash > 0f)
                 _flash = Mathf.MoveTowards(_flash, 0f, Time.deltaTime * 2.5f);
 
-            if (!_dead && _vitals != null && _vitals.Hp <= 0.001f)
+            if (!_dead && _vitals != null && _vitals.IsDown)
             {
                 _dead = true;
                 _inherit = EconomyGold.DeathInherit(gold);
+                Debug.Log("[Stage1] death lock move attack interact inherit=" + _inherit);
             }
         }
 
@@ -201,8 +213,8 @@ namespace RogueShooter.Demo
             Sprite ring = Ui("jh_ui_ring_time");
             if (ring == null || ring.texture == null)
                 return;
-            // Second hand of the wall clock. No lap length in minutes.
-            float angle = Time.timeSinceLevelLoad * 6f;
+            // Second hand of the wall clock. No lap length in minutes. Restarts at 0.
+            float angle = _demo.RunSeconds * 6f;
             Matrix4x4 prev = GUI.matrix;
             GUIUtility.RotateAroundPivot(angle, rect.center);
             GUI.DrawTexture(rect, ring.texture);
@@ -224,7 +236,7 @@ namespace RogueShooter.Demo
 
         Sprite Ui(string file)
         {
-            return IconFile("Assets/Art/JianHai/UI/" + file + ".png");
+            return Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/" + file + ".png");
         }
 
         void DrawVignette()
@@ -306,33 +318,12 @@ namespace RogueShooter.Demo
             string file;
             if (!IconByName.TryGetValue(rewardName, out file))
                 return null;
-#if UNITY_EDITOR
-            sprite = IconFile("Assets/Resources/JianHaiReward/" + file + ".png");
-#endif
+            sprite = Resources.Load<Sprite>("JianHaiReward/" + file);
+            if (sprite == null)
+                sprite = Stage1IsoArt.LoadSprite("Assets/Resources/JianHaiReward/" + file + ".png");
             if (sprite != null)
                 _icons[rewardName] = sprite;
             return sprite;
-        }
-
-        Sprite IconFile(string path)
-        {
-            Sprite sprite = null;
-#if UNITY_EDITOR
-            sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
-            if (sprite == null)
-            {
-                UnityEngine.Object[] all = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(path);
-                for (int i = 0; i < all.Length; i++)
-                {
-                    sprite = all[i] as Sprite;
-                    if (sprite != null)
-                        break;
-                }
-            }
-            return sprite;
-#else
-            return null;
-#endif
         }
     }
 }

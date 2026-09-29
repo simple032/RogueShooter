@@ -59,6 +59,7 @@ namespace RogueShooter.Demo
         string _status = "loading…";
         string _flash = "";
         float _flashUntil;
+        float _runEpoch;
         RunBuildState _build;
         RewardScreenView _rewardScreen;
         RewardOption[] _chestOffers = System.Array.Empty<RewardOption>();
@@ -79,15 +80,37 @@ namespace RogueShooter.Demo
 
         void Update()
         {
+            if (PlayerDown() && RewardOpen())
+                CloseReward();
             HandleHotkeys();
-            ContainPlayer();
-            TryEnterRoom();
+            if (!PlayerDown())
+            {
+                ContainPlayer();
+                TryEnterRoom();
+            }
+
             SweepDead();
+        }
+
+        public float RunSeconds
+        {
+            get { return Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch); }
+        }
+
+        public void RestartRun()
+        {
+            BuildRun(seed);
+            RunAcceptance();
         }
 
         void BuildRun(int newSeed)
         {
+            int kept = EconomyGold.StartGold;
+            if (_build != null)
+                kept = EconomyGold.StartGold + EconomyGold.DeathInherit(_build.Gold);
             ClearWorld();
+            if (_build != null)
+                _build.Reset(kept);
             seed = newSeed;
             _maze = Stage1MazeGen.Generate(seed);
             _pace = Stage1MazeGen.MeasurePacing(_maze, PlaySpeed());
@@ -114,7 +137,13 @@ namespace RogueShooter.Demo
                       + " pitch=" + MazeRules.PitchX.ToString("0") + "/"
                       + MazeRules.PitchY.ToString("0"));
             BuildWorld();
+            _runEpoch = Time.timeSinceLevelLoad;
+            Debug.Log("[Stage1] restart gold=" + (_build != null ? _build.Gold : 0)
+                      + " rewards=0 timer=0");
+            Debug.Log(Stage1IsoArt.PackLine());
             LogDryRun();
+            if (!Application.isEditor && Application.isBatchMode)
+                Application.Quit();
         }
 
         void LoadDraftPool()
@@ -197,6 +226,7 @@ namespace RogueShooter.Demo
             if (hud == null)
                 hud = gameObject.AddComponent<Stage1PlayHud>();
             hud.Bind(this);
+            hud.BeginRun();
             _world.Add(player);
             Debug.Log("[MoveSpeed] player=" + PlaySpeed().ToString("0.000")
                       + " ortho=" + orthographicSize.ToString("0")
@@ -370,8 +400,23 @@ namespace RogueShooter.Demo
             }
         }
 
+        bool PlayerDown()
+        {
+            if (_player == null)
+                return false;
+            PlayerVitals vitals = _player.GetComponent<PlayerVitals>();
+            return vitals != null && vitals.IsDown;
+        }
+
         void HandleHotkeys()
         {
+            if (PlayerDown())
+            {
+                if (Input.GetKeyDown(KeyCode.R))
+                    RestartRun();
+                return;
+            }
+
             if (RewardOpen())
             {
                 HandleRewardKeys();
@@ -385,10 +430,7 @@ namespace RogueShooter.Demo
             }
 
             if (Input.GetKeyDown(KeyCode.R))
-            {
-                BuildRun(seed);
-                RunAcceptance();
-            }
+                RestartRun();
 
             if (Input.GetKeyDown(KeyCode.F1))
                 Teleport("START");
@@ -665,7 +707,7 @@ namespace RogueShooter.Demo
         {
             if (enemy == null)
                 return;
-            float minutes = Time.timeSinceLevelLoad / 60f;
+            float minutes = RunSeconds / 60f;
             int amount = EconomyGold.KillGold(enemy.KindId, minutes);
             var go = new GameObject("Coin");
             go.transform.position = enemy.transform.position;
@@ -709,7 +751,7 @@ namespace RogueShooter.Demo
 
         void TryInteract()
         {
-            if (_player == null)
+            if (_player == null || PlayerDown())
                 return;
             MazeNode n = RoomAt(_player.position.x, _player.position.y, 0.2f);
             if (n == null)
@@ -1070,6 +1112,40 @@ namespace RogueShooter.Demo
             _portals.Clear();
         }
 
+        void ClearPrespawn()
+        {
+            foreach (KeyValuePair<string, List<GameObject>> pair in _prespawn)
+            {
+                List<GameObject> parked = pair.Value;
+                if (parked == null)
+                    continue;
+                for (int i = 0; i < parked.Count; i++)
+                {
+                    if (parked[i] != null)
+                        Destroy(parked[i]);
+                }
+            }
+
+            _prespawn.Clear();
+        }
+
+        void ClearShots()
+        {
+            ArrowFly[] arrows = UnityEngine.Object.FindObjectsOfType<ArrowFly>();
+            for (int i = 0; i < arrows.Length; i++)
+            {
+                if (arrows[i] != null)
+                    Destroy(arrows[i].gameObject);
+            }
+
+            MageOrbProjectile[] orbs = UnityEngine.Object.FindObjectsOfType<MageOrbProjectile>();
+            for (int i = 0; i < orbs.Length; i++)
+            {
+                if (orbs[i] != null)
+                    Destroy(orbs[i].gameObject);
+            }
+        }
+
         void ClearLive()
         {
             for (int i = 0; i < _live.Count; i++)
@@ -1090,6 +1166,8 @@ namespace RogueShooter.Demo
             }
             _portalWaiting = false;
             _skipPortalWait = false;
+            ClearPrespawn();
+            ClearShots();
             ClearPortals();
             ClearLive();
             _sessions.Clear();

@@ -49,7 +49,7 @@ namespace RogueShooter.Player
 
         void Update()
         {
-            if (RunPause.IsPaused)
+            if (RunPause.IsPaused || Down())
             {
                 if (_charging)
                     CancelCharge();
@@ -132,6 +132,14 @@ namespace RogueShooter.Player
         /// <summary>Test/helper: resolve and fire as if released after heldSeconds.</summary>
         public ChargeShotKind FireAtHeld(float heldSeconds)
         {
+            if (Down())
+            {
+                CancelCharge();
+                LastShot = ChargeShotKind.None;
+                LastDamage = 0f;
+                return ChargeShotKind.None;
+            }
+
             _charging = false;
             _held = 0f;
             _mid = false;
@@ -182,6 +190,12 @@ namespace RogueShooter.Player
         {
             PlayerRoll roll = GetComponent<PlayerRoll>();
             return roll != null && roll.LocksActions;
+        }
+
+        bool Down()
+        {
+            PlayerVitals vitals = GetComponent<PlayerVitals>();
+            return vitals != null && vitals.IsDown;
         }
 
         void LaunchArrow(float damage, ChargeShotKind kind, float heldSeconds)
