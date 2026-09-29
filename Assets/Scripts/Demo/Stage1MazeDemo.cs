@@ -220,7 +220,10 @@ namespace RogueShooter.Demo
             EnsureBuild();
             var charge = player.GetComponent<PlayerCharge>();
             if (charge != null)
+            {
                 charge.BindOwnedRewards(_build.OwnedRewardIds);
+                charge.BindMaze(_maze);
+            }
             _player = player.transform;
             _lastGood = startPos;
             var hud = GetComponent<Stage1PlayHud>();
@@ -991,19 +994,7 @@ namespace RogueShooter.Demo
 
         bool IsWalkable(float x, float y)
         {
-            for (int i = 0; i < _maze.Nodes.Length; i++)
-            {
-                if (_maze.Nodes[i].Contains(x, y, 0.15f))
-                    return true;
-            }
-
-            for (int i = 0; i < _maze.Edges.Length; i++)
-            {
-                if (_maze.Edges[i].Contains(x, y, 0.15f))
-                    return true;
-            }
-
-            return false;
+            return _maze != null && _maze.OpenAt(x, y);
         }
 
         MazeNode RoomAt(float x, float y, float inset)

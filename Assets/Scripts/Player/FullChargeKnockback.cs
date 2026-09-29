@@ -78,11 +78,18 @@ namespace RogueShooter.Player
         /// </summary>
         public static bool Applies(ChargeShotKind kind, float heldSeconds)
         {
+            return Applies(kind, heldSeconds, ChargeShotRules.RingFillSeconds);
+        }
+
+        /// <summary>Same rule, against the charge time the shot and the bar already share.</summary>
+        public static bool Applies(ChargeShotKind kind, float heldSeconds, float ringFill)
+        {
             if (kind == ChargeShotKind.None || kind == ChargeShotKind.Weak)
                 return false;
             if (kind == ChargeShotKind.Crit)
                 return true;
-            return heldSeconds + 0.0001f >= ChargeShotRules.RingFillSeconds;
+            float ring = ringFill > 0.05f ? ringFill : ChargeShotRules.RingFillSeconds;
+            return heldSeconds + 0.0001f >= ring;
         }
 
         public static bool RootsOnBodyHit(string kindId, bool shieldRaised, bool weakSpot)

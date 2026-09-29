@@ -4,8 +4,16 @@ using RogueShooter.Demo;
 
 namespace RogueShooter.Player
 {
+    public enum ArrowPathStop
+    {
+        Clear = 0,
+        Wall = 1,
+        Hit = 2
+    }
+
     /// <summary>
-    /// Visible arrow. Damage is applied only when it reaches the point aimed at release.
+    /// Visible arrow. Each step asks the flight path whether a wall or a body is in the way.
+    /// Damage is settled by that callback, not when a pre-aimed point is reached.
     /// Speed matches the accepted archer preview.
     /// </summary>
     public sealed class ArrowFly : MonoBehaviour
@@ -14,15 +22,17 @@ namespace RogueShooter.Player
 
         Vector3 _dest;
         Action _onArrive;
+        Func<Vector3, Vector3, ArrowPathStop> _sweep;
         float _fly;
         SpriteRenderer _renderer;
         bool _done;
 
-        public void Launch(Vector3 origin, Vector3 dest, Action onArrive)
+        public void Launch(Vector3 origin, Vector3 dest, Func<Vector3, Vector3, ArrowPathStop> sweep, Action onArrive)
         {
             transform.position = origin;
             dest.z = origin.z;
             _dest = dest;
+            _sweep = sweep;
             _onArrive = onArrive;
             _renderer = gameObject.AddComponent<SpriteRenderer>();
             _renderer.sortingOrder = 40;
@@ -52,7 +62,21 @@ namespace RogueShooter.Player
             Vector3 delta = _dest - transform.position;
             delta.z = 0f;
             float step = Speed * Time.deltaTime;
-            if (delta.sqrMagnitude <= step * step || delta.sqrMagnitude < 0.0001f)
+            bool arriving = delta.sqrMagnitude <= step * step || delta.sqrMagnitude < 0.0001f;
+            Vector3 next = arriving ? _dest : transform.position + delta.normalized * step;
+            ArrowPathStop stop = ArrowPathStop.Clear;
+            if (_sweep != null)
+                stop = _sweep(transform.position, next);
+            if (stop != ArrowPathStop.Clear)
+            {
+                _done = true;
+                _sweep = null;
+                _onArrive = null;
+                Destroy(gameObject);
+                return;
+            }
+
+            if (arriving)
             {
                 transform.position = _dest;
                 _done = true;
@@ -64,7 +88,7 @@ namespace RogueShooter.Player
                 return;
             }
 
-            transform.position += delta.normalized * step;
+            transform.position = next;
             _fly += Time.deltaTime;
             if (_renderer == null)
                 return;
