@@ -8,7 +8,7 @@ namespace RogueShooter.Maze
     /// Seeded Stage-1 maze only (Spec v0.5 §1/§3). Quota: Chest×2 + Altar×1 +
     /// Normal×2 + START + connector stub. Corridors are edges and never spawn.
     /// Same seed → same graph. No S2/S3 layouts.
-    /// v2e: rooms 52×40, pitch 82×70, N口 fixed Normal, 4-slot shuffle,
+    /// Rooms 36×28, pitch 58×50, gap 22. N口 fixed Normal, 4-slot shuffle,
     /// CONN follows Altar. Ordinary Chest×2 (no LargeChest upgrade).
     /// START door ~18u feel. Folds only if diagonal.
     /// </summary>

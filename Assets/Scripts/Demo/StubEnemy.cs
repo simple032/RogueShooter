@@ -65,11 +65,12 @@ namespace RogueShooter.Demo
                 hitPoints = 0;
             if (hitPoints > 0)
             {
-                ShowRemainingHp(hitPoints);
+                RefreshHpBar();
                 return;
             }
 
             _dead = true;
+            SetHpBar(false);
             ShatterCurrentFrame();
             Died?.Invoke(this);
         }
@@ -82,26 +83,47 @@ namespace RogueShooter.Demo
             transform.localScale = _baseScale * _pressureScale * s;
         }
 
-        void ShowRemainingHp(int remaining)
+        void RefreshHpBar()
         {
-            Transform existing = transform.Find("HpReadout");
-            GameObject go = existing != null ? existing.gameObject : new GameObject("HpReadout");
-            if (existing == null)
+            float ratio = _maxHp > 0 ? hitPoints / (float)_maxHp : 1f;
+            if (ratio >= 0.999f)
             {
-                go.transform.SetParent(transform, false);
-                go.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+                SetHpBar(false);
+                return;
             }
 
-            TextMesh label = go.GetComponent<TextMesh>();
-            if (label == null)
-                label = go.AddComponent<TextMesh>();
-            label.anchor = TextAnchor.LowerCenter;
-            label.alignment = TextAlignment.Center;
-            label.characterSize = 0.12f;
-            label.fontSize = 32;
-            label.color = Color.white;
-            label.text = remaining.ToString();
-            BuiltinUiFont.Apply(label);
+            Transform bar = transform.Find("HpBar");
+            if (bar == null)
+            {
+                Sprite track = Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/jh_ui_bar_mob_hp_track.png");
+                Sprite fill = Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/jh_ui_bar_mob_hp_fill.png");
+                if (track == null || fill == null)
+                    return;
+                var root = new GameObject("HpBar");
+                root.transform.SetParent(transform, false);
+                root.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+                SpriteRenderer trackRenderer = root.AddComponent<SpriteRenderer>();
+                trackRenderer.sprite = track;
+                trackRenderer.sortingOrder = 8;
+                var fillGo = new GameObject("Fill");
+                fillGo.transform.SetParent(root.transform, false);
+                SpriteRenderer fillRenderer = fillGo.AddComponent<SpriteRenderer>();
+                fillRenderer.sprite = fill;
+                fillRenderer.sortingOrder = 9;
+                bar = root.transform;
+            }
+
+            SetHpBar(true);
+            Transform fillTransform = bar.Find("Fill");
+            if (fillTransform != null)
+                fillTransform.localScale = new Vector3(Mathf.Clamp01(ratio), 1f, 1f);
+        }
+
+        void SetHpBar(bool visible)
+        {
+            Transform bar = transform.Find("HpBar");
+            if (bar != null)
+                bar.gameObject.SetActive(visible);
         }
 
         void ShatterCurrentFrame()

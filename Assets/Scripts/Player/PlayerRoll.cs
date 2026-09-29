@@ -12,7 +12,11 @@ namespace RogueShooter.Player
     {
         public const float FrameSeconds = 1f / 20f;
         public const int FrameCount = 8;
-        public const float Duration = FrameSeconds * FrameCount;
+        public const float MoveSeconds = 0.40f;
+        public const float MoveSpeed = 12f;
+        public const float MoveDistance = 4.8f;
+        public const float RecoverSeconds = 0.20f;
+        public const float Duration = MoveSeconds;
 
         float _t = float.MaxValue;
         Vector2 _dir = Vector2.right;
@@ -20,7 +24,18 @@ namespace RogueShooter.Player
 
         public bool IsRolling
         {
-            get { return _t < Duration; }
+            get { return _t < MoveSeconds; }
+        }
+
+        public bool IsRecovering
+        {
+            get { return _t >= MoveSeconds && _t < MoveSeconds + RecoverSeconds; }
+        }
+
+        /// <summary>Displacement plus the standing recovery. No extra iframe timer.</summary>
+        public bool LocksActions
+        {
+            get { return _t < MoveSeconds + RecoverSeconds; }
         }
 
         public Vector2 RollDirection
@@ -45,7 +60,7 @@ namespace RogueShooter.Player
             if (_actor == null)
                 _actor = GetComponent<Stage1IsoActor>();
 
-            if (_t < Duration)
+            if (_t < MoveSeconds + RecoverSeconds)
             {
                 _t += Time.deltaTime;
                 return;

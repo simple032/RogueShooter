@@ -59,7 +59,7 @@ namespace RogueShooter.Maze
             Stage1Maze maze = Stage1MazeGen.Generate(seed);
             MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (v2e 52x40 / pitch 82/70 gap30 START~18u)");
+            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (36x28 / pitch 58/50 gap22)");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
@@ -76,7 +76,7 @@ namespace RogueShooter.Maze
             sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatQuota(maze));
             sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" firstHop=").Append(pace.FirstHop.ToString("0.0")).Append("u/");
-            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (feel ~3s, not a lock)");
+            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (door gap 22u, not a lock)");
             sb.Append(" shortest=").Append(pace.ShortestWalk.ToString("0.0")).Append("u/");
             sb.Append(pace.ShortestWalkSeconds.ToString("0.0")).Append("s START→CONN");
             sb.Append(" maxSeg=").Append(pace.MaxCorridorSeg.ToString("0.0")).Append("u/");
@@ -127,7 +127,7 @@ namespace RogueShooter.Maze
                 }
             }
 
-            sb.AppendLine("# ASCII topology (col,row) Pitch 82/70  N口 fixed  CONN follows Altar");
+            sb.AppendLine("# ASCII topology (col,row) Pitch 58/50  N口 fixed  CONN follows Altar");
             sb.AppendLine(AsciiTopology(maze.TemplateId));
             return sb.ToString();
         }
@@ -186,7 +186,7 @@ namespace RogueShooter.Maze
         {
             return string.Join("\n", new[]
             {
-                "# S1 maze I/Z/C templates (v2e 52×40 / pitch 82×70 gap 30)",
+                "# S1 maze I/Z/C templates (36×28 / pitch 58×50 gap 22)",
                 "# Quota Chest×2 + Altar×1 + Normal×2 + START + CONN",
                 "# START neighbor = fixed Normal (N口). Not shuffled.",
                 "# Remaining 4 combat slots shuffle Altar×1 + Chest×2 + Normal×1.",
@@ -237,7 +237,7 @@ namespace RogueShooter.Maze
             var sb = new StringBuilder();
             sb.AppendLine("# Stage-1 walk evidence (v2e)");
             sb.AppendLine("# seconds = center-to-center path / moveSpeed. NO pure-walk time gate.");
-            sb.AppendLine("# START→N口 door ~18u / ~3s feel (not a lock). gap≤30u geometry lock.");
+            sb.AppendLine("# START→N口 door gap 22u (not a lock). gap≤30u geometry lock.");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" pitch=").Append(MazeRules.PitchX.ToString("0")).Append("/")
               .Append(MazeRules.PitchY.ToString("0"));
@@ -250,7 +250,7 @@ namespace RogueShooter.Maze
             sb.Append(" corridor=").Append(MazeRules.CorridorWidth.ToString("0.#"));
             sb.Append(" segMax=").Append(MazeRules.CorridorSegMax.ToString("0"));
             sb.AppendLine();
-            sb.AppendLine("ACCEPTANCE rooms=52x40 pitch=82/70 gap=30u startN=fixedNormal connFollowsAltar no-walk-clock");
+            sb.AppendLine("ACCEPTANCE rooms=36x28 pitch=58/50 gap=22u startN=fixedNormal connFollowsAltar no-walk-clock");
             sb.AppendLine("quota Chest×2+Altar×1+Normal×2+START+CONN");
             sb.AppendLine();
             sb.AppendLine("seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,start_n,conn_altar,gap_ok");
@@ -298,7 +298,7 @@ namespace RogueShooter.Maze
             sb.AppendLine("[S1Maze] " + Stage1MazeGen.FormatQuota(d));
             sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" firstHop=").Append(dp.FirstHop.ToString("0.0")).Append("u/");
-            sb.Append(dp.FirstHopSeconds.ToString("0.0")).Append("s (feel ~3s, not a lock)");
+            sb.Append(dp.FirstHopSeconds.ToString("0.0")).Append("s (door gap 22u, not a lock)");
             sb.Append(" shortest=").Append(dp.ShortestWalk.ToString("0.0")).Append("u/");
             sb.Append(dp.ShortestWalkSeconds.ToString("0.0")).Append("s START→CONN");
             sb.Append(" maxSeg=").Append(dp.MaxCorridorSeg.ToString("0.0")).Append("u/");
@@ -348,7 +348,7 @@ namespace RogueShooter.Maze
             sb.AppendLine();
             sb.Append("[S1Maze] walkOnly move=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" firstHop=").Append(pace.FirstHop.ToString("0.0")).Append("u/");
-            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (feel ~3s, not a lock)");
+            sb.Append(pace.FirstHopSeconds.ToString("0.0")).Append("s (door gap 22u, not a lock)");
             sb.Append(" shortest=").Append(pace.ShortestWalk.ToString("0.0")).Append("u/");
             sb.Append(pace.ShortestWalkSeconds.ToString("0.0")).Append("s START→CONN");
             sb.Append(" maxSeg=").Append(pace.MaxCorridorSeg.ToString("0.0")).Append("u/");

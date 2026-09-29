@@ -60,6 +60,13 @@ namespace RogueShooter.Demo
         string _flash = "";
         float _flashUntil;
         RunBuildState _build;
+        RewardScreenView _rewardScreen;
+        RewardOption[] _chestOffers = System.Array.Empty<RewardOption>();
+        AltarPick[] _altarOffers = System.Array.Empty<AltarPick>();
+        string _offerRoom;
+        bool _offerIsAltar;
+        readonly HashSet<string> _takenRewards = new HashSet<string>();
+        System.Random _offerRng;
 
         IEnumerator Start()
         {
@@ -99,7 +106,7 @@ namespace RogueShooter.Demo
                       + "s (informational walk; no clock gate)");
             Debug.Log("[S1Maze] walkOnly move=" + MazeRules.PlayMoveSpeed.ToString("0")
                       + " firstHop=" + _pace.FirstHop.ToString("0.0") + "u/"
-                      + _pace.FirstHopSeconds.ToString("0.0") + "s (feel ~3s, not a lock)"
+                      + _pace.FirstHopSeconds.ToString("0.0") + "s (door gap 22u, not a lock)"
                       + " shortest=" + _pace.ShortestWalk.ToString("0.0") + "u/"
                       + _pace.ShortestWalkSeconds.ToString("0.0") + "s START→CONN"
                       + " maxSeg=" + _pace.MaxCorridorSeg.ToString("0.0") + "u/"
@@ -365,6 +372,12 @@ namespace RogueShooter.Demo
 
         void HandleHotkeys()
         {
+            if (RewardOpen())
+            {
+                HandleRewardKeys();
+                return;
+            }
+
             if (Input.GetKeyDown(KeyCode.N))
             {
                 BuildRun(Environment.TickCount);
@@ -634,17 +647,35 @@ namespace RogueShooter.Demo
             ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
             ai.enabled = aiOn;
             string capturedId = roomId;
-            enemy.Died += _ => OnEnemyDied(capturedId);
+            enemy.Died += dead => OnEnemyDied(capturedId, dead);
             go.SetActive(true);
             return go;
         }
 
-        void OnEnemyDied(string roomId)
+        void OnEnemyDied(string roomId, StubEnemy enemy)
         {
+            DropCoin(enemy);
             CombatRoomSession session;
             if (!_sessions.TryGetValue(roomId, out session))
                 return;
             ApplySteps(session, session.NotifyKilled());
+        }
+
+        void DropCoin(StubEnemy enemy)
+        {
+            if (enemy == null)
+                return;
+            float minutes = Time.timeSinceLevelLoad / 60f;
+            int amount = EconomyGold.KillGold(enemy.KindId, minutes);
+            var go = new GameObject("Coin");
+            go.transform.position = enemy.transform.position;
+            var coin = go.AddComponent<Stage1Coin>();
+            coin.Bind(_player, amount, gain =>
+            {
+                EnsureBuild();
+                _build.AddGold(gain);
+            });
+            _world.Add(go);
         }
 
         void SweepDead()
@@ -698,15 +729,166 @@ namespace RogueShooter.Demo
                 return;
             }
 
-            Debug.Log("[S1Maze] interact room=" + n.Id + " kind=" + MazeRules.Label(n.Kind));
-            Flash("interact " + n.Id);
+            if (n.Kind != MazeNodeKind.Chest && n.Kind != MazeNodeKind.LargeChest && n.Kind != MazeNodeKind.Altar)
+            {
+                Debug.Log("[S1Maze] interact room=" + n.Id + " kind=" + MazeRules.Label(n.Kind));
+                Flash("interact " + n.Id);
+                return;
+            }
+
+            if (_takenRewards.Contains(n.Id))
+            {
+                Flash(n.Id + " already taken");
+                return;
+            }
+
+            OpenReward(n);
         }
 
         void OpenRoomProps(string roomId)
         {
-            GameObject chest;
-            if (_chests.TryGetValue(roomId, out chest))
-                Stage1IsoArt.OpenChest(chest);
+        }
+
+        bool RewardOpen()
+        {
+            return _rewardScreen != null && _rewardScreen.Session != null && _rewardScreen.Session.Open;
+        }
+
+        void OpenReward(MazeNode room)
+        {
+            EnsureBuild();
+            if (_offerRng == null)
+                _offerRng = new System.Random(seed);
+            _offerRoom = room.Id;
+            _offerIsAltar = room.Kind == MazeNodeKind.Altar;
+            RewardScreenView view = RewardView();
+            if (_offerIsAltar)
+            {
+                _altarOffers = AltarRewardRoll.RollThree(AltarSize.Small, _offerRng);
+                _chestOffers = System.Array.Empty<RewardOption>();
+                view.ShowAltar(CardsFromAltar(_altarOffers));
+            }
+            else
+            {
+                GameObject chest;
+                if (_chests.TryGetValue(room.Id, out chest))
+                    Stage1IsoArt.OpenChest(chest);
+                _chestOffers = RewardOffer.RollUnique(_lock, "chest", _offerRng);
+                _altarOffers = System.Array.Empty<AltarPick>();
+                view.ShowChest(CardsFrom(_chestOffers));
+            }
+
+            Debug.Log("[S1Maze] offer " + room.Id + " altar=" + (_offerIsAltar ? 1 : 0));
+        }
+
+        void HandleRewardKeys()
+        {
+            if (_rewardScreen == null || _rewardScreen.Session == null)
+                return;
+            if (!_rewardScreen.ChoicesVisible)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape))
+                    CancelReward();
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
+            {
+                CancelReward();
+                return;
+            }
+
+            int pick = -1;
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) pick = 0;
+            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) pick = 1;
+            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) pick = 2;
+            if (pick < 0)
+                return;
+            ConfirmReward(pick);
+        }
+
+        void ConfirmReward(int pick)
+        {
+            if (!RewardOpen() || _rewardScreen == null || !_rewardScreen.ChoicesVisible)
+                return;
+            EnsureBuild();
+            if (_offerIsAltar)
+            {
+                if (_altarOffers == null || pick < 0 || pick >= _altarOffers.Length)
+                    return;
+                _build.ConfirmAltarPick(AltarSize.Small, _altarOffers[pick].Id);
+            }
+            else
+            {
+                if (_chestOffers == null || pick < 0 || pick >= _chestOffers.Length)
+                    return;
+                RewardOption opt = _chestOffers[pick];
+                _build.GrantBuildPick(opt.Id, opt.Rarity, opt.Score, RunBuildState.ChestBuildDelta(false));
+                _build.AddGold(EconomyGold.ChestGold(false, Time.timeSinceLevelLoad / 60f));
+            }
+
+            if (!string.IsNullOrEmpty(_offerRoom))
+                _takenRewards.Add(_offerRoom);
+            var charge = _player != null ? _player.GetComponent<PlayerCharge>() : null;
+            if (charge != null)
+                charge.BindOwnedRewards(_build.OwnedRewardIds);
+            CloseReward();
+        }
+
+        void CancelReward()
+        {
+            CloseReward();
+        }
+
+        void CloseReward()
+        {
+            if (_rewardScreen != null)
+                _rewardScreen.Hide();
+            RunPause.InteractOpen = false;
+            Time.timeScale = 1f;
+            _offerRoom = null;
+        }
+
+        RewardScreenView RewardView()
+        {
+            if (_rewardScreen == null)
+            {
+                _rewardScreen = GetComponent<RewardScreenView>();
+                if (_rewardScreen == null)
+                    _rewardScreen = gameObject.AddComponent<RewardScreenView>();
+                _rewardScreen.OnPick = ConfirmReward;
+            }
+
+            return _rewardScreen;
+        }
+
+        static RewardCardData[] CardsFrom(RewardOption[] offers)
+        {
+            if (offers == null)
+                return System.Array.Empty<RewardCardData>();
+            var cards = new RewardCardData[offers.Length];
+            for (int i = 0; i < offers.Length; i++)
+            {
+                RewardTier tier = RewardTier.Low;
+                string rarity = offers[i].Rarity ?? "";
+                if (rarity.IndexOf("高", StringComparison.Ordinal) >= 0)
+                    tier = RewardTier.High;
+                else if (rarity.IndexOf("中", StringComparison.Ordinal) >= 0)
+                    tier = RewardTier.Mid;
+                cards[i] = RewardPresent.ToCard(offers[i].Id, tier, "", "", i, false);
+            }
+
+            return cards;
+        }
+
+        static RewardCardData[] CardsFromAltar(AltarPick[] picks)
+        {
+            if (picks == null)
+                return System.Array.Empty<RewardCardData>();
+            var cards = new RewardCardData[picks.Length];
+            for (int i = 0; i < picks.Length; i++)
+                cards[i] = RewardPresent.ToCard(picks[i].Id, picks[i].Tier, "", "", i, false);
+            return cards;
         }
 
         void SetDoors(string roomId, bool locked)
@@ -914,6 +1096,8 @@ namespace RogueShooter.Demo
             _roomFloors.Clear();
             _chests.Clear();
             _doors.Clear();
+            _takenRewards.Clear();
+            CloseReward();
             _active = null;
             if (_player != null)
             {

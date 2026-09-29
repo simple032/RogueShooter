@@ -65,13 +65,20 @@ namespace RogueShooter.Player
             Vector2 input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             if (input.sqrMagnitude > 1f)
                 input.Normalize();
+            if (_roll != null && _roll.IsRecovering)
+            {
+                if (!physics)
+                    return;
+                _body.velocity = Vector2.zero;
+                return;
+            }
             if (_roll != null && _roll.IsRolling)
             {
-                // Roll keeps the existing move speed and locks the direction.
+                // 0.40s at 12 covers 4.8. Do not reuse the walk speed.
                 if (!physics)
-                    transform.position += (Vector3)(_roll.RollDirection * BaseSpeed * dt);
+                    transform.position += (Vector3)(_roll.RollDirection * PlayerRoll.MoveSpeed * dt);
                 else
-                    _body.velocity = _roll.RollDirection * BaseSpeed;
+                    _body.velocity = _roll.RollDirection * PlayerRoll.MoveSpeed;
                 return;
             }
             if (!physics)
