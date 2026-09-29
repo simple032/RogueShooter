@@ -52,7 +52,8 @@ namespace RogueShooter.Player
 
         void Step(float dt, bool physics)
         {
-            if (RunPause.IsPaused)
+            PlayerVitals vitals = GetComponent<PlayerVitals>();
+            if (RunPause.IsPaused || (vitals != null && vitals.IsDown))
             {
                 if (physics)
                     _body.velocity = Vector2.zero;

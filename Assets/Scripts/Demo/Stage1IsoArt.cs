@@ -825,13 +825,25 @@ namespace RogueShooter.Demo
             return go;
         }
 
+        public static string PackLine()
+        {
+            int floor = Load("Assets/Art/JianHai/Iso/Tiles/S1/Floor/jh_iso_floor_s1_room_00.png") != null ? 1 : 0;
+            int wall = Load("Assets/Art/JianHai/Iso/Tiles/S1/Wall/jh_iso_wall_s1_l_00.png") != null ? 1 : 0;
+            int actor = Load("Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_idle_e_00.png") != null ? 1 : 0;
+            int anim = Load("Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_e_00.png") != null ? 1 : 0;
+            int ui = Load("Assets/Art/JianHai/UI/jh_ui_bar_hp_back.png") != null ? 1 : 0;
+            return "[Stage1Pack] floor=" + floor + " wall=" + wall + " actor=" + actor + " anim=" + anim + " ui=" + ui;
+        }
+
         static Sprite Load(string path)
         {
             Sprite sprite;
             if (Cache.TryGetValue(path, out sprite) && sprite != null)
                 return sprite;
+            sprite = Stage1PackedSprites.Find(path);
 #if UNITY_EDITOR
-            sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite == null)
+                sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
             if (sprite == null)
             {
                 Object[] all = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(path);

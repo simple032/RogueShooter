@@ -34,7 +34,8 @@ namespace RogueShooter.Player
 
         void Update()
         {
-            if (RunPause.IsPaused)
+            PlayerVitals vitals = GetComponent<PlayerVitals>();
+            if (RunPause.IsPaused || (vitals != null && vitals.IsDown))
                 return;
 
             if (_buffLeft > 0f)
