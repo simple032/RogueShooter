@@ -25,10 +25,17 @@ namespace RogueShooter.Player
             _dest = dest;
             _onArrive = onArrive;
             _renderer = gameObject.AddComponent<SpriteRenderer>();
-            _renderer.sortingOrder = 5;
+            _renderer.sortingOrder = 40;
             Sprite first = Stage1IsoArt.ArrowFlySprite(0);
             if (first != null)
+            {
                 _renderer.sprite = first;
+                // Sheet is 96×32 with a 6px shaft. Scale that shaft so it leaves the body readable.
+                Vector2 size = first.bounds.size;
+                float length = Mathf.Max(0.05f, size.x * (90f / 96f));
+                float shaft = Mathf.Max(0.02f, size.y * (6f / 32f));
+                transform.localScale = new Vector3(1.7f / length, 0.32f / shaft, 1f);
+            }
             Vector3 delta = _dest - origin;
             delta.z = 0f;
             if (delta.sqrMagnitude > 0.0001f)

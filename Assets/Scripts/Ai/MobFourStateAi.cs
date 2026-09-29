@@ -28,9 +28,7 @@ namespace RogueShooter.Ai
         float _patrolRadius = 1.8f;
         float _patrolT;
         bool _pendingDamage;
-        TextMesh _label;
         SpriteRenderer _sr;
-        Color _base = new Color(0.86f, 0.28f, 0.24f);
         EnemyPressureState _pressure;
         PlayerVitals _playerVitals;
         float _windupLeft;
@@ -58,6 +56,10 @@ namespace RogueShooter.Ai
         float _rootUntil;
 
         public MobAiState State => _brain.State;
+        public bool InMeleeWindup
+        {
+            get { return _inWindup && !EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb; }
+        }
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
@@ -123,10 +125,7 @@ namespace RogueShooter.Ai
             _brain.Configure(detect, mul, alert, attack);
             _sr = GetComponent<SpriteRenderer>();
             if (_sr != null)
-            {
-                _base = KindTint(kind, _sr.color);
-                _sr.color = _base;
-            }
+                _sr.color = Color.white;
 
             _pressure = GetComponent<EnemyPressureState>();
             if (_player != null)
@@ -202,9 +201,7 @@ namespace RogueShooter.Ai
             if (_shieldRaised)
                 ShatterShield();
             if (_sr != null)
-                _sr.color = new Color(0.92f, 0.92f, 0.88f);
-            if (_label != null)
-                _label.text = "STAGGER";
+                _sr.color = Color.white;
             Debug.Log($"[MobAI] {name} weak-spot stagger {dur:0.00}s");
         }
 
@@ -246,8 +243,6 @@ namespace RogueShooter.Ai
             _knockLeft = 0f;
             _lunging = false;
             NotifyDamaged();
-            if (_label != null)
-                _label.text = "ROOT";
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
                       + " root=" + dur.ToString("0.00") + "s kb=0 shield=1 elite="
                       + (_elite ? 1 : 0) + " (same-species)");
@@ -357,7 +352,7 @@ namespace RogueShooter.Ai
                 ApplyVisual();
                 if (_brain.State == MobAiState.Attack && prev != MobAiState.Attack)
                     BeginAttackCycle();
-                if (_brain.State != MobAiState.Attack)
+                if (_brain.State != MobAiState.Attack && (!_inWindup || DistToPlayer > _brain.DisengageRadius))
                 {
                     _inWindup = false;
                     _windupLeft = 0f;
@@ -375,9 +370,7 @@ namespace RogueShooter.Ai
 
             if (IsRooted)
             {
-                if (_label != null)
-                    _label.text = "ROOT";
-                if (_brain.State == MobAiState.Attack)
+                if (_brain.State == MobAiState.Attack || _inWindup)
                     TickAttack(Time.deltaTime);
                 return;
             }
@@ -397,7 +390,7 @@ namespace RogueShooter.Ai
                 return;
             }
 
-            if (_brain.State == MobAiState.Attack)
+            if (_brain.State == MobAiState.Attack || _inWindup)
                 TickAttack(Time.deltaTime);
 
             Move(delta);
@@ -500,7 +493,7 @@ namespace RogueShooter.Ai
             SetBang(false);
             if (profile.RangedOrb)
                 FireOrbs(profile);
-            else
+            else if (DistToPlayer <= _brain.AttackRange + 0.08f)
                 DealMeleeHit();
             _cooldownLeft = profile.AttackIntervalSeconds;
         }
@@ -548,10 +541,18 @@ namespace RogueShooter.Ai
                 var go = new GameObject("Orb_" + CurrentKindId());
                 go.transform.position = StaffTip(shot);
                 SpriteRenderer orbSprite = go.AddComponent<SpriteRenderer>();
-                orbSprite.sortingOrder = 5;
+                orbSprite.sortingOrder = 40;
                 Sprite fly = Stage1IsoArt.MageOrbSprite(0);
                 if (fly != null)
+                {
                     orbSprite.sprite = fly;
+                    float wide = fly.bounds.size.x;
+                    if (wide > 0.01f && wide < 0.8f)
+                    {
+                        float fit = 0.8f / wide;
+                        go.transform.localScale = new Vector3(fit, fit, 1f);
+                    }
+                }
                 var orb = go.AddComponent<MageOrbProjectile>();
                 _orbs.Add(orb);
                 orb.Launch(go.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
@@ -611,8 +612,6 @@ namespace RogueShooter.Ai
             _lunging = true;
             _lungeLeft = EnemyCombatRules.LungeDistanceStub;
             _lungeDir = toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.right;
-            if (_label != null)
-                _label.text = "LUNGE";
             Debug.Log($"[Lunge] {name} start dist={DistToPlayer:0.00} DRAFT dmg=[{EnemyCombatRules.LungeDamageMinEasyStub},{EnemyCombatRules.LungeDamageMaxEasyStub}]");
         }
 
@@ -701,18 +700,6 @@ namespace RogueShooter.Ai
 
         void EnsureLabel()
         {
-            if (_label != null)
-                return;
-            var go = new GameObject("AiState");
-            go.transform.SetParent(transform, false);
-            go.transform.localPosition = new Vector3(0f, 0.85f, 0f);
-            _label = go.AddComponent<TextMesh>();
-            _label.anchor = TextAnchor.LowerCenter;
-            _label.alignment = TextAlignment.Center;
-            _label.characterSize = 0.14f;
-            _label.fontSize = 24;
-            _label.color = Color.white;
-            BuiltinUiFont.Apply(_label);
         }
 
         void SetBang(bool on)
@@ -720,62 +707,13 @@ namespace RogueShooter.Ai
             if (_bang == null)
                 return;
             _bang.SetVisible(on);
-            if (on && _label != null)
-                _label.text = "!";
         }
 
         void ApplyVisual()
         {
-            if (_label != null)
-            {
-                if (IsRooted)
-                    _label.text = "ROOT";
-                else if (_shieldRaised)
-                    _label.text = "SHIELD";
-                else if (_elite)
-                    _label.text = "ELITE " + _brain.State.ToString().ToUpperInvariant();
-                else
-                    _label.text = _brain.State.ToString().ToUpperInvariant();
-            }
-
-            if (_sr == null)
-                return;
-            if (_shieldRaised)
-            {
-                _sr.color = new Color(0.40f, 0.70f, 1f);
-                return;
-            }
-
-            switch (_brain.State)
-            {
-                case MobAiState.Alert:
-                    _sr.color = new Color(0.98f, 0.86f, 0.22f);
-                    break;
-                case MobAiState.Chase:
-                    _sr.color = new Color(1f, 0.18f, 0.12f);
-                    break;
-                case MobAiState.Attack:
-                    _sr.color = new Color(1f, 0.05f, 0.35f);
-                    break;
-                case MobAiState.Disengage:
-                    _sr.color = new Color(0.95f, 0.55f, 0.18f);
-                    break;
-                default:
-                    _sr.color = _base;
-                    break;
-            }
+            if (_sr != null)
+                _sr.color = Color.white;
         }
 
-        static Color KindTint(string kind, Color fallback)
-        {
-            switch (kind)
-            {
-                case EnemyKindIds.Dog: return new Color(0.95f, 0.55f, 0.18f);
-                case EnemyKindIds.CultMage: return new Color(0.78f, 0.22f, 0.85f);
-                case EnemyKindIds.Shield: return new Color(0.35f, 0.55f, 0.92f);
-                case EnemyKindIds.GrandMage: return new Color(0.20f, 0.82f, 0.95f);
-                default: return fallback;
-            }
-        }
     }
 }

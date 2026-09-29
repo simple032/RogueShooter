@@ -144,6 +144,13 @@ namespace RogueShooter.Build
             if (_font == null)
                 _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
+            if (UnityEngine.EventSystems.EventSystem.current == null)
+            {
+                var events = new GameObject("EventSystem");
+                events.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                events.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            }
+
             var root = new GameObject("RewardScreen", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             root.transform.SetParent(transform, false);
             _canvas = root.GetComponent<Canvas>();
