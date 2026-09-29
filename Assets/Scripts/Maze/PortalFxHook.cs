@@ -16,8 +16,13 @@ namespace RogueShooter.Maze
 
         public static string FormatSpawn(string roomId, int wave)
         {
+            return FormatSpawn(roomId, wave, MazeRules.PortalHoldSeconds);
+        }
+
+        public static string FormatSpawn(string roomId, int wave, float holdSeconds)
+        {
             return "[PortalFx] room=" + (roomId ?? "?") + " wave=" + wave
-                + " spawn after " + MazeRules.PortalHoldSeconds.ToString("0.0") + "s";
+                + " spawn after " + holdSeconds.ToString("0.0") + "s";
         }
 
         /// <summary>Back-compat alias for show.</summary>
@@ -40,7 +45,12 @@ namespace RogueShooter.Maze
 
         public static string PlaySpawn(string roomId, int wave)
         {
-            LastLine = FormatSpawn(roomId, wave);
+            return PlaySpawn(roomId, wave, MazeRules.PortalHoldSeconds);
+        }
+
+        public static string PlaySpawn(string roomId, int wave, float holdSeconds)
+        {
+            LastLine = FormatSpawn(roomId, wave, holdSeconds);
             return LastLine;
         }
 

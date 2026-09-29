@@ -145,7 +145,7 @@ namespace RogueShooter.Maze
                 Kind = "spawn",
                 Wave = wave,
                 ShouldSpawn = true,
-                Line = PortalFxHook.FormatSpawn(RoomId, wave)
+                Line = PortalFxHook.FormatSpawn(RoomId, wave, MazeRules.PlayPortalWaitSeconds)
             };
         }
 

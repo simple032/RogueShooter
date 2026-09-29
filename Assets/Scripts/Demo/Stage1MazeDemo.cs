@@ -70,6 +70,8 @@ namespace RogueShooter.Demo
         readonly Dictionary<string, RewardOption[]> _chestRolls = new Dictionary<string, RewardOption[]>();
         readonly Dictionary<string, AltarPick[]> _altarRolls = new Dictionary<string, AltarPick[]>();
         bool _connSettle;
+        bool _ignoreClear;
+        SpawnBandClock _pressureClock;
         System.Random _offerRng;
 
         public const float LockEdge = 0.45f;
@@ -87,6 +89,7 @@ namespace RogueShooter.Demo
         {
             if (PlayerDown() && RewardOpen())
                 CloseReward();
+            SyncPressureClock();
             HandleHotkeys();
             if (!PlayerDown())
             {
@@ -141,8 +144,8 @@ namespace RogueShooter.Demo
                       + _pace.MaxCorridorSegSeconds.ToString("0.00") + "s"
                       + " pitch=" + MazeRules.PitchX.ToString("0") + "/"
                       + MazeRules.PitchY.ToString("0"));
-            BuildWorld();
             _runEpoch = Time.timeSinceLevelLoad;
+            BuildWorld();
             Debug.Log("[Stage1] restart gold=" + (_build != null ? _build.Gold : 0)
                       + " rewards=0 timer=0");
             Debug.Log(Stage1IsoArt.PackLine());
@@ -575,7 +578,7 @@ namespace RogueShooter.Demo
             if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
                 TeleportFirstChest();
             if (Input.GetKeyDown(KeyCode.K))
-                KillLiveWave();
+                HotkeyKillIgnoreClear();
             if (Input.GetKeyDown(KeyCode.F9))
                 WriteEvidence();
             if (Input.GetKeyDown(KeyCode.E))
@@ -721,8 +724,7 @@ namespace RogueShooter.Demo
             Debug.Log(show);
             Flash("PORTAL " + session.RoomId + " w" + wave + " now");
 
-            // Play does not wait. PortalHoldSeconds stays 1.0 for the existing check only.
-            float hold = 0f;
+            float hold = MazeRules.PlayPortalWaitSeconds;
             float t = 0f;
             while (t < hold && !_skipPortalWait)
             {
@@ -731,7 +733,7 @@ namespace RogueShooter.Demo
             }
 
             _skipPortalWait = false;
-            Debug.Log(PortalFxHook.PlaySpawn(session.RoomId, wave));
+            Debug.Log(PortalFxHook.PlaySpawn(session.RoomId, wave, hold));
             ClearPortals();
             _portalWaiting = false;
             _cadence = null;
@@ -816,12 +818,50 @@ namespace RogueShooter.Demo
             ai.enabled = aiOn;
             string capturedId = roomId;
             enemy.Died += dead => OnEnemyDied(capturedId, dead);
+            BindPressure(go);
             go.SetActive(true);
             return go;
         }
 
+        void SyncPressureClock()
+        {
+            if (_pressureClock == null)
+            {
+                var go = new GameObject("Stage1PressureClock");
+                go.transform.SetParent(transform, false);
+                _pressureClock = go.AddComponent<SpawnBandClock>();
+                _pressureClock.SetPaused(true);
+            }
+
+            _pressureClock.JumpToMinutes(RunSeconds / 60f);
+        }
+
+        void BindPressure(GameObject go)
+        {
+            if (go == null)
+                return;
+            SyncPressureClock();
+            EnemyPressureState pressure = go.GetComponent<EnemyPressureState>();
+            if (pressure == null)
+                pressure = go.AddComponent<EnemyPressureState>();
+            pressure.Bind(_pressureClock, 1f, 1f);
+        }
+
+        public void ProofSetRunSeconds(float seconds)
+        {
+            _runEpoch = Time.timeSinceLevelLoad - Mathf.Max(0f, seconds);
+            SyncPressureClock();
+        }
+
+        public void ProofHotkeyKill()
+        {
+            HotkeyKillIgnoreClear();
+        }
+
         void OnEnemyDied(string roomId, StubEnemy enemy)
         {
+            if (_ignoreClear)
+                return;
             DropCoin(enemy);
             CombatRoomSession session;
             if (!_sessions.TryGetValue(roomId, out session))
@@ -853,6 +893,23 @@ namespace RogueShooter.Demo
                 if (_live[i] == null)
                     _live.RemoveAt(i);
             }
+        }
+
+        void HotkeyKillIgnoreClear()
+        {
+            _ignoreClear = true;
+            var snapshot = _live.ToArray();
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                if (snapshot[i] == null)
+                    continue;
+                StubEnemy enemy = snapshot[i].GetComponent<StubEnemy>();
+                if (enemy != null && !enemy.IsDead)
+                    enemy.TakeDamage(999);
+            }
+
+            _ignoreClear = false;
+            Debug.Log("[Stage1] hotkey kill ignored clear");
         }
 
         void KillLiveWave()
