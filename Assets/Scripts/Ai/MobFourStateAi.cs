@@ -58,7 +58,12 @@ namespace RogueShooter.Ai
         public MobAiState State => _brain.State;
         public bool InMeleeWindup
         {
-            get { return _inWindup && !EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb; }
+            get
+            {
+                if (EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb)
+                    return false;
+                return _inWindup || _brain.State == MobAiState.Attack;
+            }
         }
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
