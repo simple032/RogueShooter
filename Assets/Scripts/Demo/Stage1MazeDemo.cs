@@ -67,7 +67,12 @@ namespace RogueShooter.Demo
         string _offerRoom;
         bool _offerIsAltar;
         readonly HashSet<string> _takenRewards = new HashSet<string>();
+        readonly Dictionary<string, RewardOption[]> _chestRolls = new Dictionary<string, RewardOption[]>();
+        readonly Dictionary<string, AltarPick[]> _altarRolls = new Dictionary<string, AltarPick[]>();
+        bool _connSettle;
         System.Random _offerRng;
+
+        public const float LockEdge = 0.45f;
 
         IEnumerator Start()
         {
@@ -332,6 +337,71 @@ namespace RogueShooter.Demo
             }
         }
 
+        public string Prompt
+        {
+            get { return Time.unscaledTime <= _flashUntil ? _flash : ""; }
+        }
+
+        public bool ConnSettle { get { return _connSettle; } }
+
+        public bool OfferChoices
+        {
+            get { return _rewardScreen != null && _rewardScreen.ChoicesVisible; }
+        }
+
+        public void Interact()
+        {
+            TryInteract();
+        }
+
+        public void CloseOffer()
+        {
+            CancelReward();
+        }
+
+        public string[] CurrentOfferIds()
+        {
+            if (_offerIsAltar)
+                return IdsOfAltar(_altarOffers);
+            return IdsOfChest(_chestOffers);
+        }
+
+        public int ActiveDoorCount(string roomId)
+        {
+            int n = 0;
+            if (string.IsNullOrEmpty(roomId))
+                return 0;
+            string prefix = "Door_" + roomId + "_";
+            for (int i = 0; i < _doors.Count; i++)
+            {
+                GameObject d = _doors[i];
+                if (d != null && d.activeSelf && d.name.StartsWith(prefix, StringComparison.Ordinal))
+                    n++;
+            }
+
+            return n;
+        }
+
+        static string[] IdsOfChest(RewardOption[] offers)
+        {
+            if (offers == null)
+                return System.Array.Empty<string>();
+            var ids = new string[offers.Length];
+            for (int i = 0; i < offers.Length; i++)
+                ids[i] = offers[i].Id;
+            return ids;
+        }
+
+        static string[] IdsOfAltar(AltarPick[] offers)
+        {
+            if (offers == null)
+                return System.Array.Empty<string>();
+            var ids = new string[offers.Length];
+            for (int i = 0; i < offers.Length; i++)
+                ids[i] = offers[i].Id;
+            return ids;
+        }
+
         public int PrespawnCount(string roomId)
         {
             List<GameObject> parked;
@@ -385,6 +455,57 @@ namespace RogueShooter.Demo
 
         void PlaceDoor(Transform root, MazeNode room, MazeNode other)
         {
+            float dx = other.Center.X - room.Center.X;
+            float dy = other.Center.Y - room.Center.Y;
+            char side;
+            bool alongX;
+            float span;
+            float hx = room.Width * 0.5f - LockEdge;
+            float hy = room.Height * 0.5f - LockEdge;
+            Vector3 pos;
+            if (Mathf.Abs(dx) >= Mathf.Abs(dy))
+            {
+                side = dx >= 0f ? 'E' : 'W';
+                pos = new Vector3(room.Center.X + (side == 'E' ? hx : -hx), room.Center.Y, 0f);
+                alongX = false;
+                span = room.Height - LockEdge * 2f;
+            }
+            else
+            {
+                side = dy >= 0f ? 'N' : 'S';
+                pos = new Vector3(room.Center.X, room.Center.Y + (side == 'N' ? hy : -hy), 0f);
+                alongX = true;
+                span = room.Width - LockEdge * 2f;
+            }
+
+            string doorName = "Door_" + room.Id + "_" + side;
+            for (int i = 0; i < _doors.Count; i++)
+            {
+                if (_doors[i] != null && _doors[i].name == doorName)
+                    return;
+            }
+
+            string file = side == 'E' || side == 'W' ? "door_l_00" : "door_r_00";
+            Sprite sprite = Stage1IsoArt.LoadSprite(
+                "Assets/Art/JianHai/Iso/Tiles/S1/Wall/jh_iso_wall_s1_" + file + ".png");
+            var go = new GameObject(doorName);
+            go.transform.SetParent(root, false);
+            go.transform.position = pos;
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.sortingOrder = 6;
+            if (sprite != null)
+            {
+                Vector2 size = sprite.bounds.size;
+                if (alongX)
+                    go.transform.localScale = new Vector3(span / Mathf.Max(0.05f, size.x), 1f, 1f);
+                else
+                    go.transform.localScale = new Vector3(1f, span / Mathf.Max(0.05f, size.y), 1f);
+            }
+
+            go.SetActive(false);
+            _doors.Add(go);
+            _world.Add(go);
         }
 
         void LogDryRun()
@@ -765,27 +886,32 @@ namespace RogueShooter.Demo
             _sessions.TryGetValue(n.Id, out s);
             if (n.SpawnsEnemies && (s == null || s.Phase != CombatRoomPhase.Cleared))
             {
-                Flash("clear room first");
+                Flash("先清完这间");
                 return;
             }
 
             if (n.Kind == MazeNodeKind.Connector)
             {
-                Debug.Log("[S1Maze] connector stub — S2 maze not built");
-                Flash("CONN stub (S2 not built)");
+                _connSettle = true;
+                EnsureBuild();
+                int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+                Debug.Log("[Stage1] conn settle gold=" + _build.Gold
+                          + " build=" + _build.BuildCount
+                          + " rewards=" + rewards
+                          + " t=" + RunSeconds.ToString("0.0"));
                 return;
             }
 
             if (n.Kind != MazeNodeKind.Chest && n.Kind != MazeNodeKind.LargeChest && n.Kind != MazeNodeKind.Altar)
             {
                 Debug.Log("[S1Maze] interact room=" + n.Id + " kind=" + MazeRules.Label(n.Kind));
-                Flash("interact " + n.Id);
+                Flash("这里不能开");
                 return;
             }
 
             if (_takenRewards.Contains(n.Id))
             {
-                Flash(n.Id + " already taken");
+                Flash("已经拿过了");
                 return;
             }
 
@@ -811,7 +937,14 @@ namespace RogueShooter.Demo
             RewardScreenView view = RewardView();
             if (_offerIsAltar)
             {
-                _altarOffers = AltarRewardRoll.RollThree(AltarSize.Small, _offerRng);
+                AltarPick[] saved;
+                if (!_altarRolls.TryGetValue(room.Id, out saved))
+                {
+                    saved = AltarRewardRoll.RollThree(AltarSize.Small, _offerRng);
+                    _altarRolls[room.Id] = saved;
+                }
+
+                _altarOffers = saved;
                 _chestOffers = System.Array.Empty<RewardOption>();
                 view.ShowAltar(CardsFromAltar(_altarOffers));
             }
@@ -820,7 +953,14 @@ namespace RogueShooter.Demo
                 GameObject chest;
                 if (_chests.TryGetValue(room.Id, out chest))
                     Stage1IsoArt.OpenChest(chest);
-                _chestOffers = RewardOffer.RollUnique(_lock, "chest", _offerRng);
+                RewardOption[] saved;
+                if (!_chestRolls.TryGetValue(room.Id, out saved))
+                {
+                    saved = RewardOffer.RollUnique(_lock, "chest", _offerRng);
+                    _chestRolls[room.Id] = saved;
+                }
+
+                _chestOffers = saved;
                 _altarOffers = System.Array.Empty<AltarPick>();
                 view.ShowChest(CardsFrom(_chestOffers));
             }
@@ -974,8 +1114,10 @@ namespace RogueShooter.Demo
                 MazeNode room = _maze.Find(_active.RoomId);
                 if (room != null && !room.Contains(p.x, p.y, 0.35f))
                 {
-                    p.x = Mathf.Clamp(p.x, room.Center.X - room.Width * 0.5f + 0.45f, room.Center.X + room.Width * 0.5f - 0.45f);
-                    p.y = Mathf.Clamp(p.y, room.Center.Y - room.Height * 0.5f + 0.45f, room.Center.Y + room.Height * 0.5f - 0.45f);
+                    float hx = room.Width * 0.5f - LockEdge;
+                    float hy = room.Height * 0.5f - LockEdge;
+                    p.x = Mathf.Clamp(p.x, room.Center.X - hx, room.Center.X + hx);
+                    p.y = Mathf.Clamp(p.y, room.Center.Y - hy, room.Center.Y + hy);
                     _player.position = p;
                 }
 
@@ -1168,6 +1310,9 @@ namespace RogueShooter.Demo
             _chests.Clear();
             _doors.Clear();
             _takenRewards.Clear();
+            _chestRolls.Clear();
+            _altarRolls.Clear();
+            _connSettle = false;
             CloseReward();
             _active = null;
             if (_player != null)
@@ -1227,6 +1372,31 @@ namespace RogueShooter.Demo
 
         void OnGUI()
         {
+            if (!string.IsNullOrEmpty(_flash) && Time.unscaledTime <= _flashUntil)
+            {
+                var prompt = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 22,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                GUI.Label(new Rect(0f, Screen.height * 0.72f, Screen.width, 40f), _flash, prompt);
+            }
+
+            if (!_connSettle)
+                return;
+            int w = 360;
+            int h = 160;
+            float x = (Screen.width - w) * 0.5f;
+            float y = (Screen.height - h) * 0.5f;
+            GUI.Box(new Rect(x, y, w, h), "");
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
+            var line = new GUIStyle(GUI.skin.label) { fontSize = 16 };
+            EnsureBuild();
+            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+            GUI.Label(new Rect(x + 16f, y + 16f, w - 32f, 28f), "连接口结算", title);
+            GUI.Label(new Rect(x + 16f, y + 52f, w - 32f, 24f), "金币 " + _build.Gold, line);
+            GUI.Label(new Rect(x + 16f, y + 80f, w - 32f, 24f), "强化 " + rewards, line);
+            GUI.Label(new Rect(x + 16f, y + 108f, w - 32f, 24f), "用时 " + Mathf.FloorToInt(RunSeconds) + " 秒", line);
         }
     }
 }
