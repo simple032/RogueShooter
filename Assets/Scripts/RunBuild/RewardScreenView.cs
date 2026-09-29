@@ -24,6 +24,7 @@ namespace RogueShooter.Build
         public bool ChoicesVisible => Session != null && Session.ChoicesVisible;
 
         ChestAltarDirector _director;
+        public System.Action<int> OnPick;
         Canvas _canvas;
         Image _clip;
         GameObject _choiceRoot;
@@ -40,6 +41,8 @@ namespace RogueShooter.Build
         public void ShowChest(RewardCardData[] cards)
         {
             EnsureUi();
+            if (Session == null)
+                Session = new RewardScreenSession();
             Session.OpenChest();
             ApplyPause(true);
             _clip.gameObject.SetActive(true);
@@ -51,6 +54,8 @@ namespace RogueShooter.Build
         public void ShowAltar(RewardCardData[] cards)
         {
             EnsureUi();
+            if (Session == null)
+                Session = new RewardScreenSession();
             Session.OpenAltar();
             ApplyPause(true);
             _clip.gameObject.SetActive(true);
@@ -193,6 +198,8 @@ namespace RogueShooter.Build
                 {
                     if (_director != null)
                         _director.NotifyUiPick(index);
+                    else if (OnPick != null)
+                        OnPick(index);
                 });
                 if (!string.IsNullOrEmpty(card.Icon))
                 {

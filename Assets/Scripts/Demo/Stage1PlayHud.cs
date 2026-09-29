@@ -182,14 +182,46 @@ namespace RogueShooter.Demo
 
         void DrawStatus()
         {
-            const int w = 280;
-            const int h = 96;
-            GUI.Box(new Rect(8, 8, w, h), "");
+            DrawTimeRing(new Rect(12f, 12f, 72f, 72f));
+            float hp = _vitals != null ? _vitals.Hp : 0f;
+            float max = _vitals != null && _vitals.MaxHp > 0.01f ? _vitals.MaxHp : 1f;
+            DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 24f, 180f, 22f), hp / max);
+            float held = _charge != null ? _charge.HeldSeconds : 0f;
+            DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 52f, 180f, 10f), ChargeShotRules.Progress(held));
+            int gold = _demo.RunBuild != null ? _demo.RunBuild.Gold : 0;
             var style = new GUIStyle(GUI.skin.label) { fontSize = 14 };
-            GUI.Label(new Rect(16, 12, w - 16, 18), HpText + "    " + GoldText, style);
-            GUI.Label(new Rect(16, 32, w - 16, 18), ChargeText, style);
-            GUI.Label(new Rect(16, 52, w - 16, 18), CritText, style);
-            GUI.Label(new Rect(16, 72, w - 16, 18), PhaseText, style);
+            GUI.Label(new Rect(96f, 66f, 80f, 18f), gold.ToString(), style);
+        }
+
+        void DrawTimeRing(Rect rect)
+        {
+            Sprite ring = Ui("jh_ui_ring_time");
+            if (ring == null || ring.texture == null)
+                return;
+            float minutes = Time.timeSinceLevelLoad / 60f;
+            float angle = minutes / 10f * 360f;
+            Matrix4x4 prev = GUI.matrix;
+            GUIUtility.RotateAroundPivot(angle, rect.center);
+            GUI.DrawTexture(rect, ring.texture);
+            GUI.matrix = prev;
+        }
+
+        void DrawBar(string backId, string fillId, Rect rect, float amount)
+        {
+            Sprite back = Ui(backId);
+            Sprite fill = Ui(fillId);
+            if (back != null && back.texture != null)
+                GUI.DrawTexture(rect, back.texture, ScaleMode.StretchToFill);
+            if (fill == null || fill.texture == null || amount <= 0.001f)
+                return;
+            float shown = Mathf.Clamp01(amount);
+            var cut = new Rect(rect.x, rect.y, rect.width * shown, rect.height);
+            GUI.DrawTextureWithTexCoords(cut, fill.texture, new Rect(0f, 0f, shown, 1f));
+        }
+
+        Sprite Ui(string file)
+        {
+            return IconFile("Assets/Art/JianHai/UI/" + file + ".png");
         }
 
         void DrawVignette()
@@ -272,12 +304,32 @@ namespace RogueShooter.Demo
             if (!IconByName.TryGetValue(rewardName, out file))
                 return null;
 #if UNITY_EDITOR
-            string path = "Assets/Resources/JianHaiReward/" + file + ".png";
-            sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            sprite = IconFile("Assets/Resources/JianHaiReward/" + file + ".png");
 #endif
             if (sprite != null)
                 _icons[rewardName] = sprite;
             return sprite;
+        }
+
+        Sprite IconFile(string path)
+        {
+            Sprite sprite = null;
+#if UNITY_EDITOR
+            sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite == null)
+            {
+                UnityEngine.Object[] all = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(path);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    sprite = all[i] as Sprite;
+                    if (sprite != null)
+                        break;
+                }
+            }
+            return sprite;
+#else
+            return null;
+#endif
         }
     }
 }

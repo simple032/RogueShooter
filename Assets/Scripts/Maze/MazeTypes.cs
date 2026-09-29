@@ -220,8 +220,8 @@ namespace RogueShooter.Maze
     }
 
     /// <summary>
-    /// Spec v0.5 S1 maze. v2e lock: rooms 52×40 (Normal/Chest/Altar same),
-    /// pitch 82×70, ortho door gap 30u. START neighbor is a fixed Normal.
+    /// Spec v0.5 S1 maze. Rooms 36×28 (Normal/Chest/Altar/START/CONN),
+    /// pitch 58×50, ortho door gap 22u. START neighbor is a fixed Normal.
     /// Four combat slots shuffle Altar×1+Chest×2+Normal×1; CONN follows Altar.
     /// No pure-walk time gate. Folds only on diagonal links.
     /// </summary>
@@ -229,21 +229,21 @@ namespace RogueShooter.Maze
     {
         public const float PlayMoveSpeed = 6f;
         public const float PlayOrtho = 6f;
-        /// <summary>v2e. Pitch = room + 30u gap. START door is a shorter feel hop (~18u), not a clock lock.</summary>
-        public const float CombatWidth = 52f;
-        public const float CombatHeight = 40f;
-        public const float PitchX = 82f;
-        public const float PitchY = 70f;
-        public const float HubWidth = 52f;
-        public const float HubHeight = 40f;
-        public const float AltarWidth = 52f;
-        public const float AltarHeight = 40f;
+        /// <summary>Pitch = room + 22u gap. Not a clock lock.</summary>
+        public const float CombatWidth = 36f;
+        public const float CombatHeight = 28f;
+        public const float PitchX = 58f;
+        public const float PitchY = 50f;
+        public const float HubWidth = 36f;
+        public const float HubHeight = 28f;
+        public const float AltarWidth = 36f;
+        public const float AltarHeight = 28f;
         public const float CorridorWidth = 8f;
         public const float CorridorSegMax = 30f;
         public const float CorridorSegMaxSeconds = 5f;
-        /// <summary>START→N口 door gap feel (~3s @ 6). Not an ACCEPTANCE clock.</summary>
-        public const float StartDoorGap = 18f;
-        public const float StartPitchY = 58f;
+        /// <summary>START→N口 uses the same 22u door gap. Not an ACCEPTANCE clock.</summary>
+        public const float StartDoorGap = 22f;
+        public const float StartPitchY = 50f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Visible ground portal hold before each wave Instantiate. Not a clock lock.</summary>
         public const float PortalHoldSeconds = 1.0f;

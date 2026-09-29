@@ -223,7 +223,8 @@ namespace RogueShooter.Demo
                 src = "s";
             string action = moving && family == "archer" ? "walk" : "idle";
             int f = frame < 0 ? 0 : frame;
-            Sprite sprite = LoadActor(family, action, src, f % 3);
+            int span = action == "walk" ? 6 : 3;
+            Sprite sprite = LoadActor(family, action, src, f % span);
             if (sprite == null && action != "idle")
                 sprite = LoadActor(family, "idle", src, f % 3);
             if (sprite == null)
@@ -234,6 +235,33 @@ namespace RogueShooter.Demo
         public static Sprite RollSprite(string facing, int frame)
         {
             return Load(ActorRoot + "roll_" + facing + "_" + Mathf.Clamp(frame, 0, 7).ToString("00") + ".png");
+        }
+
+        public static Sprite AttackSprite(string facing, int frame)
+        {
+            return Load(ActorRoot + "atk_" + facing + "_" + Mathf.Clamp(frame, 0, 4).ToString("00") + ".png");
+        }
+
+        public static Sprite ArrowFlySprite(int frame)
+        {
+            int index = frame < 0 ? 0 : frame % 2;
+            return Load("Assets/Art/JianHai/Iso/Projectiles/jh_iso_proj_arrow_fly_" + index.ToString("00") + ".png");
+        }
+
+        public static Sprite MageOrbSprite(int frame)
+        {
+            int index = frame < 0 ? 0 : frame % 4;
+            return Load("Assets/Art/JianHai/Iso/Projectiles/jh_iso_proj_orb_mage_fly_" + index.ToString("00") + ".png");
+        }
+
+        public static Sprite PickupCoin()
+        {
+            return Load("Assets/Art/JianHai/Iso/Props/jh_iso_pickup_coin_00.png");
+        }
+
+        public static Sprite LoadSprite(string path)
+        {
+            return Load(path);
         }
 
         // ---- cell math ----

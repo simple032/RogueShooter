@@ -1,4 +1,5 @@
 using UnityEngine;
+using RogueShooter.Demo;
 using RogueShooter.Player;
 using RogueShooter.Vision;
 
@@ -18,6 +19,8 @@ namespace RogueShooter.Ai
         Transform _player;
         System.Action<MageOrbProjectile, string> _onDespawn;
         bool _dead;
+        float _fly;
+        SpriteRenderer _renderer;
 
         public bool Alive => !_dead && isActiveAndEnabled;
 
@@ -52,6 +55,15 @@ namespace RogueShooter.Ai
             float step = _speed * dt;
             transform.position += _dir * step;
             _traveled += step;
+            _fly += dt;
+            if (_renderer == null)
+                _renderer = GetComponent<SpriteRenderer>();
+            if (_renderer != null)
+            {
+                Sprite frame = Stage1IsoArt.MageOrbSprite(Mathf.FloorToInt(_fly * 12f));
+                if (frame != null)
+                    _renderer.sprite = frame;
+            }
 
             if (_traveled >= _maxRange)
             {

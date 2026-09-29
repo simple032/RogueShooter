@@ -59,7 +59,7 @@ namespace RogueShooter.Player
             bool hold = Input.GetMouseButton(0) || Input.GetKey(KeyCode.C);
             if (!_charging)
             {
-                if (hold && Time.time >= _recoverUntil)
+                if (hold && Time.time >= _recoverUntil && !RollLocked())
                     BeginCharge();
                 return;
             }
@@ -112,6 +112,14 @@ namespace RogueShooter.Player
 
         void ReleaseCharge()
         {
+            if (RollLocked())
+            {
+                CancelCharge();
+                LastShot = ChargeShotKind.None;
+                LastDamage = 0f;
+                return;
+            }
+
             float held = _held;
             _charging = false;
             _held = 0f;
@@ -166,15 +174,69 @@ namespace RogueShooter.Player
                       $"recover={ChargeShotRules.RecoverSeconds:0.00}s " +
                       $"(weak×{ChargeShotRules.WeakMul:0.00} full×{ChargeShotRules.FullMul:0.00} crit×{ChargeShotRules.CritMul:0.00})");
 
-            ApplyHit(dmg, kind, heldSeconds);
+            LaunchArrow(dmg, kind, heldSeconds);
             return kind;
         }
 
-        void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds)
+        bool RollLocked()
+        {
+            PlayerRoll roll = GetComponent<PlayerRoll>();
+            return roll != null && roll.LocksActions;
+        }
+
+        void LaunchArrow(float damage, ChargeShotKind kind, float heldSeconds)
         {
             RewardStatHooks.SyncClock(Time.time);
             Vector3 origin = transform.position;
             Vector3 aim = AimDirection();
+            Vector3 land = origin + aim * hitRange;
+            MobFourStateAi aimed = NearestInCone(origin, aim);
+            if (aimed != null)
+                land = aimed.transform.position;
+            land.z = origin.z;
+            float ang = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+            float rad = (ang + 90f) * Mathf.Deg2Rad;
+            Vector2 bowLocal = new Vector2(-0.28f, 0.9f);
+            Vector2 bow = new Vector2(
+                bowLocal.x * Mathf.Cos(rad) - bowLocal.y * Mathf.Sin(rad),
+                bowLocal.x * Mathf.Sin(rad) + bowLocal.y * Mathf.Cos(rad));
+            Vector3 muzzle = origin + new Vector3(bow.x, bow.y, 0f);
+            var go = new GameObject("Arrow");
+            var fly = go.AddComponent<ArrowFly>();
+            Vector3 shotOrigin = origin;
+            Vector3 shotAim = aim;
+            fly.Launch(muzzle, land, () => ApplyHit(damage, kind, heldSeconds, shotOrigin, shotAim));
+        }
+
+        MobFourStateAi NearestInCone(Vector3 origin, Vector3 aim)
+        {
+            MobFourStateAi best = null;
+            float bestDot = 0.35f;
+            float bestD = hitRange;
+            IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                MobFourStateAi mob = all[i];
+                if (mob == null || !mob.isActiveAndEnabled)
+                    continue;
+                Vector3 to = mob.transform.position - origin;
+                to.z = 0f;
+                float d = to.magnitude;
+                if (d < 0.01f || d > hitRange)
+                    continue;
+                float dot = Vector3.Dot(aim, to.normalized);
+                if (dot < bestDot || d >= bestD)
+                    continue;
+                bestD = d;
+                best = mob;
+            }
+
+            return best;
+        }
+
+        void ApplyHit(float damage, ChargeShotKind kind, float heldSeconds, Vector3 origin, Vector3 aim)
+        {
+            RewardStatHooks.SyncClock(Time.time);
             MobFourStateAi best = null;
             MobFourStateAi back = null;
             float bestDot = 0.35f;

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using RogueShooter.Ai;
 using RogueShooter.Boss;
+using RogueShooter.Demo;
 
 namespace RogueShooter.Player
 {
@@ -24,7 +25,21 @@ namespace RogueShooter.Player
                 return;
             if (!Input.GetKeyDown(KeyCode.F))
                 return;
+            PlayerRoll roll = GetComponent<PlayerRoll>();
+            if (roll != null && roll.IsRolling)
+                return;
+            Stage1IsoActor actor = GetComponent<Stage1IsoActor>();
+            if (actor != null && actor.Family == "archer")
+            {
+                actor.TryBeginAttack(ResolveStrike);
+                return;
+            }
 
+            ResolveStrike();
+        }
+
+        void ResolveStrike()
+        {
             MobFourStateAi best = null;
             float bestD = range;
             IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;

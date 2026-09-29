@@ -544,13 +544,14 @@ namespace RogueShooter.Ai
 
                 float ox, oy;
                 EnemyCombatRules.RotateDeg(dir.x, dir.y, deg, out ox, out oy);
+                Vector3 shot = new Vector3(ox, oy, 0f);
                 var go = new GameObject("Orb_" + CurrentKindId());
-                go.transform.position = origin + new Vector3(ox, oy, 0f) * 0.35f;
-                go.transform.localScale = new Vector3(0.28f, 0.28f, 1f);
-                Color col = CurrentKindId() == EnemyKindIds.GrandMage
-                    ? new Color(0.25f, 0.95f, 1f)
-                    : new Color(0.95f, 0.2f, 0.95f);
-                DemoPrimitives.AddSprite(go, col, 18);
+                go.transform.position = StaffTip(shot);
+                SpriteRenderer orbSprite = go.AddComponent<SpriteRenderer>();
+                orbSprite.sortingOrder = 5;
+                Sprite fly = Stage1IsoArt.MageOrbSprite(0);
+                if (fly != null)
+                    orbSprite.sprite = fly;
                 var orb = go.AddComponent<MageOrbProjectile>();
                 _orbs.Add(orb);
                 orb.Launch(go.transform.position, new Vector3(ox, oy, 0f), speed, maxRange, dmg, _player, OnOrbDespawn);
@@ -558,6 +559,17 @@ namespace RogueShooter.Ai
 
             _lastDealt = dmg;
             Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
+        }
+
+        /// <summary>Staff point from the sample-room mage, turned from its south pose into the shot.</summary>
+        Vector3 StaffTip(Vector3 dir)
+        {
+            Vector2 tip = new Vector2(0.44f, 1.22f);
+            float rad = (Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + 90f) * Mathf.Deg2Rad;
+            float c = Mathf.Cos(rad);
+            float s = Mathf.Sin(rad);
+            Vector2 turned = new Vector2(tip.x * c - tip.y * s, tip.x * s + tip.y * c);
+            return transform.position + new Vector3(turned.x, turned.y, 0f);
         }
 
         void OnOrbDespawn(MageOrbProjectile orb, string reason)

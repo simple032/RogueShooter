@@ -15,6 +15,13 @@ namespace RogueShooter.Demo
         float _clock;
         bool _moving;
         PlayerRoll _roll;
+        float _attackT = -1f;
+        bool _attackHit;
+        System.Action _onAttackHit;
+
+        public const float WalkFps = 12f;
+        public const float AttackFps = 12f;
+        public const int AttackHitFrame = 2;
 
         public string Family
         {
@@ -29,6 +36,24 @@ namespace RogueShooter.Demo
         public bool Moving
         {
             get { return _moving; }
+        }
+
+        public bool Attacking
+        {
+            get { return _attackT >= 0f; }
+        }
+
+        /// <summary>Play atk. The hit callback runs once the pose is readable.</summary>
+        public bool TryBeginAttack(System.Action onHit)
+        {
+            if (_attackT >= 0f)
+                return false;
+            if (_roll != null && _roll.IsRolling)
+                return false;
+            _attackT = 0f;
+            _attackHit = false;
+            _onAttackHit = onHit;
+            return true;
         }
 
         public void Bind(string family)
@@ -52,6 +77,8 @@ namespace RogueShooter.Demo
 
             if (_roll != null && _roll.IsRolling)
             {
+                _attackT = -1f;
+                _onAttackHit = null;
                 // True 8-direction roll: 8 frames at 20 fps, no walk frames mixed in.
                 _facing = FacingFrom((Vector3)_roll.RollDirection);
                 _moving = true;
@@ -67,13 +94,41 @@ namespace RogueShooter.Demo
                 return;
             }
 
+            if (_attackT >= 0f)
+            {
+                _attackT += Time.deltaTime;
+                int frame = Mathf.FloorToInt(_attackT * AttackFps);
+                if (!_attackHit && frame >= AttackHitFrame)
+                {
+                    _attackHit = true;
+                    System.Action hit = _onAttackHit;
+                    _onAttackHit = null;
+                    if (hit != null)
+                        hit();
+                }
+                if (_renderer != null)
+                {
+                    Sprite sprite = Stage1IsoArt.AttackSprite(_facing, frame);
+                    if (sprite != null)
+                        _renderer.sprite = sprite;
+                    _renderer.flipX = false;
+                }
+                if (frame >= 5)
+                    _attackT = -1f;
+                _last = transform.position;
+                return;
+            }
+
             Vector3 delta = transform.position - _last;
             delta.z = 0f;
             _moving = delta.sqrMagnitude > 0.0004f;
             if (_moving)
                 _facing = FacingFrom(delta);
             _last = transform.position;
-            _clock += Time.deltaTime * (_moving ? 8f : 4f);
+            float fps = 4f;
+            if (_moving)
+                fps = _family == "archer" ? WalkFps : 8f;
+            _clock += Time.deltaTime * fps;
             Apply();
         }
 
