@@ -27,6 +27,30 @@ namespace RogueShooter.Vision
             SnapNow();
         }
 
+        /// <summary>
+        /// Look straight at sprites that are already drawn isometric.
+        /// A pitched camera would squash that art a second time.
+        /// </summary>
+        public void SetFaceOn(float distance)
+        {
+            transform.rotation = Quaternion.identity;
+            float back = distance > 0.5f ? distance : 12f;
+            offset = new Vector3(0f, 0f, -back);
+            SnapNow();
+        }
+
+        /// <summary>
+        /// Look straight at the XY art. Floor, character, and wall sprites are already
+        /// drawn isometric, so a pitched camera must not squash them a second time.
+        /// </summary>
+        public void SetArtPlane(float distance)
+        {
+            transform.rotation = Quaternion.identity;
+            float back = distance > 0.5f ? distance : 12f;
+            offset = new Vector3(0f, 0f, -back);
+            SnapNow();
+        }
+
         public void SnapNow()
         {
             if (target == null)

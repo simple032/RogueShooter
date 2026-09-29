@@ -825,6 +825,25 @@ namespace RogueShooter.Demo
             return go;
         }
 
+        public static string ProportionLine()
+        {
+            Sprite floor = Load("Assets/Art/JianHai/Iso/Tiles/S1/Floor/jh_iso_floor_s1_room_00.png");
+            Sprite actor = Load("Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_idle_s_00.png");
+            Sprite wall = Load("Assets/Art/JianHai/Iso/Tiles/S1/Wall/jh_iso_wall_s1_l_00.png");
+            return "[Stage1] proportion floor=" + SizeText(floor)
+                   + " actor=" + SizeText(actor)
+                   + " wall=" + SizeText(wall)
+                   + " ppu=128";
+        }
+
+        static string SizeText(Sprite sprite)
+        {
+            if (sprite == null)
+                return "missing";
+            Vector3 s = sprite.bounds.size;
+            return s.x.ToString("0.00") + "x" + s.y.ToString("0.00");
+        }
+
         public static string PackLine()
         {
             int floor = Load("Assets/Art/JianHai/Iso/Tiles/S1/Floor/jh_iso_floor_s1_room_00.png") != null ? 1 : 0;
