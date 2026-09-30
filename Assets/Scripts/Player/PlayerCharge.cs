@@ -46,6 +46,14 @@ namespace RogueShooter.Player
             _ownedRewards = owned;
         }
 
+        public float DamageFor(ChargeShotKind kind, ShotRead read)
+        {
+            float dmg = ChargeShotRules.DamageWithBuild(kind, read.DamageProduct);
+            if (kind == ChargeShotKind.Crit)
+                dmg *= RewardStatHooks.ProductMul(_ownedRewards, "crit_damage");
+            return dmg;
+        }
+
         public void BindMaze(Stage1Maze maze)
         {
             _maze = maze;
@@ -182,7 +190,7 @@ namespace RogueShooter.Player
             if (_guaranteed != null && _guaranteed.TryForceCrit(kind, out ChargeShotKind forced))
                 kind = forced;
 
-            float dmg = ChargeShotRules.DamageWithBuild(kind, read.DamageProduct);
+            float dmg = DamageFor(kind, read);
             LastShot = kind;
             LastDamage = dmg;
             float p = read.Progress(heldSeconds);

@@ -1,4 +1,5 @@
 using UnityEngine;
+using RogueShooter.Ai;
 using RogueShooter.Balance;
 using RogueShooter.Demo;
 
@@ -50,8 +51,20 @@ namespace RogueShooter.Spawning
             if (_clock != null)
                 ApplyMinutes(_clock.WallMinutes, log: false);
             _locked = true;
+            SettleCombat();
             float t = _clock != null ? _clock.WallMinutes : 0f;
             Debug.Log($"[TimePressure] {name} LOCK attr={_attrMul:0.000} phase={TimePressure.PhaseId(t)} t={t:0.00}′");
+        }
+
+        void SettleCombat()
+        {
+            if (_stub == null)
+                _stub = GetComponent<StubEnemy>();
+            if (_stub != null)
+                _stub.SettlePressure(_attrMul);
+            MobFourStateAi ai = GetComponent<MobFourStateAi>();
+            if (ai != null)
+                ai.SettlePressure(_attrMul);
         }
 
         void ApplyMinutes(float minutes, bool log)

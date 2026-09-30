@@ -1,4 +1,5 @@
 using UnityEngine;
+using RogueShooter.Ai;
 
 namespace RogueShooter.Demo
 {
@@ -31,6 +32,8 @@ namespace RogueShooter.Demo
 
         bool _elite;
         int _maxHp = 1;
+        int _baseHp = 1;
+        bool _pressureSettled;
 
         public bool Elite => _elite;
 
@@ -44,6 +47,8 @@ namespace RogueShooter.Demo
             _kindId = string.IsNullOrEmpty(kindId) ? "E1" : kindId;
             hitPoints = hp < 1 ? 1 : hp;
             _maxHp = hitPoints;
+            _baseHp = hitPoints;
+            _pressureSettled = false;
             _elite = elite;
             _dead = false;
             if (elite)
@@ -53,6 +58,20 @@ namespace RogueShooter.Demo
         public void SetPressureScale(float scale)
         {
             _pressureScale = scale > 0.01f ? scale : 1f;
+        }
+
+        /// <summary>Once, at engage. Uses the locked time-pressure mul on the spawned HP.</summary>
+        public void SettlePressure(float mul)
+        {
+            if (_pressureSettled || _dead)
+                return;
+            _pressureSettled = true;
+            float m = mul > 0.01f ? mul : 1f;
+            int next = Mathf.Max(1, Mathf.RoundToInt(_baseHp * m));
+            float ratio = _maxHp > 0 ? hitPoints / (float)_maxHp : 1f;
+            _maxHp = next;
+            hitPoints = Mathf.Max(0, Mathf.RoundToInt(next * ratio));
+            RefreshHpBar();
         }
 
         public void TakeDamage(int amount)
@@ -71,6 +90,9 @@ namespace RogueShooter.Demo
 
             _dead = true;
             SetHpBar(false);
+            MobBangMarker bang = GetComponent<MobBangMarker>();
+            if (bang != null)
+                bang.SetVisible(false);
             ShatterCurrentFrame();
             Died?.Invoke(this);
         }
@@ -78,7 +100,12 @@ namespace RogueShooter.Demo
         void Update()
         {
             if (_dead)
+            {
+                MobBangMarker bang = GetComponent<MobBangMarker>();
+                if (bang != null && bang.Visible)
+                    bang.SetVisible(false);
                 return;
+            }
             float s = 1f + 0.08f * Mathf.Sin(Time.time * pulse);
             transform.localScale = _baseScale * _pressureScale * s;
         }

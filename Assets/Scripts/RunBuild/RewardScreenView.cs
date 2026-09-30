@@ -20,6 +20,20 @@ namespace RogueShooter.Build
     /// </summary>
     public sealed class RewardScreenView : MonoBehaviour
     {
+        public const float PanelWidth = 1600f;
+        public const float PanelHeight = 760f;
+        /// <summary>
+        /// Opaque card frame over the three dark slots of jh_ui_reward_panel_3choice (1600×760).
+        /// Slot interiors x 287–597, 645–955, 1003–1313 and y 155–606. Card padding is 8,18,4,16.
+        /// </summary>
+        public static readonly Vector2 CardSize = new Vector2(335.2f, 470.1f);
+        public static readonly Vector2[] CardSlots =
+        {
+            new Vector2(-352.9f, -6.4f),
+            new Vector2(5.1f, -6.4f),
+            new Vector2(363.1f, -6.4f),
+        };
+
         public RewardScreenSession Session { get; private set; }
         public bool ChoicesVisible => Session != null && Session.ChoicesVisible;
 
@@ -114,7 +128,8 @@ namespace RogueShooter.Build
             if (_panel != null)
             {
                 _panel.sprite = Load("jh_ui_reward_panel_3choice");
-                _panel.rectTransform.sizeDelta = new Vector2(1000f, 475f);
+                _panel.rectTransform.sizeDelta = new Vector2(PanelWidth, PanelHeight);
+                _panel.preserveAspect = false;
             }
         }
 
@@ -165,8 +180,8 @@ namespace RogueShooter.Build
             _choiceRoot.transform.SetParent(root.transform, false);
             var choiceRt = _choiceRoot.GetComponent<RectTransform>();
             choiceRt.anchorMin = choiceRt.anchorMax = new Vector2(0.5f, 0.5f);
-            choiceRt.sizeDelta = new Vector2(1200f, 700f);
-            _panel = MakeImage(_choiceRoot.transform, "Panel", Vector2.zero, new Vector2(1000f, 475f));
+            choiceRt.sizeDelta = new Vector2(PanelWidth, PanelHeight);
+            _panel = MakeImage(_choiceRoot.transform, "Panel", Vector2.zero, new Vector2(PanelWidth, PanelHeight));
             _choiceRoot.SetActive(false);
         }
 
@@ -182,11 +197,12 @@ namespace RogueShooter.Build
             if (cards == null)
                 return;
             int n = cards.Length;
-            float cardW = shop ? 150f : 200f;
-            float cardH = shop ? 216f : 288f;
+            float cardW = shop ? 150f : CardSize.x;
+            float cardH = shop ? 216f : CardSize.y;
             float gap = shop ? 12f : 24f;
             float total = n * cardW + (n - 1) * gap;
             float x0 = -total * 0.5f + cardW * 0.5f;
+            bool slotted = !shop && n == CardSlots.Length;
             for (int i = 0; i < n; i++)
             {
                 RewardCardData card = cards[i];
@@ -195,11 +211,11 @@ namespace RogueShooter.Build
                 var rt = go.GetComponent<RectTransform>();
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
                 rt.sizeDelta = new Vector2(cardW, cardH);
-                rt.anchoredPosition = new Vector2(x0 + i * (cardW + gap), shop ? -10f : 0f);
+                rt.anchoredPosition = slotted ? CardSlots[i] : new Vector2(x0 + i * (cardW + gap), shop ? -10f : 0f);
                 var image = go.GetComponent<Image>();
                 image.sprite = Load(CardSprite(card.Tier));
                 image.type = Image.Type.Simple;
-                image.preserveAspect = true;
+                image.preserveAspect = !slotted;
                 int index = card.Index;
                 go.GetComponent<Button>().onClick.AddListener(() =>
                 {
