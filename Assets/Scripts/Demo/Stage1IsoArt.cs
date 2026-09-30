@@ -151,7 +151,7 @@ namespace RogueShooter.Demo
         }
 
         /// <summary>Walls, low walls, platform edges, doors and corners for one room.</summary>
-        public static void BuildRoomShell(MazeNode node, Stage1Maze maze, Transform parent, List<GameObject> into, int seed)
+        public static void BuildRoomShell(MazeNode node, Stage1Maze maze, Transform parent, List<GameObject> into, int seed, List<GameObject> doorArches)
         {
             CellRect rc = RectCells(node);
             var doors = CollectDoors(node, maze);
@@ -160,9 +160,12 @@ namespace RogueShooter.Demo
             foreach (DoorMark door in doors)
                 MarkHole(rc, door, holes, caps);
 
-            int pCorner = rc.PMax - 1;
-            int qCorner = rc.QMin;
-            long cornerCell = ((pCorner + qCorner) & 1) == 0 ? Pack(pCorner, qCorner) : -1;
+            // The corner pieces replace the rim pieces on their own cells.
+            var cornerCells = new HashSet<long>();
+            if (((rc.PMax - 1 + rc.QMax) & 1) == 0)
+                cornerCells.Add(Pack(rc.PMax - 1, rc.QMax));   // back corner_out
+            if (((rc.PMin + 1 + rc.QMin) & 1) == 0)
+                cornerCells.Add(Pack(rc.PMin + 1, rc.QMin));   // front low_corner
 
             for (int p = rc.PMin; p <= rc.PMax; p++)
             {
@@ -174,14 +177,14 @@ namespace RogueShooter.Demo
                     int v = (q - p) / 2;
                     int capMask;
                     caps.TryGetValue(Pack(p, q), out capMask);
-                    bool hole = holes.Contains(Pack(p, q)) || Pack(p, q) == cornerCell;
+                    bool hole = holes.Contains(Pack(p, q)) || cornerCells.Contains(Pack(p, q));
                     PlaceRimEdges(rc, u, v, p, q, hole, capMask, parent, into);
                 }
             }
 
-            PlaceDoorArches(node, rc, doors, parent, into);
-            PlaceCornerIn(rc, parent, into);
-            PlaceEdgeRow(rc, 'N', parent, into);
+            PlaceDoorArches(node, rc, doors, parent, into, doorArches);
+            PlaceCorners(rc, parent, into);
+            PlaceEdgeRow(rc, 'S', parent, into);
             PlaceEdgeRow(rc, 'W', parent, into);
             PlaceRubble(node, rc, seed, parent, into);
         }
@@ -220,8 +223,8 @@ namespace RogueShooter.Demo
         public static Sprite ActorSprite(string family, bool moving, string facing, int frame, out bool flip)
         {
             string action = "idle";
-            int span = 3;
-            if (moving && (family == "archer" || family == "dog"))
+            int span = 4;
+            if (moving)
             {
                 action = "walk";
                 span = 6;
@@ -552,80 +555,78 @@ namespace RogueShooter.Demo
         // the lower-right end of their "\" edge (E or S vertex); wall_r / end_r on
         // the left end of their "/" edge (S or W vertex); low pieces pivot on the
         // cell centre whose own SW / SE edge is the boundary.
+        // Face-on camera: back rims (N, E) are tall, front rims (S, W) are low —
+        // matching the accepted sample-room orientation.
         static void PlaceRimEdges(CellRect rc, int u, int v, int p, int q,
             bool hole, int capMask, Transform parent, List<GameObject> into)
         {
-            // NE edge: neighbour (u+1, v). E rim when p+1 exceeds, else N rim.
+            // NE edge: neighbour (u+1, v). Back rims (E and N): tall wall_l on the E vertex.
             if (q + 1 > rc.QMax || p + 1 > rc.PMax)
             {
-                if (p + 1 > rc.PMax)
+                if (!hole)
                 {
-                    // Far (E) rim: tall wall_l anchored on the edge's E vertex.
-                    if (!hole)
-                    {
-                        if ((capMask & CapNE) != 0)
-                            PlaceTall(EndL, u, v, 0.5f, 0f, parent, into);
-                        else
-                            PlaceTall(WallL, u, v, 0.5f, 0f, parent, into);
-                    }
-                }
-                else if (!hole)
-                {
-                    // Near (N) rim: low_l on the outside cell whose SW edge is the boundary.
                     if ((capMask & CapNE) != 0)
-                        PlaceLow(LowEndL, u + 1, v, parent, into);
+                        PlaceTall(EndL, u, v, 0.5f, 0f, parent, into);
                     else
-                        PlaceLow(LowL, u + 1, v, parent, into);
+                        PlaceTall(WallL, u, v, 0.5f, 0f, parent, into);
                 }
             }
 
-            // SE edge: neighbour (u, v-1). S rim when q-1 undershoots, else E rim.
+            // SE edge: neighbour (u, v-1). Front (S) rim: low_r on the cell centre;
+            // back (E) rim: tall wall_r on the S vertex.
             if (q - 1 < rc.QMin || p + 1 > rc.PMax)
             {
                 if (!hole)
                 {
-                    // Tall wall_r / end_r anchored on the edge's S vertex.
-                    if ((capMask & CapSE) != 0)
-                        PlaceTall(EndR, u, v, 0f, -0.25f, parent, into);
-                    else
-                        PlaceTall(WallR, u, v, 0f, -0.25f, parent, into);
-                }
-            }
-
-            // SW edge: neighbour (u-1, v). W rim when p-1 undershoots, else S rim.
-            if (p - 1 < rc.PMin || q - 1 < rc.QMin)
-            {
-                if (p - 1 < rc.PMin)
-                {
-                    if (!hole)
+                    if (q - 1 < rc.QMin)
                     {
-                        // Near (W) rim: low_l on the floored cell's own centre.
-                        if ((capMask & CapSW) != 0)
-                            PlaceLow(LowEndL, u, v, parent, into);
+                        if ((capMask & CapSE) != 0)
+                            PlaceLow(LowEndR, u, v, parent, into);
                         else
-                            PlaceLow(LowL, u, v, parent, into);
+                            PlaceLow(LowR, u, v, parent, into);
+                    }
+                    else
+                    {
+                        if ((capMask & CapSE) != 0)
+                            PlaceTall(EndR, u, v, 0f, -0.25f, parent, into);
+                        else
+                            PlaceTall(WallR, u, v, 0f, -0.25f, parent, into);
                     }
                 }
-                else if (!hole)
+            }
+
+            // SW edge: neighbour (u-1, v). Front rims (W and S): low_l on the cell centre.
+            if (p - 1 < rc.PMin || q - 1 < rc.QMin)
+            {
+                if (!hole)
                 {
-                    // Far (S) rim: tall wall_l anchored on the edge's S vertex.
                     if ((capMask & CapSW) != 0)
-                        PlaceTall(EndL, u, v, 0f, -0.25f, parent, into);
+                        PlaceLow(LowEndL, u, v, parent, into);
                     else
-                        PlaceTall(WallL, u, v, 0f, -0.25f, parent, into);
+                        PlaceLow(LowL, u, v, parent, into);
                 }
             }
 
-            // NW edge: neighbour (u, v+1). N rim when q+1 exceeds, else W rim.
+            // NW edge: neighbour (u, v+1). Back (N) rim: tall wall_r on the W vertex;
+            // front (W) rim: low_r on the outside cell whose SE edge is the boundary.
             if (q + 1 > rc.QMax || p - 1 < rc.PMin)
             {
                 if (!hole)
                 {
-                    // Near rims: low_r on the outside cell whose SE edge is the boundary.
-                    if ((capMask & CapNW) != 0)
-                        PlaceLow(LowEndR, u, v + 1, parent, into);
+                    if (q + 1 > rc.QMax)
+                    {
+                        if ((capMask & CapNW) != 0)
+                            PlaceTall(EndR, u, v, -0.5f, 0f, parent, into);
+                        else
+                            PlaceTall(WallR, u, v, -0.5f, 0f, parent, into);
+                    }
                     else
-                        PlaceLow(LowR, u, v + 1, parent, into);
+                    {
+                        if ((capMask & CapNW) != 0)
+                            PlaceLow(LowEndR, u, v + 1, parent, into);
+                        else
+                            PlaceLow(LowR, u, v + 1, parent, into);
+                    }
                 }
             }
         }
@@ -653,39 +654,70 @@ namespace RogueShooter.Demo
         static readonly string[] LowEndL = { "low_end_l_00" };
         static readonly string[] LowEndR = { "low_end_r_00" };
 
-        /// <summary>Back-side doors get the tall arch (door_r on the S rim,
-        /// door_l on the E rim) anchored at the centre of the 2-cell hole span,
-        /// matching the wall-piece anchor convention. Near-side doors stay open.</summary>
-        static void PlaceDoorArches(MazeNode node, CellRect rc, List<DoorMark> doors, Transform parent, List<GameObject> into)
+        /// <summary>Door arches at every doorway, anchored at the centre of the
+        /// 2-cell hole span (the same chain vertex the wall pieces share).
+        /// Back rims use the tall-wall pairing (door_r on N, door_l on E);
+        /// front rims mirror it (door_r on S, door_l on W). The demo toggles
+        /// these with the room lock: visible tinted while locked.</summary>
+        static void PlaceDoorArches(MazeNode node, CellRect rc, List<DoorMark> doors, Transform parent, List<GameObject> into, List<GameObject> doorArches)
         {
             for (int i = 0; i < doors.Count; i++)
             {
                 DoorMark door = doors[i];
-                if (door.Rim == 'S')
+                Vector3 pos;
+                string file;
+                switch (door.Rim)
                 {
-                    int p0 = SnapToParity(Mathf.RoundToInt(2f * door.Point.x), rc.QMin);
-                    Vector3 pos = new Vector3(p0 * 0.5f + 0.5f, (rc.QMin + 1) * 0.25f, 0f);
-                    into.Add(Place("Door_" + node.Id + "_S", pos, Load(WallRoot + "door_r_00.png"), WallOrder, false, parent));
+                    case 'N':
+                        int pn = SnapToParity(Mathf.RoundToInt(2f * door.Point.x), rc.QMax);
+                        pos = new Vector3(pn * 0.5f - 0.5f, (rc.QMax + 1) * 0.25f, 0f);
+                        file = "door_r_00.png";
+                        break;
+                    case 'S':
+                        int ps = SnapToParity(Mathf.RoundToInt(2f * door.Point.x), rc.QMin);
+                        pos = new Vector3(ps * 0.5f + 0.5f, (rc.QMin + 1) * 0.25f, 0f);
+                        file = "door_r_00.png";
+                        break;
+                    case 'E':
+                        int qe = SnapToParity(Mathf.RoundToInt(4f * door.Point.y - 1f), rc.PMax);
+                        pos = new Vector3(rc.PMax * 0.5f, (qe + 2) * 0.25f, 0f);
+                        file = "door_l_00.png";
+                        break;
+                    default:
+                        int pw = SnapToParity(Mathf.RoundToInt(4f * door.Point.y - 1f), rc.PMin);
+                        pos = new Vector3(rc.PMin * 0.5f, pw * 0.25f, 0f);
+                        file = "door_l_00.png";
+                        break;
                 }
-                else if (door.Rim == 'E')
-                {
-                    int q0 = SnapToParity(Mathf.RoundToInt(4f * door.Point.y - 1f), rc.PMax);
-                    Vector3 pos = new Vector3(rc.PMax * 0.5f, (q0 + 2) * 0.25f, 0f);
-                    into.Add(Place("Door_" + node.Id + "_E", pos, Load(WallRoot + "door_l_00.png"), WallOrder, false, parent));
-                }
+
+                GameObject go = Place("Door_" + node.Id + "_" + door.Rim, pos, Load(WallRoot + file), WallOrder, false, parent);
+                into.Add(go);
+                if (doorArches != null)
+                    doorArches.Add(go);
             }
         }
 
-        /// <summary>Inner corner at the far (S-E) corner: replaces the two wall
-        /// pieces on the corner cell's SW + SE edges.</summary>
-        static void PlaceCornerIn(CellRect rc, Transform parent, List<GameObject> into)
+        /// <summary>Convex corner at the back (N-E) corner: replaces the two wall
+        /// pieces on the corner cell's NW + NE edges. The apex sits one art-step
+        /// above the pivot.</summary>
+        static void PlaceCorners(CellRect rc, Transform parent, List<GameObject> into)
         {
-            int pB = rc.PMax - 1;
-            int qB = rc.QMin;
-            if (((pB + qB) & 1) != 0)
-                return;
-            Vector3 pos = CellCenter((pB + qB) / 2, (qB - pB) / 2) + new Vector3(0f, -0.25f, 0f);
-            into.Add(Place("CornerIn", pos, Load(WallRoot + "corner_in_00.png"), WallOrder, false, parent));
+            int pOut = rc.PMax - 1;
+            int qOut = rc.QMax;
+            if (((pOut + qOut) & 1) == 0)
+            {
+                Vector3 pos = CellCenter((pOut + qOut) / 2, (qOut - pOut) / 2) + new Vector3(0f, 0.5f - 0.1f, 0f);
+                into.Add(Place("CornerOut", pos, Load(WallRoot + "corner_out_00.png"), WallOrder, false, parent));
+            }
+
+            // Front corner (S-W): the low walls meet at a concave foot.
+            int pLow = rc.PMin + 1;
+            int qLow = rc.QMin;
+            if (((pLow + qLow) & 1) == 0)
+            {
+                Vector3 pos = CellCenter((pLow + qLow) / 2, (qLow - pLow) / 2);
+                into.Add(Place("LowCorner", pos, Load(WallRoot + "low_corner_00.png"), WallOrder, false, parent));
+            }
         }
 
         // Platform edges on the near rims (N and W): hang below the floor rim.

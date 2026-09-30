@@ -33,6 +33,8 @@ namespace RogueShooter.Player
         public bool IsCharging => _charging;
         public bool InRecovery => Time.time < _recoverUntil;
         public float HeldSeconds => _held;
+        /// <summary>Where the bow is aimed right now (mouse). Updated while charging.</summary>
+        public Vector3 AimDir { get; private set; }
         public ChargeShotKind LastShot { get; private set; }
         public float LastDamage { get; private set; }
         public int WallStops { get; private set; }
@@ -81,6 +83,7 @@ namespace RogueShooter.Player
             }
 
             _held += Time.deltaTime;
+            AimDir = AimDirection();
             ShotRead read = CurrentRead;
             float p = read.Progress(_held);
             if (_fx != null)
@@ -233,13 +236,8 @@ namespace RogueShooter.Player
             if (aim.sqrMagnitude < 0.01f)
                 aim = Vector3.right;
             aim.Normalize();
-            float ang = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
-            float rad = (ang + 90f) * Mathf.Deg2Rad;
-            Vector2 bowLocal = new Vector2(-0.28f, 0.9f);
-            Vector2 bow = new Vector2(
-                bowLocal.x * Mathf.Cos(rad) - bowLocal.y * Mathf.Sin(rad),
-                bowLocal.x * Mathf.Sin(rad) + bowLocal.y * Mathf.Cos(rad));
-            Vector3 muzzle = origin + new Vector3(bow.x, bow.y, 0f);
+            // The arrow leaves from in front of the body, along the shot direction.
+            Vector3 muzzle = origin + aim * 0.9f;
             Vector3 land = muzzle + aim * hitRange;
             land.z = muzzle.z;
             float locked = damage;
@@ -250,6 +248,11 @@ namespace RogueShooter.Player
             Stage1Maze maze = _maze;
             Vector3 shotOrigin = origin;
             Vector3 shotAim = aim;
+
+            // Draw the bow-release pose while the arrow flies.
+            var actor = GetComponent<Stage1IsoActor>();
+            if (actor != null)
+                actor.TryBeginAttack(null);
 
             var go = new GameObject("Arrow");
             var fly = go.AddComponent<ArrowFly>();

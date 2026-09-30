@@ -415,6 +415,27 @@ namespace RogueShooter.Balance
 
             if (rewards.Count == 0)
             {
+                // crit2 权威奖励表：StreamingAssets/BalanceCrit2/balance_rewards_箭骸.csv
+                CsvTable crit2 = TryReadCrit2Rewards(loaded);
+                if (crit2 != null)
+                {
+                    foreach (string[] row in crit2.DataRows())
+                    {
+                        string id = crit2.Get(row, "id");
+                        if (string.IsNullOrEmpty(id))
+                            continue;
+                        rewards.Add(new RewardDef
+                        {
+                            id = id,
+                            rarity = CritRarity(crit2.Get(row, "tier")),
+                            tag = crit2.Get(row, "stat")
+                        });
+                    }
+                }
+            }
+
+            if (rewards.Count == 0)
+            {
                 gaps.Add("GAP demo_reward_pool.csv missing/empty; using built-in stub pool");
                 rewards.Add(new RewardDef { id = "VIT_C", rarity = "C", tag = "survival" });
                 rewards.Add(new RewardDef { id = "GOLD_C", rarity = "C", tag = "economy" });
@@ -500,6 +521,34 @@ namespace RogueShooter.Balance
                 return null;
             loaded.Add(name);
             return CsvTable.Parse(File.ReadAllText(path));
+        }
+
+        /// <summary>crit2 权威奖励表（BalanceCrit2/balance_rewards_箭骸.csv）。</summary>
+        static CsvTable TryReadCrit2Rewards(List<string> loaded)
+        {
+            if (string.IsNullOrEmpty(Application.streamingAssetsPath))
+                return null;
+            string dir = Path.Combine(Application.streamingAssetsPath, "BalanceCrit2");
+            if (!Directory.Exists(dir))
+                return null;
+            foreach (string name in Directory.GetFiles(dir, "balance_rewards_*.csv"))
+            {
+                loaded.Add(Path.GetFileName(name));
+                return CsvTable.Parse(File.ReadAllText(name));
+            }
+
+            return null;
+        }
+
+        /// <summary>CSV 的 low/mid/high 档 → 稀有度 C/R/E。</summary>
+        static string CritRarity(string tier)
+        {
+            if (string.IsNullOrEmpty(tier))
+                return "C";
+            string t = tier.Trim().ToLowerInvariant();
+            if (t == "mid") return "R";
+            if (t == "high") return "E";
+            return "C";
         }
 
         static string[] FindZone(CsvTable table, string id)

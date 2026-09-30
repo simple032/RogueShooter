@@ -38,9 +38,43 @@ namespace RogueShooter.Build
         public static bool TryForId(string id, out Copy copy)
         {
             copy = default(Copy);
-            if (!RewardCatalog.TryGet(id, out RewardRow row))
+            if (string.IsNullOrEmpty(id))
                 return false;
-            return TryForCatalogName(row.Name, out copy);
+            if (RewardCatalog.TryGet(id, out RewardRow row))
+                return TryForCatalogName(row.Name, out copy);
+            return TryForBalanceStat(id, out copy);
+        }
+
+        /// <summary>crit2 属性档：&lt;家族&gt;_&lt;C|R|E&gt;，如 VIT_C / DMG_E。</summary>
+        public static bool IsBalanceStatId(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+                return false;
+            int cut = id.LastIndexOf('_');
+            if (cut <= 0 || cut != id.Length - 2)
+                return false;
+            string tier = id.Substring(cut + 1);
+            return tier == "C" || tier == "R" || tier == "E";
+        }
+
+        static bool TryForBalanceStat(string id, out Copy copy)
+        {
+            copy = default(Copy);
+            if (!IsBalanceStatId(id))
+                return false;
+            string family = id.Substring(0, id.Length - 2);
+            switch (family)
+            {
+                case "VIT": copy = Line(id, "坚韧", "能承受更多伤害", "jh_ui_icon_bone_armor"); return true;
+                case "ARM": copy = Line(id, "铁甲", "受到的伤害更轻", "jh_ui_icon_hemostasis"); return true;
+                case "DODGE": copy = Line(id, "灵步", "身法更难被命中", "jh_ui_icon_afterimage"); return true;
+                case "GOLD": copy = Line(id, "贪金", "击杀掉落更多金币", "jh_ui_icon_grave_robber"); return true;
+                case "HASTE": copy = Line(id, "急速", "出手与走位更快", "jh_ui_icon_rapid_draw"); return true;
+                case "DMG": copy = Line(id, "强攻", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"); return true;
+                case "CRIT": copy = Line(id, "暴烈", "更容易打出暴击", "jh_ui_icon_instant_foresight"); return true;
+                case "FIRE": copy = Line(id, "燃矢", "箭矢带着灼痛", "jh_ui_icon_armor_break"); return true;
+                default: return false;
+            }
         }
 
         public static bool TryForCatalogName(string catalogName, out Copy copy)
@@ -73,6 +107,12 @@ namespace RogueShooter.Build
                     sentence = copy.Sentence;
                     icon = copy.Icon;
                 }
+            }
+            else if (TryForBalanceStat(id, out Copy stat))
+            {
+                name = stat.DisplayName;
+                sentence = stat.Sentence;
+                icon = stat.Icon;
             }
 
             if (sold)

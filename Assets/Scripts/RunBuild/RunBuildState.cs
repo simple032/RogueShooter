@@ -53,7 +53,8 @@ namespace RogueShooter.Build
         {
             if (string.IsNullOrEmpty(id))
                 return;
-            if (!RewardCatalog.TryGet(id, out _))
+            // crit2 属性档（VIT_C/ARM_R/…）不在 15 条目录内，但仍是合法持有强化。
+            if (!RewardCatalog.TryGet(id, out _) && !RewardPresent.IsBalanceStatId(id))
                 return;
             _owned.Add(id);
         }
