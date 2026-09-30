@@ -39,6 +39,8 @@ namespace RogueShooter.Ai
         bool _wasStaggered;
         StageId _stage = StageId.S1;
         float _atkOverride;
+        float _baseAtk;
+        bool _pressureSettled;
         bool _elite;
         bool _playScale;
         MobBangMarker _bang;
@@ -112,6 +114,8 @@ namespace RogueShooter.Ai
             _stage = stage;
             _playScale = playScale;
             _atkOverride = atkOverride;
+            _baseAtk = atkOverride > 0.01f ? atkOverride : EnemyKindCatalog.HitDamageStub(CurrentKindId());
+            _pressureSettled = false;
             _elite = elite;
             _home = transform.position;
             _lastKnown = _home;
@@ -322,7 +326,10 @@ namespace RogueShooter.Ai
                 return;
             var body = GetComponent<StubEnemy>();
             if (body != null && body.IsDead)
+            {
+                SetBang(false);
                 return;
+            }
 
             if (_lungeCd > 0f)
                 _lungeCd -= Time.deltaTime;
@@ -707,6 +714,20 @@ namespace RogueShooter.Ai
 
         void EnsureLabel()
         {
+        }
+
+        public float Attack => HitDamage();
+
+        /// <summary>Once, at engage. Same locked mul as HP.</summary>
+        public void SettlePressure(float mul)
+        {
+            if (_pressureSettled)
+                return;
+            _pressureSettled = true;
+            float m = mul > 0.01f ? mul : 1f;
+            float baseAtk = _baseAtk > 0.01f ? _baseAtk : HitDamage();
+            _baseAtk = baseAtk;
+            _atkOverride = baseAtk * m;
         }
 
         void SetBang(bool on)

@@ -9,6 +9,7 @@ namespace RogueShooter.Player
     public class PlayerVitals : MonoBehaviour
     {
         [SerializeField] float maxHp = 100f;
+        float _baseMax;
 
         public float MaxHp => maxHp;
         public float Hp { get; private set; }
@@ -19,9 +20,22 @@ namespace RogueShooter.Player
         public void Configure(float max)
         {
             maxHp = max > 1f ? max : EnemyDamageCatalog.PlayerMaxHpRef;
+            _baseMax = maxHp;
             Hp = maxHp;
             LastHitDamage = 0f;
             LastHitKind = null;
+        }
+
+        /// <summary>Catalog max_hp product, from the configured base. Does not stack on itself.</summary>
+        public void ApplyRewardMax(float mul)
+        {
+            float m = mul > 0.01f ? mul : 1f;
+            float basis = _baseMax > 1f ? _baseMax : maxHp;
+            float next = basis * m;
+            float gained = next - maxHp;
+            maxHp = next;
+            if (gained > 0f && Hp > 0f)
+                Hp = Mathf.Min(maxHp, Hp + gained);
         }
 
         void Awake()

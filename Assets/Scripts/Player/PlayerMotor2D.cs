@@ -9,6 +9,7 @@ namespace RogueShooter.Player
     public class PlayerMotor2D : MonoBehaviour
     {
         [SerializeField] float speed = MoveSpeeds.Player;
+        float _walkBase;
 
         PlayerCharge _charge;
         PlayerRoll _roll;
@@ -27,6 +28,15 @@ namespace RogueShooter.Player
         public void Configure(float moveSpeed)
         {
             speed = moveSpeed > 0.0001f ? moveSpeed : MoveSpeeds.Player;
+            _walkBase = speed;
+        }
+
+        /// <summary>Catalog move_speed product, from the configured walk speed.</summary>
+        public void ApplyRewardSpeed(float mul)
+        {
+            float m = mul > 0.01f ? mul : 1f;
+            float basis = _walkBase > 0.01f ? _walkBase : speed;
+            speed = basis * m;
         }
 
         void Awake()

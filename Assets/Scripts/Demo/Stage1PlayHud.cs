@@ -326,37 +326,31 @@ namespace RogueShooter.Demo
             GUI.color = prev;
         }
 
+        public const float MinimapSize = 168f;
+        public const float MinimapScale = 3.2f;
+
+        /// <summary>Player world position lands on the middle of the map.</summary>
+        public static Vector2 MinimapLocal(float wx, float wy, float playerX, float playerY)
+        {
+            return new Vector2(
+                MinimapSize * 0.5f + (wx - playerX) * MinimapScale,
+                MinimapSize * 0.5f - (wy - playerY) * MinimapScale);
+        }
+
         void DrawMinimap()
         {
             Stage1Maze maze = _demo.BuiltMaze;
             if (maze == null || maze.Nodes == null)
                 return;
-            const float map = 168f;
+            const float map = MinimapSize;
             var box = new Rect(Screen.width - map - 8f, 8f, map, map);
             GUI.Box(box, "");
-
-            float minX = float.MaxValue, maxX = float.MinValue;
-            float minY = float.MaxValue, maxY = float.MinValue;
-            for (int i = 0; i < maze.Nodes.Length; i++)
-            {
-                MazeNode n = maze.Nodes[i];
-                minX = Mathf.Min(minX, n.Center.X - n.Width * 0.5f);
-                maxX = Mathf.Max(maxX, n.Center.X + n.Width * 0.5f);
-                minY = Mathf.Min(minY, n.Center.Y - n.Height * 0.5f);
-                maxY = Mathf.Max(maxY, n.Center.Y + n.Height * 0.5f);
-            }
-
-            float pad = 16f;
-            float spanX = Mathf.Max(1f, maxX - minX);
-            float spanY = Mathf.Max(1f, maxY - minY);
-            float inner = map - pad * 2f;
-            float s = Mathf.Min(inner / spanX, inner / spanY);
-            float offX = box.x + pad + (inner - spanX * s) * 0.5f;
-            float offY = box.y + map - pad - (inner - spanY * s) * 0.5f;
+            Vector2 playerPos = _demo.PlayerBody != null ? _demo.PlayerBody.position : Vector3.zero;
+            GUI.BeginGroup(box);
 
             Vector2 MapPos(float wx, float wy)
             {
-                return new Vector2(offX + (wx - minX) * s, offY + (maxY - wy) * s);
+                return MinimapLocal(wx, wy, playerPos.x, playerPos.y);
             }
 
             var line = Texture2D.whiteTexture;
@@ -376,32 +370,25 @@ namespace RogueShooter.Demo
                 }
             }
 
-            Vector2 playerPos = _demo.PlayerBody != null ? _demo.PlayerBody.position : Vector3.zero;
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
                 MazeNode n = maze.Nodes[i];
                 if (!_visited.Contains(n.Id))
                     continue;
                 Vector2 c = MapPos(n.Center.X, n.Center.Y);
-                float w = n.Width * s;
-                float h = n.Height * s;
+                float w = n.Width * MinimapScale;
+                float h = n.Height * MinimapScale;
                 bool here = _demo.PlayerBody != null && n.Contains(playerPos.x, playerPos.y, 0.2f);
                 GUI.color = RoomColor(n.Kind, here);
                 GUI.DrawTexture(new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h), Texture2D.whiteTexture, ScaleMode.StretchToFill);
                 GUI.color = Color.white;
-                var style = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 9,
-                    alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = here ? Color.white : new Color(1f, 1f, 1f, 0.75f) },
-                };
-                GUI.Label(new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h), n.Id, style);
             }
 
             Vector2 pp = MapPos(playerPos.x, playerPos.y);
             GUI.color = Color.white;
             GUI.DrawTexture(new Rect(pp.x - 3f, pp.y - 3f, 6f, 6f), Texture2D.whiteTexture, ScaleMode.StretchToFill);
             GUI.color = Color.white;
+            GUI.EndGroup();
         }
 
         static void DrawMapLine(Vector2 a, Vector2 b, float width, Color color, Texture tex)

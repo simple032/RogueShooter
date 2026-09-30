@@ -62,12 +62,12 @@ namespace RogueShooter.Demo
         float _runEpoch;
         RunBuildState _build;
         RewardScreenView _rewardScreen;
-        RewardOption[] _chestOffers = System.Array.Empty<RewardOption>();
+        AltarPick[] _chestOffers = System.Array.Empty<AltarPick>();
         AltarPick[] _altarOffers = System.Array.Empty<AltarPick>();
         string _offerRoom;
         bool _offerIsAltar;
         readonly HashSet<string> _takenRewards = new HashSet<string>();
-        readonly Dictionary<string, RewardOption[]> _chestRolls = new Dictionary<string, RewardOption[]>();
+        readonly Dictionary<string, AltarPick[]> _chestRolls = new Dictionary<string, AltarPick[]>();
         readonly Dictionary<string, AltarPick[]> _altarRolls = new Dictionary<string, AltarPick[]>();
         bool _connSettle;
         bool _ignoreClear;
@@ -75,6 +75,8 @@ namespace RogueShooter.Demo
         System.Random _offerRng;
 
         public const float LockEdge = 0.45f;
+        /// <summary>Clear-wave key. Off in a normal run so the key cannot kill a room without clearing it.</summary>
+        public const bool DevClearHotkey = false;
 
         IEnumerator Start()
         {
@@ -197,8 +199,6 @@ namespace RogueShooter.Demo
                 MazeNode n = _maze.Nodes[i];
                 _roomFloors[n.Id] = null;
                 Stage1IsoArt.BuildRoomShell(n, _maze, root, _world, seed, _doors);
-                AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
-                    new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
                 GameObject prop = Stage1IsoArt.BuildProp(n, root);
                 if (prop != null)
                 {
@@ -364,7 +364,7 @@ namespace RogueShooter.Demo
         {
             if (_offerIsAltar)
                 return IdsOfAltar(_altarOffers);
-            return IdsOfChest(_chestOffers);
+            return IdsOfAltar(_chestOffers);
         }
 
         public int ActiveDoorCount(string roomId)
@@ -381,16 +381,6 @@ namespace RogueShooter.Demo
             }
 
             return n;
-        }
-
-        static string[] IdsOfChest(RewardOption[] offers)
-        {
-            if (offers == null)
-                return System.Array.Empty<string>();
-            var ids = new string[offers.Length];
-            for (int i = 0; i < offers.Length; i++)
-                ids[i] = offers[i].Id;
-            return ids;
         }
 
         static string[] IdsOfAltar(AltarPick[] offers)
@@ -438,6 +428,30 @@ namespace RogueShooter.Demo
         public void ProofClearWave()
         {
             KillLiveWave();
+        }
+
+        public void ProofTeleportChest()
+        {
+            TeleportFirstChest();
+        }
+
+        public void ProofTeleportAltar()
+        {
+            TeleportFirst(MazeNodeKind.Altar);
+        }
+
+        public string ProofApply(string id)
+        {
+            EnsureBuild();
+            if (!RewardCatalog.TryGet(id, out RewardRow row))
+                return "missing " + id;
+            string rarity = row.Tier == RewardTier.High ? "高" : row.Tier == RewardTier.Mid ? "中" : "低";
+            _build.GrantBuildPick(id, rarity, 0, row.BuildEquiv);
+            ApplyOwnedStats(row);
+            PlayerCharge charge = _player != null ? _player.GetComponent<PlayerCharge>() : null;
+            if (charge != null)
+                charge.BindOwnedRewards(_build.OwnedRewardIds);
+            return null;
         }
 
         void LogDryRun()
@@ -507,7 +521,7 @@ namespace RogueShooter.Demo
             if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
                 TeleportFirstChest();
             if (Input.GetKeyDown(KeyCode.K))
-                HotkeyKillIgnoreClear();
+                TryDevClear();
             if (Input.GetKeyDown(KeyCode.F9))
                 WriteEvidence();
             if (Input.GetKeyDown(KeyCode.E))
@@ -784,7 +798,7 @@ namespace RogueShooter.Demo
 
         public void ProofHotkeyKill()
         {
-            HotkeyKillIgnoreClear();
+            TryDevClear();
         }
 
         void OnEnemyDied(string roomId, StubEnemy enemy)
@@ -822,6 +836,17 @@ namespace RogueShooter.Demo
                 if (_live[i] == null)
                     _live.RemoveAt(i);
             }
+        }
+
+        void TryDevClear()
+        {
+            if (!DevClearHotkey)
+            {
+                Debug.Log("[Stage1] hotkey ignored dev=0");
+                return;
+            }
+
+            HotkeyKillIgnoreClear();
         }
 
         void HotkeyKillIgnoreClear()
@@ -931,7 +956,7 @@ namespace RogueShooter.Demo
                 }
 
                 _altarOffers = saved;
-                _chestOffers = System.Array.Empty<RewardOption>();
+                _chestOffers = System.Array.Empty<AltarPick>();
                 view.ShowAltar(CardsFromAltar(_altarOffers));
             }
             else
@@ -939,16 +964,17 @@ namespace RogueShooter.Demo
                 GameObject chest;
                 if (_chests.TryGetValue(room.Id, out chest))
                     Stage1IsoArt.OpenChest(chest);
-                RewardOption[] saved;
+                AltarPick[] saved;
                 if (!_chestRolls.TryGetValue(room.Id, out saved))
                 {
-                    saved = RewardOffer.RollUnique(_lock, "chest", _offerRng);
+                    bool large = room.Kind == MazeNodeKind.LargeChest;
+                    saved = AltarRewardRoll.RollThreeChest(large, _offerRng);
                     _chestRolls[room.Id] = saved;
                 }
 
                 _chestOffers = saved;
                 _altarOffers = System.Array.Empty<AltarPick>();
-                view.ShowChest(CardsFrom(_chestOffers));
+                view.ShowChest(CardsFromAltar(_chestOffers));
             }
 
             Debug.Log("[S1Maze] offer " + room.Id + " altar=" + (_offerIsAltar ? 1 : 0));
@@ -985,27 +1011,46 @@ namespace RogueShooter.Demo
             if (!RewardOpen() || _rewardScreen == null || !_rewardScreen.ChoicesVisible)
                 return;
             EnsureBuild();
+            AltarPick[] offers = _offerIsAltar ? _altarOffers : _chestOffers;
+            if (offers == null || pick < 0 || pick >= offers.Length)
+                return;
+            AltarPick chosen = offers[pick];
+            if (!RewardCatalog.TryGet(chosen.Id, out RewardRow row))
+                return;
             if (_offerIsAltar)
-            {
-                if (_altarOffers == null || pick < 0 || pick >= _altarOffers.Length)
-                    return;
-                _build.ConfirmAltarPick(AltarSize.Small, _altarOffers[pick].Id);
-            }
+                _build.ConfirmAltarPick(AltarSize.Small, chosen.Id);
             else
             {
-                if (_chestOffers == null || pick < 0 || pick >= _chestOffers.Length)
-                    return;
-                RewardOption opt = _chestOffers[pick];
-                _build.GrantBuildPick(opt.Id, opt.Rarity, opt.Score, RunBuildState.ChestBuildDelta(false));
+                string rarity = row.Tier == RewardTier.High ? "高" : row.Tier == RewardTier.Mid ? "中" : "低";
+                _build.GrantBuildPick(chosen.Id, rarity, 0, row.BuildEquiv);
                 _build.AddGold(EconomyGold.ChestGold(false, Time.timeSinceLevelLoad / 60f));
             }
 
+            ApplyOwnedStats(row);
             if (!string.IsNullOrEmpty(_offerRoom))
                 _takenRewards.Add(_offerRoom);
             var charge = _player != null ? _player.GetComponent<PlayerCharge>() : null;
             if (charge != null)
                 charge.BindOwnedRewards(_build.OwnedRewardIds);
             CloseReward();
+        }
+
+        void ApplyOwnedStats(RewardRow picked)
+        {
+            if (_player == null || _build == null)
+                return;
+            var ids = _build.OwnedRewardIds;
+            var vitals = _player.GetComponent<PlayerVitals>();
+            if (vitals != null)
+            {
+                vitals.ApplyRewardMax(RewardStatHooks.ProductMul(ids, "max_hp"));
+                if (picked.Stat == "heal" && picked.Value > 0f)
+                    vitals.Heal(vitals.MaxHp * picked.Value);
+            }
+
+            var motor = _player.GetComponent<PlayerMotor2D>();
+            if (motor != null)
+                motor.ApplyRewardSpeed(RewardStatHooks.ProductMul(ids, "move_speed"));
         }
 
         void CancelReward()
@@ -1033,25 +1078,6 @@ namespace RogueShooter.Demo
             }
 
             return _rewardScreen;
-        }
-
-        static RewardCardData[] CardsFrom(RewardOption[] offers)
-        {
-            if (offers == null)
-                return System.Array.Empty<RewardCardData>();
-            var cards = new RewardCardData[offers.Length];
-            for (int i = 0; i < offers.Length; i++)
-            {
-                RewardTier tier = RewardTier.Low;
-                string rarity = offers[i].Rarity ?? "";
-                if (rarity.IndexOf("高", StringComparison.Ordinal) >= 0)
-                    tier = RewardTier.High;
-                else if (rarity.IndexOf("中", StringComparison.Ordinal) >= 0)
-                    tier = RewardTier.Mid;
-                cards[i] = RewardPresent.ToCard(offers[i].Id, tier, "", "", i, false);
-            }
-
-            return cards;
         }
 
         static RewardCardData[] CardsFromAltar(AltarPick[] picks)
@@ -1328,22 +1354,6 @@ namespace RogueShooter.Demo
                 case MazeNodeKind.Connector: return new Color(0.10f, 0.24f, 0.22f);
                 default: return new Color(0.102f, 0.114f, 0.141f);
             }
-        }
-
-        void AddWorldLabel(Transform root, string text, Vector3 world)
-        {
-            var label = new GameObject("Label_" + text);
-            label.transform.SetParent(root, false);
-            label.transform.position = world;
-            var tm = label.AddComponent<TextMesh>();
-            tm.text = text;
-            tm.anchor = TextAnchor.MiddleCenter;
-            tm.alignment = TextAlignment.Center;
-            tm.characterSize = 0.18f;
-            tm.fontSize = 22;
-            tm.color = Color.white;
-            BuiltinUiFont.Apply(tm);
-            _world.Add(label);
         }
 
         void OnGUI()
