@@ -246,6 +246,54 @@ namespace RogueShooter.Maze
     }
 
     /// <summary>
+    /// Room size and pitch for one generation. The main scene keeps
+    /// <see cref="MazeRules"/>. The 28×22 copy uses pitch 50/44 so the
+    /// edge-to-edge gap stays 22/22.
+    /// </summary>
+    public struct MazeLayout
+    {
+        public float Width;
+        public float Height;
+        public float PitchX;
+        public float PitchY;
+        public float StartPitchY;
+        public float CorridorWidth;
+
+        public static MazeLayout Main
+        {
+            get
+            {
+                return new MazeLayout
+                {
+                    Width = MazeRules.CombatWidth,
+                    Height = MazeRules.CombatHeight,
+                    PitchX = MazeRules.PitchX,
+                    PitchY = MazeRules.PitchY,
+                    StartPitchY = MazeRules.StartPitchY,
+                    CorridorWidth = MazeRules.CorridorWidth
+                };
+            }
+        }
+
+        /// <summary>Copy only. Not applied to Stage1Maze.</summary>
+        public static MazeLayout Copy28x22
+        {
+            get
+            {
+                return new MazeLayout
+                {
+                    Width = 28f,
+                    Height = 22f,
+                    PitchX = 50f,
+                    PitchY = 44f,
+                    StartPitchY = 44f,
+                    CorridorWidth = MazeRules.CorridorWidth
+                };
+            }
+        }
+    }
+
+    /// <summary>
     /// Spec v0.5 S1 maze. Rooms 36×28 (Normal/Chest/Altar/START/CONN),
     /// pitch 58×50, ortho door gap 22u. START neighbor is a fixed Normal.
     /// Four combat slots shuffle Altar×1+Chest×2+Normal×1; CONN follows Altar.
