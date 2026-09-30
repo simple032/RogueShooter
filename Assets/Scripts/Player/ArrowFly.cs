@@ -19,6 +19,9 @@ namespace RogueShooter.Player
     public sealed class ArrowFly : MonoBehaviour
     {
         public const float Speed = 12f;
+        /// <summary>Previous world size was 1.70 long by 0.32 thick. Both come down one step; the ratio stays.</summary>
+        public const float BodyLength = 1.40f;
+        public const float ShaftThickness = 0.32f * (BodyLength / 1.70f);
 
         Vector3 _dest;
         Action _onArrive;
@@ -44,7 +47,7 @@ namespace RogueShooter.Player
                 Vector2 size = first.bounds.size;
                 float length = Mathf.Max(0.05f, size.x * (90f / 96f));
                 float shaft = Mathf.Max(0.02f, size.y * (6f / 32f));
-                transform.localScale = new Vector3(1.7f / length, 0.32f / shaft, 1f);
+                transform.localScale = new Vector3(BodyLength / length, ShaftThickness / shaft, 1f);
             }
             Vector3 delta = _dest - origin;
             delta.z = 0f;
