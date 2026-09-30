@@ -18,7 +18,12 @@ namespace RogueShooter.Demo
         float _attackT = -1f;
         bool _attackHit;
         System.Action _onAttackHit;
-        float _swingClock;
+        float _walkAccum;
+        int _walkFrame;
+        bool _wasWalking;
+        bool _swinging;
+        int _atkFrame;
+        float _atkAccum;
         PlayerCharge _charge;
 
         public const float WalkFps = 12f;
@@ -122,15 +127,32 @@ namespace RogueShooter.Demo
                 else if (_family == "mage" && ai.InCastWindup) { enemyAction = "cast"; enemySpan = AttackFrames("mage"); }
                 if (enemyAction != null)
                 {
+                    if (!_swinging)
+                    {
+                        _swinging = true;
+                        _atkFrame = 0;
+                        _atkAccum = 0f;
+                    }
                     if (ai.Facing.sqrMagnitude > 0.0001f)
                         _facing = FacingFrom(ai.Facing);
                     _moving = false;
+                    _wasWalking = false;
                     _last = transform.position;
-                    _swingClock += Time.deltaTime * AttackFps;
+                    _atkAccum += Time.deltaTime;
+                    float swingStep = 1f / AttackFps;
+                    if (_atkAccum >= swingStep && _atkFrame < enemySpan - 1)
+                    {
+                        _atkAccum -= swingStep;
+                        if (_atkAccum >= swingStep)
+                            _atkAccum = 0f;
+                        _atkFrame++;
+                    }
                     if (_renderer != null)
                     {
                         bool swingFlip;
-                        int shown = Mathf.FloorToInt(_swingClock);
+                        int shown = _atkFrame;
+                        if (shown < 0)
+                            shown = 0;
                         if (shown >= enemySpan)
                             shown = enemySpan - 1;
                         Sprite sprite = Stage1IsoArt.ActorAction(_family, enemyAction, _facing, shown, enemySpan, out swingFlip);
@@ -142,7 +164,7 @@ namespace RogueShooter.Demo
                 }
             }
 
-            _swingClock = 0f;
+            _swinging = false;
 
             if (_attackT >= 0f)
             {
@@ -180,6 +202,7 @@ namespace RogueShooter.Demo
                     if (aim.sqrMagnitude > 0.001f)
                         _facing = FacingFrom(aim);
                     _moving = false;
+                    _wasWalking = false;
                     _last = transform.position;
                     _clock += Time.deltaTime * 10f;
                     if (_renderer != null)
@@ -196,14 +219,47 @@ namespace RogueShooter.Demo
 
             Vector3 delta = transform.position - _last;
             delta.z = 0f;
-            _moving = delta.sqrMagnitude > 0.0004f;
-            if (_moving)
+            bool displaced = delta.sqrMagnitude > 0.0004f;
+            if (displaced)
                 _facing = FacingFrom(delta);
+            else if (ai != null && ai.Facing.sqrMagnitude > 0.0001f)
+                _facing = FacingFrom(ai.Facing);
             _last = transform.position;
-            float fps = 4f;
-            if (_moving)
-                fps = (_family == "archer" || _family == "dog") ? WalkFps : 8f;
-            _clock += Time.deltaTime * fps;
+
+            bool walking = displaced;
+            if (ai != null)
+            {
+                RogueShooter.Ai.MobAiState st = ai.State;
+                if (st == RogueShooter.Ai.MobAiState.Chase || st == RogueShooter.Ai.MobAiState.Disengage)
+                    walking = true;
+                else if (st == RogueShooter.Ai.MobAiState.Attack && ai.DistToPlayer > 0.2f)
+                    walking = true;
+            }
+
+            if (walking && !_wasWalking)
+            {
+                _walkFrame = 0;
+                _walkAccum = 0f;
+            }
+            _wasWalking = walking;
+            _moving = walking;
+            if (walking)
+            {
+                float fps = (_family == "archer" || _family == "dog") ? WalkFps : 8f;
+                _walkAccum += Time.deltaTime;
+                float step = 1f / fps;
+                if (_walkAccum >= step)
+                {
+                    _walkAccum -= step;
+                    if (_walkAccum >= step)
+                        _walkAccum = 0f;
+                    _walkFrame++;
+                    if (_walkFrame >= 6)
+                        _walkFrame = 0;
+                }
+            }
+            else
+                _clock += Time.deltaTime * 4f;
             Apply();
         }
 
@@ -211,7 +267,7 @@ namespace RogueShooter.Demo
         {
             if (_renderer == null)
                 return;
-            int frame = Mathf.FloorToInt(_clock);
+            int frame = _moving ? _walkFrame : Mathf.FloorToInt(_clock);
             bool flip;
             Sprite sprite = Stage1IsoArt.ActorSprite(_family, _moving, _facing, frame, out flip);
             if (sprite != null)

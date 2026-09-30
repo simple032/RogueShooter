@@ -244,11 +244,12 @@ namespace RogueShooter.Demo
                 span = 1;
             int f = frame < 0 ? 0 : frame;
             Sprite sprite = LoadActor(family, action, src, f % span);
-            if (sprite == null && action != "idle" && action != "walk" && action != "atk" && action != "cast")
-                sprite = LoadActor(family, "idle", src, f % 3);
-            if (sprite == null)
-                sprite = LoadActor(family, "idle", src, 0);
-            return sprite;
+            if (sprite != null)
+                return sprite;
+            // A missing walk or attack frame must not flash idle in the middle of the clip.
+            if (action == "walk" || action == "atk" || action == "cast")
+                return null;
+            return LoadActor(family, "idle", src, 0);
         }
 
         public static Sprite RollSprite(string facing, int frame)
