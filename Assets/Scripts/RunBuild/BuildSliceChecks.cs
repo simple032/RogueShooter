@@ -15,8 +15,12 @@ namespace RogueShooter.Build
                 return "P_spawn expected 0.90 from LOCK";
             if (Math.Abs(data.powerBuildCoef - 0.45f) > 0.001f || Math.Abs(data.powerRarityCoef - 0.55f) > 0.001f)
                 return "Power coefs expected 0.45 / 0.55";
-            if (data.shopBuildFromShop != 1)
-                return "shop Build-from-shop flag expected 1 (店购计 Build; 制作人 2026-09-20 改口)";
+            if (data.shopBuildPerShopBuy != 1)
+                return "build_per_shop_buy expected 1 (店购计 Build; Spec v0.5 §8)";
+            if (data.shopBuildHealBuy != 1)
+                return "build_heal_buy expected 1 (回复品也计 Build; 制作人 P2 2026-09-25)";
+            if (data.shopShelfCount != 6 || data.shopShelfFlexCount != 2)
+                return "shop gold shelf_count/shelf_flex_count expected 6/2";
             if (ShopStock.BuildEquivFor(ShopSlotRole.Low) != 1
                 || ShopStock.BuildEquivFor(ShopSlotRole.Mid) != 1
                 || ShopStock.BuildEquivFor(ShopSlotRole.High) != 1

@@ -322,7 +322,26 @@ namespace RogueShooter.Balance
             data.shopGoldStatus = "LOADED";
             data.shopInheritRate = CsvTable.ToFloat(data.ShopGoldValue("inherit_rate"));
             data.shopInheritCap = CsvTable.ToFloat(data.ShopGoldValue("inherit_cap"));
-            data.shopBuildFromShop = CsvTable.ToInt(data.ShopGoldValue("build_from_shop"));
+            data.shopShelfCount = CsvTable.ToInt(data.ShopGoldValue("shelf_count"));
+            data.shopShelfFixed = data.ShopGoldValue("shelf_fixed");
+            data.shopShelfFlexCount = CsvTable.ToInt(data.ShopGoldValue("shelf_flex_count"));
+            data.shopShelfFlexW = data.ShopGoldValue("shelf_flex_w");
+            data.shopBuildPerShopBuy = CsvTable.ToInt(data.ShopGoldValue("build_per_shop_buy"), -1);
+            data.shopBuildHealBuy = CsvTable.ToInt(data.ShopGoldValue("build_heal_buy"), -1);
+            data.shopPriceRef = data.ShopGoldValue("price_ref");
+            RequireShopKey(data, gaps, "shelf_count", data.shopShelfCount > 0);
+            RequireShopKey(data, gaps, "shelf_flex_count", data.shopShelfFlexCount > 0);
+            RequireShopKey(data, gaps, "shelf_flex_w", !string.IsNullOrEmpty(data.shopShelfFlexW));
+            RequireShopKey(data, gaps, "build_per_shop_buy", data.shopBuildPerShopBuy >= 0);
+            RequireShopKey(data, gaps, "build_heal_buy", data.shopBuildHealBuy >= 0);
+            RequireShopKey(data, gaps, "price_ref", !string.IsNullOrEmpty(data.shopPriceRef));
+        }
+
+        static void RequireShopKey(BalanceLockData data, List<string> gaps, string key, bool ok)
+        {
+            if (ok)
+                return;
+            gaps.Add("GAP shop gold " + key + " missing/invalid in balance_shop_gold_locked.csv (value=" + data.ShopGoldValue(key) + ")");
         }
 
         static void ApplyDemoDefaults(CsvTable table, BalanceLockData data, List<string> gaps)
@@ -448,17 +467,12 @@ namespace RogueShooter.Balance
             {
                 data.interactRange = CsvTable.ToFloat(interact.Kv("interact_range"), 1.7f);
                 data.offerCount = CsvTable.ToInt(interact.Kv("offer_count"), 3);
-                string priceKey = interact.Kv("shop_price_key");
                 string goldKey = interact.Kv("start_gold_key");
-                if (!string.IsNullOrEmpty(priceKey))
-                    data.shopStubPrice = CsvTable.ToInt(data.ShopGoldValue(priceKey));
                 if (!string.IsNullOrEmpty(goldKey))
                     data.shopStartGold = CsvTable.ToInt(data.ShopGoldValue(goldKey));
                 NoteDemoStubs(interact, gaps);
             }
 
-            if (data.shopStubPrice <= 0)
-                data.shopStubPrice = 25;
             // N27: opening gold is fixed 0. Do not refill the abolished stub 55.
             data.shopStartGold = 0;
 
