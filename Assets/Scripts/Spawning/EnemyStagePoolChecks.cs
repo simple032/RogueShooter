@@ -389,8 +389,8 @@ namespace RogueShooter.Spawning
             if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.GrandMage, false), 3.3f))
                 return "DRAFT move grand 3.3";
 
-            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Dog, false), 7.2f))
-                return "WalkSpeed dog 7.2";
+            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Dog, false), 5.4f))
+                return "WalkSpeed dog 5.4";
             if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 2.25f))
                 return "WalkSpeed shield raised 2.25";
 

@@ -244,7 +244,7 @@ namespace RogueShooter.Demo
                 span = 1;
             int f = frame < 0 ? 0 : frame;
             Sprite sprite = LoadActor(family, action, src, f % span);
-            if (sprite == null && action != "idle")
+            if (sprite == null && action != "idle" && action != "walk" && action != "atk" && action != "cast")
                 sprite = LoadActor(family, "idle", src, f % 3);
             if (sprite == null)
                 sprite = LoadActor(family, "idle", src, 0);
@@ -829,7 +829,7 @@ namespace RogueShooter.Demo
             else if (family == "dog")
                 path = EnemyRoot + "Dog/jh_dog_" + action + "_" + facing + "_" + file + ".png";
             else if (family == "mage")
-                path = EnemyRoot + "Mage/jh_mage_idle_" + facing + "_" + file + ".png";
+                path = EnemyRoot + "Mage/jh_mage_" + action + "_" + facing + "_" + file + ".png";
             else
                 path = EnemyRoot + "Skel/jh_skel_" + action + "_" + facing + "_" + file + ".png";
             return Load(path);

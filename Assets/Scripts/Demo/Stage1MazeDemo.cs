@@ -102,9 +102,16 @@ namespace RogueShooter.Demo
             SweepDead();
         }
 
+        float _settleSeconds = -1f;
+
         public float RunSeconds
         {
-            get { return Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch); }
+            get
+            {
+                if (_settleSeconds >= 0f)
+                    return _settleSeconds;
+                return Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch);
+            }
         }
 
         public void RestartRun()
@@ -438,6 +445,12 @@ namespace RogueShooter.Demo
         public void ProofTeleportAltar()
         {
             TeleportFirst(MazeNodeKind.Altar);
+        }
+
+        public void ProofOpenConnector()
+        {
+            Teleport("CONN");
+            TryInteract();
         }
 
         public string ProofApply(string id)
@@ -888,6 +901,8 @@ namespace RogueShooter.Demo
 
         void TryInteract()
         {
+            if (_connSettle || RunPause.RunSettled)
+                return;
             if (_player == null || PlayerDown())
                 return;
             MazeNode n = RoomAt(_player.position.x, _player.position.y, 0.2f);
@@ -903,7 +918,11 @@ namespace RogueShooter.Demo
 
             if (n.Kind == MazeNodeKind.Connector)
             {
+                if (_connSettle)
+                    return;
+                _settleSeconds = Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch);
                 _connSettle = true;
+                RunPause.RunSettled = true;
                 EnsureBuild();
                 int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
                 Debug.Log("[Stage1] conn settle gold=" + _build.Gold
@@ -1315,6 +1334,8 @@ namespace RogueShooter.Demo
             _chestRolls.Clear();
             _altarRolls.Clear();
             _connSettle = false;
+            _settleSeconds = -1f;
+            RunPause.RunSettled = false;
             CloseReward();
             _active = null;
             if (_player != null)

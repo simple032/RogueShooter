@@ -6,7 +6,8 @@ namespace RogueShooter.Player
     public static class RunPause
     {
         public static bool InteractOpen;
+        public static bool RunSettled;
 
-        public static bool IsPaused => InteractOpen;
+        public static bool IsPaused => InteractOpen || RunSettled;
     }
 }

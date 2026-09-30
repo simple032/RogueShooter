@@ -64,7 +64,7 @@ namespace RogueShooter.Ai
             {
                 if (EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb)
                     return false;
-                return _inWindup || _brain.State == MobAiState.Attack;
+                return _inWindup;
             }
         }
 
@@ -477,8 +477,18 @@ namespace RogueShooter.Ai
             }
 
             _inWindup = true;
-            _windupLeft = profile.WindupSeconds;
+            _windupLeft = AttackClipSeconds();
             SetBang(true);
+        }
+
+        float AttackClipSeconds()
+        {
+            string family = "skel";
+            if (CurrentKindId() == EnemyKindIds.Dog)
+                family = "dog";
+            else if (EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb)
+                family = "mage";
+            return Stage1IsoActor.AttackClipSeconds(family);
         }
 
         void TickAttack(float dt)
@@ -502,7 +512,7 @@ namespace RogueShooter.Ai
                 if (profile.RangedOrb && LiveOrbCount() > 0)
                     return;
                 _inWindup = true;
-                _windupLeft = profile.WindupSeconds;
+                _windupLeft = AttackClipSeconds();
                 SetBang(true);
             }
 
@@ -705,6 +715,10 @@ namespace RogueShooter.Ai
                         transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
                     break;
                 case MobAiState.Attack:
+                    if (_inWindup)
+                        break;
+                    if (DistToPlayer > 0.2f)
+                        transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
                     break;
                 case MobAiState.Disengage:
                     transform.position = Vector3.MoveTowards(transform.position, _home, _disengageSpeed * mul * dt);

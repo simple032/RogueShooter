@@ -83,6 +83,8 @@ namespace RogueShooter.Spawning
 
         public static float WalkSpeed(string kindId, bool shielded)
         {
+            if (!shielded && kindId == EnemyKindIds.Dog)
+                return EnemyCombatRules.WalkDogStub;
             EnemyPoolDraft.EnsureLoaded();
             float v = EnemyPoolDraft.MoveSpeed(kindId, shielded);
             if (v > 0.01f)

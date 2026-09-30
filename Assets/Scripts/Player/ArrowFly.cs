@@ -18,7 +18,7 @@ namespace RogueShooter.Player
     /// </summary>
     public sealed class ArrowFly : MonoBehaviour
     {
-        public const float Speed = 8f;
+        public const float Speed = 12f;
 
         Vector3 _dest;
         Action _onArrive;
