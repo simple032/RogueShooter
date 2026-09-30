@@ -352,6 +352,32 @@ namespace RogueShooter.Demo
 
         public bool ConnSettle { get { return _connSettle; } }
 
+        /// <summary>Victory keep uses the death-inherit rate and cap. No second ratio.</summary>
+        public int VictoryKeep
+        {
+            get
+            {
+                if (!_connSettle || _build == null)
+                    return 0;
+                return EconomyGold.DeathInherit(_build.Gold);
+            }
+        }
+
+        public int HeldGold
+        {
+            get
+            {
+                EnsureBuild();
+                return _build.Gold;
+            }
+        }
+
+        public void ProofSetGold(int gold)
+        {
+            EnsureBuild();
+            _build.Reset(gold < 0 ? 0 : gold);
+        }
+
         public bool OfferChoices
         {
             get { return _rewardScreen != null && _rewardScreen.ChoicesVisible; }
@@ -925,7 +951,9 @@ namespace RogueShooter.Demo
                 RunPause.RunSettled = true;
                 EnsureBuild();
                 int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+                int keep = EconomyGold.DeathInherit(_build.Gold);
                 Debug.Log("[Stage1] conn settle gold=" + _build.Gold
+                          + " keep=" + keep
                           + " build=" + _build.BuildCount
                           + " rewards=" + rewards
                           + " t=" + RunSeconds.ToString("0.0"));
@@ -1392,7 +1420,7 @@ namespace RogueShooter.Demo
             if (!_connSettle)
                 return;
             int w = 360;
-            int h = 160;
+            int h = 188;
             float x = (Screen.width - w) * 0.5f;
             float y = (Screen.height - h) * 0.5f;
             GUI.Box(new Rect(x, y, w, h), "");
@@ -1404,6 +1432,7 @@ namespace RogueShooter.Demo
             GUI.Label(new Rect(x + 16f, y + 52f, w - 32f, 24f), "金币 " + _build.Gold, line);
             GUI.Label(new Rect(x + 16f, y + 80f, w - 32f, 24f), "强化 " + rewards, line);
             GUI.Label(new Rect(x + 16f, y + 108f, w - 32f, 24f), "用时 " + Mathf.FloorToInt(RunSeconds) + " 秒", line);
+            GUI.Label(new Rect(x + 16f, y + 136f, w - 32f, 24f), "留下 " + EconomyGold.DeathInherit(_build.Gold), line);
         }
     }
 }
