@@ -19,6 +19,7 @@ namespace RogueShooter.Demo
         bool _attackHit;
         System.Action _onAttackHit;
         float _swingClock;
+        PlayerCharge _charge;
 
         public const float WalkFps = 12f;
         public const float AttackFps = 12f;
@@ -96,22 +97,31 @@ namespace RogueShooter.Demo
             }
 
             var ai = GetComponent<RogueShooter.Ai.MobFourStateAi>();
-            if (ai != null && ai.InMeleeWindup && _family == "skel")
+            if (ai != null)
             {
-                if (ai.Facing.sqrMagnitude > 0.0001f)
-                    _facing = FacingFrom(ai.Facing);
-                _moving = false;
-                _last = transform.position;
-                _swingClock += Time.deltaTime * AttackFps;
-                if (_renderer != null)
+                // Enemy action frames: melee windup plays atk, cast windup plays cast.
+                string enemyAction = null;
+                int enemySpan = 0;
+                if (_family == "skel" && ai.InMeleeWindup) { enemyAction = "atk"; enemySpan = 4; }
+                else if (_family == "dog" && ai.InMeleeWindup) { enemyAction = "atk"; enemySpan = 6; }
+                else if (_family == "mage" && ai.InCastWindup) { enemyAction = "cast"; enemySpan = 16; }
+                if (enemyAction != null)
                 {
-                    bool swingFlip;
-                    Sprite sprite = Stage1IsoArt.ActorAction("skel", "atk", _facing, Mathf.FloorToInt(_swingClock), 4, out swingFlip);
-                    if (sprite != null)
-                        _renderer.sprite = sprite;
-                    _renderer.flipX = swingFlip;
+                    if (ai.Facing.sqrMagnitude > 0.0001f)
+                        _facing = FacingFrom(ai.Facing);
+                    _moving = false;
+                    _last = transform.position;
+                    _swingClock += Time.deltaTime * AttackFps;
+                    if (_renderer != null)
+                    {
+                        bool swingFlip;
+                        Sprite sprite = Stage1IsoArt.ActorAction(_family, enemyAction, _facing, Mathf.FloorToInt(_swingClock), enemySpan, out swingFlip);
+                        if (sprite != null)
+                            _renderer.sprite = sprite;
+                        _renderer.flipX = swingFlip;
+                    }
+                    return;
                 }
-                return;
             }
 
             _swingClock = 0f;
@@ -139,6 +149,31 @@ namespace RogueShooter.Demo
                     _attackT = -1f;
                 _last = transform.position;
                 return;
+            }
+
+            // Archer charging: hold the bow-draw pose facing the aim.
+            if (_family == "archer")
+            {
+                if (_charge == null)
+                    _charge = GetComponent<PlayerCharge>();
+                if (_charge != null && _charge.IsCharging)
+                {
+                    Vector3 aim = _charge.AimDir;
+                    if (aim.sqrMagnitude > 0.001f)
+                        _facing = FacingFrom(aim);
+                    _moving = false;
+                    _last = transform.position;
+                    _clock += Time.deltaTime * 10f;
+                    if (_renderer != null)
+                    {
+                        bool chargeFlip;
+                        Sprite sprite = Stage1IsoArt.ActorAction("archer", "charge", _facing, Mathf.FloorToInt(_clock), 6, out chargeFlip);
+                        if (sprite != null)
+                            _renderer.sprite = sprite;
+                        _renderer.flipX = false;
+                    }
+                    return;
+                }
             }
 
             Vector3 delta = transform.position - _last;

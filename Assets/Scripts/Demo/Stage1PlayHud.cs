@@ -136,7 +136,7 @@ namespace RogueShooter.Demo
                           + " window=" + read.GreenEnter.ToString("0.000")
                           + "-" + read.GreenExit.ToString("0.000"));
             }
-            Vignette01 = Mathf.Clamp01(1f - hp / max);
+            Vignette01 = VignetteFor(hp / max);
             if (_flash > 0f)
                 _flash = Mathf.MoveTowards(_flash, 0f, Time.deltaTime * 2.5f);
 
@@ -188,14 +188,26 @@ namespace RogueShooter.Demo
             var seen = new HashSet<string>();
             for (int i = 0; i < build.OwnedRewardIds.Count; i++)
             {
+                string id = build.OwnedRewardIds[i];
                 RewardRow row;
-                if (!RewardCatalog.TryGet(build.OwnedRewardIds[i], out row))
+                string name;
+                if (RewardCatalog.TryGet(id, out row))
+                {
+                    name = row.Name;
+                    if (!IconByName.ContainsKey(name) || !seen.Add(name))
+                        continue;
+                }
+                else if (RogueShooter.Build.RewardPresent.IsBalanceStatId(id))
+                {
+                    name = id;
+                    if (!seen.Add(name))
+                        continue;
+                }
+                else
+                {
                     continue;
-                if (!seen.Add(row.Name))
-                    continue;
-                if (!IconByName.ContainsKey(row.Name))
-                    continue;
-                _iconNames.Add(row.Name);
+                }
+                _iconNames.Add(name);
             }
         }
 
@@ -260,17 +272,47 @@ namespace RogueShooter.Demo
             return Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/" + file + ".png");
         }
 
+        /// <summary>Red edges stay hidden above 30% hp, then ease in as hp drops.</summary>
+        static float VignetteFor(float hpRatio)
+        {
+            return Mathf.Clamp01((0.3f - hpRatio) / 0.3f);
+        }
+
+        static Texture2D _vignetteTex;
+
+        /// <summary>Soft radial falloff: clear centre, dark red only at the corners.</summary>
+        static Texture2D VignetteTexture()
+        {
+            if (_vignetteTex != null)
+                return _vignetteTex;
+            const int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float u = (x + 0.5f) / size * 2f - 1f;
+                    float v = (y + 0.5f) / size * 2f - 1f;
+                    float d = Mathf.Sqrt(u * u + v * v) / 1.4142f;
+                    float a = Mathf.Clamp01((d - 0.45f) / 0.55f);
+                    a = a * a * (3f - 2f * a);
+                    pixels[y * size + x] = new Color32(72, 6, 6, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(pixels);
+            tex.Apply();
+            _vignetteTex = tex;
+            return tex;
+        }
+
         void DrawVignette()
         {
             if (Vignette01 <= 0.001f)
                 return;
             Color prev = GUI.color;
-            GUI.color = new Color(0.45f, 0.02f, 0.02f, Vignette01);
-            const float band = 72f;
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, band), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(0, Screen.height - band, Screen.width, band), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(0, 0, band, Screen.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(Screen.width - band, 0, band, Screen.height), Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 1f, 1f, Vignette01 * 0.85f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), VignetteTexture(), ScaleMode.StretchToFill);
             GUI.color = prev;
         }
 
@@ -292,18 +334,103 @@ namespace RogueShooter.Demo
             const float map = 168f;
             var box = new Rect(Screen.width - map - 8f, 8f, map, map);
             GUI.Box(box, "");
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter };
-            int shown = 0;
+
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            for (int i = 0; i < maze.Nodes.Length; i++)
+            {
+                MazeNode n = maze.Nodes[i];
+                minX = Mathf.Min(minX, n.Center.X - n.Width * 0.5f);
+                maxX = Mathf.Max(maxX, n.Center.X + n.Width * 0.5f);
+                minY = Mathf.Min(minY, n.Center.Y - n.Height * 0.5f);
+                maxY = Mathf.Max(maxY, n.Center.Y + n.Height * 0.5f);
+            }
+
+            float pad = 16f;
+            float spanX = Mathf.Max(1f, maxX - minX);
+            float spanY = Mathf.Max(1f, maxY - minY);
+            float inner = map - pad * 2f;
+            float s = Mathf.Min(inner / spanX, inner / spanY);
+            float offX = box.x + pad + (inner - spanX * s) * 0.5f;
+            float offY = box.y + map - pad - (inner - spanY * s) * 0.5f;
+
+            Vector2 MapPos(float wx, float wy)
+            {
+                return new Vector2(offX + (wx - minX) * s, offY + (maxY - wy) * s);
+            }
+
+            var line = Texture2D.whiteTexture;
+            for (int e = 0; e < maze.Edges.Length; e++)
+            {
+                MazeEdge edge = maze.Edges[e];
+                if (!_visited.Contains(edge.FromId) || !_visited.Contains(edge.ToId))
+                    continue;
+                MazeVec2[] pts = edge.Points;
+                if (pts == null || pts.Length < 2)
+                    pts = new[] { edge.From, edge.To };
+                for (int i = 0; i < pts.Length - 1; i++)
+                {
+                    Vector2 a = MapPos(pts[i].X, pts[i].Y);
+                    Vector2 b = MapPos(pts[i + 1].X, pts[i + 1].Y);
+                    DrawMapLine(a, b, 3f, new Color(0.55f, 0.5f, 0.4f, 0.85f), line);
+                }
+            }
+
+            Vector2 playerPos = _demo.PlayerBody != null ? _demo.PlayerBody.position : Vector3.zero;
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
                 MazeNode n = maze.Nodes[i];
                 if (!_visited.Contains(n.Id))
                     continue;
-                float x = box.x + 8f;
-                float y = box.y + 8f + shown * 22f;
-                GUI.Label(new Rect(x, y, map - 16f, 20f), n.Id + " " + MazeRules.Label(n.Kind), style);
-                shown++;
+                Vector2 c = MapPos(n.Center.X, n.Center.Y);
+                float w = n.Width * s;
+                float h = n.Height * s;
+                bool here = _demo.PlayerBody != null && n.Contains(playerPos.x, playerPos.y, 0.2f);
+                GUI.color = RoomColor(n.Kind, here);
+                GUI.DrawTexture(new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h), Texture2D.whiteTexture, ScaleMode.StretchToFill);
+                GUI.color = Color.white;
+                var style = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 9,
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = here ? Color.white : new Color(1f, 1f, 1f, 0.75f) },
+                };
+                GUI.Label(new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h), n.Id, style);
             }
+
+            Vector2 pp = MapPos(playerPos.x, playerPos.y);
+            GUI.color = Color.white;
+            GUI.DrawTexture(new Rect(pp.x - 3f, pp.y - 3f, 6f, 6f), Texture2D.whiteTexture, ScaleMode.StretchToFill);
+            GUI.color = Color.white;
+        }
+
+        static void DrawMapLine(Vector2 a, Vector2 b, float width, Color color, Texture tex)
+        {
+            Vector2 d = b - a;
+            if (d.sqrMagnitude < 0.01f)
+                return;
+            Color prev = GUI.color;
+            Matrix4x4 prevMat = GUI.matrix;
+            GUI.color = color;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, d.magnitude, width), tex, ScaleMode.StretchToFill);
+            GUI.matrix = prevMat;
+            GUI.color = prev;
+        }
+
+        static Color RoomColor(MazeNodeKind kind, bool current)
+        {
+            Color c;
+            switch (kind)
+            {
+                case MazeNodeKind.Start: c = new Color(0.36f, 0.55f, 0.32f); break;
+                case MazeNodeKind.Altar: c = new Color(0.5f, 0.34f, 0.6f); break;
+                case MazeNodeKind.Chest:
+                case MazeNodeKind.LargeChest: c = new Color(0.72f, 0.58f, 0.26f); break;
+                case MazeNodeKind.Connector: c = new Color(0.3f, 0.55f, 0.55f); break;
+                default: c = new Color(0.42f, 0.45f, 0.52f); break;
+            }
+            return current ? Color.Lerp(c, Color.white, 0.45f) : c;
         }
 
         void DrawIcons()
@@ -338,6 +465,12 @@ namespace RogueShooter.Demo
                 return sprite;
             string file;
             if (!IconByName.TryGetValue(rewardName, out file))
+            {
+                // crit2 属性档（VIT_C/…）：按家族复用已有图标。
+                if (RogueShooter.Build.RewardPresent.TryForId(rewardName, out RogueShooter.Build.RewardPresent.Copy copy))
+                    file = copy.Icon;
+            }
+            if (string.IsNullOrEmpty(file))
                 return null;
             sprite = Resources.Load<Sprite>("JianHaiReward/" + file);
             if (sprite == null)

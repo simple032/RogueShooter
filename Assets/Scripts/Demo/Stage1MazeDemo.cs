@@ -196,7 +196,7 @@ namespace RogueShooter.Demo
             {
                 MazeNode n = _maze.Nodes[i];
                 _roomFloors[n.Id] = null;
-                Stage1IsoArt.BuildRoomShell(n, _maze, root, _world, seed);
+                Stage1IsoArt.BuildRoomShell(n, _maze, root, _world, seed, _doors);
                 AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
                     new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
                 GameObject prop = Stage1IsoArt.BuildProp(n, root);
@@ -208,8 +208,6 @@ namespace RogueShooter.Demo
                 }
                 _sessions[n.Id] = new CombatRoomSession(n);
             }
-
-            AddDoors(root);
 
             MazeNode start = _maze.Find("START");
             Vector3 startPos = start != null
@@ -440,75 +438,6 @@ namespace RogueShooter.Demo
         public void ProofClearWave()
         {
             KillLiveWave();
-        }
-
-        void AddDoors(Transform root)
-        {
-            for (int i = 0; i < _maze.Edges.Length; i++)
-            {
-                MazeEdge e = _maze.Edges[i];
-                MazeNode a = _maze.Find(e.FromId);
-                MazeNode b = _maze.Find(e.ToId);
-                if (a == null || b == null)
-                    continue;
-                PlaceDoor(root, a, b);
-                PlaceDoor(root, b, a);
-            }
-        }
-
-        void PlaceDoor(Transform root, MazeNode room, MazeNode other)
-        {
-            float dx = other.Center.X - room.Center.X;
-            float dy = other.Center.Y - room.Center.Y;
-            char side;
-            bool alongX;
-            float span;
-            float hx = room.Width * 0.5f - LockEdge;
-            float hy = room.Height * 0.5f - LockEdge;
-            Vector3 pos;
-            if (Mathf.Abs(dx) >= Mathf.Abs(dy))
-            {
-                side = dx >= 0f ? 'E' : 'W';
-                pos = new Vector3(room.Center.X + (side == 'E' ? hx : -hx), room.Center.Y, 0f);
-                alongX = false;
-                span = room.Height - LockEdge * 2f;
-            }
-            else
-            {
-                side = dy >= 0f ? 'N' : 'S';
-                pos = new Vector3(room.Center.X, room.Center.Y + (side == 'N' ? hy : -hy), 0f);
-                alongX = true;
-                span = room.Width - LockEdge * 2f;
-            }
-
-            string doorName = "Door_" + room.Id + "_" + side;
-            for (int i = 0; i < _doors.Count; i++)
-            {
-                if (_doors[i] != null && _doors[i].name == doorName)
-                    return;
-            }
-
-            string file = side == 'E' || side == 'W' ? "door_l_00" : "door_r_00";
-            Sprite sprite = Stage1IsoArt.LoadSprite(
-                "Assets/Art/JianHai/Iso/Tiles/S1/Wall/jh_iso_wall_s1_" + file + ".png");
-            var go = new GameObject(doorName);
-            go.transform.SetParent(root, false);
-            go.transform.position = pos;
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.sortingOrder = 6;
-            if (sprite != null)
-            {
-                Vector2 size = sprite.bounds.size;
-                if (alongX)
-                    go.transform.localScale = new Vector3(span / Mathf.Max(0.05f, size.x), 1f, 1f);
-                else
-                    go.transform.localScale = new Vector3(1f, span / Mathf.Max(0.05f, size.y), 1f);
-            }
-
-            go.SetActive(false);
-            _doors.Add(go);
-            _world.Add(go);
         }
 
         void LogDryRun()
@@ -1137,27 +1066,17 @@ namespace RogueShooter.Demo
 
         void SetDoors(string roomId, bool locked)
         {
+            // The arch pieces are the gates: locked = red tint, open = normal.
             for (int i = 0; i < _doors.Count; i++)
             {
                 GameObject d = _doors[i];
                 if (d == null)
                     continue;
-                if (d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
-                    d.SetActive(locked);
-            }
-
-            GameObject floor;
-            if (_roomFloors.TryGetValue(roomId, out floor) && floor != null)
-            {
-                var sr = floor.GetComponent<SpriteRenderer>();
-                MazeNode room = _maze.Find(roomId);
-                if (sr != null && room != null)
-                {
-                    Color baseC = FloorColor(room.Kind);
-                    sr.color = locked
-                        ? new Color(baseC.r * 0.55f, baseC.g * 0.35f, baseC.b * 0.35f, 1f)
-                        : baseC;
-                }
+                if (!d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
+                    continue;
+                var sr = d.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                    sr.color = locked ? new Color(0.72f, 0.28f, 0.22f, 1f) : Color.white;
             }
         }
 

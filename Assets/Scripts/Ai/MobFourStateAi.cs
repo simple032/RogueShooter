@@ -65,6 +65,18 @@ namespace RogueShooter.Ai
                 return _inWindup || _brain.State == MobAiState.Attack;
             }
         }
+
+        /// <summary>Ranged cast windup: the mage raises the staff before the volley.</summary>
+        public bool InCastWindup
+        {
+            get
+            {
+                if (!EnemyKindCatalog.ForKind(CurrentKindId()).RangedOrb)
+                    return false;
+                return _inWindup;
+            }
+        }
+
         public float DistToPlayer { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
@@ -517,12 +529,13 @@ namespace RogueShooter.Ai
         {
             if (_player == null)
                 return;
-            Vector3 origin = transform.position;
-            Vector3 dir = _player.position - origin;
+            Vector3 dir = _player.position - transform.position;
             dir.z = 0f;
             if (dir.sqrMagnitude < 0.0001f)
                 dir = Vector3.right;
             dir.Normalize();
+            // The orb appears in front of the body, along the shot direction.
+            Vector3 origin = transform.position + dir * 0.9f;
             float walk = _chaseSpeed > 0.01f ? _chaseSpeed : profile.WalkSpeedPlayStub;
             float speed = EnemyCombatRules.OrbSpeedForKind(CurrentKindId(), walk);
             Camera cam = Camera.main;
@@ -544,7 +557,7 @@ namespace RogueShooter.Ai
                 EnemyCombatRules.RotateDeg(dir.x, dir.y, deg, out ox, out oy);
                 Vector3 shot = new Vector3(ox, oy, 0f);
                 var go = new GameObject("Orb_" + CurrentKindId());
-                go.transform.position = StaffTip(shot);
+                go.transform.position = origin;
                 SpriteRenderer orbSprite = go.AddComponent<SpriteRenderer>();
                 orbSprite.sortingOrder = 40;
                 Sprite fly = Stage1IsoArt.MageOrbSprite(0);
@@ -565,17 +578,6 @@ namespace RogueShooter.Ai
 
             _lastDealt = dmg;
             Debug.Log($"[Orb] {name} fire n={n} speed={speed:0.00} range≤{maxRange:0.00} (orb=player×2, camW×0.7)");
-        }
-
-        /// <summary>Staff point from the sample-room mage, turned from its south pose into the shot.</summary>
-        Vector3 StaffTip(Vector3 dir)
-        {
-            Vector2 tip = new Vector2(0.44f, 1.22f);
-            float rad = (Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + 90f) * Mathf.Deg2Rad;
-            float c = Mathf.Cos(rad);
-            float s = Mathf.Sin(rad);
-            Vector2 turned = new Vector2(tip.x * c - tip.y * s, tip.x * s + tip.y * c);
-            return transform.position + new Vector3(turned.x, turned.y, 0f);
         }
 
         void OnOrbDespawn(MageOrbProjectile orb, string reason)
