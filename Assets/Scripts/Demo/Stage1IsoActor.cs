@@ -25,6 +25,21 @@ namespace RogueShooter.Demo
         public const float AttackFps = 12f;
         public const int AttackHitFrame = 2;
 
+        /// <summary>Sheets on disk: skel atk 4, dog atk 6, mage cast 00–07.</summary>
+        public static int AttackFrames(string family)
+        {
+            if (family == "dog")
+                return 6;
+            if (family == "mage")
+                return 8;
+            return 4;
+        }
+
+        public static float AttackClipSeconds(string family)
+        {
+            return AttackFrames(family) / AttackFps;
+        }
+
         public string Family
         {
             get { return _family; }
@@ -102,9 +117,9 @@ namespace RogueShooter.Demo
                 // Enemy action frames: melee windup plays atk, cast windup plays cast.
                 string enemyAction = null;
                 int enemySpan = 0;
-                if (_family == "skel" && ai.InMeleeWindup) { enemyAction = "atk"; enemySpan = 4; }
-                else if (_family == "dog" && ai.InMeleeWindup) { enemyAction = "atk"; enemySpan = 6; }
-                else if (_family == "mage" && ai.InCastWindup) { enemyAction = "cast"; enemySpan = 16; }
+                if (_family == "skel" && ai.InMeleeWindup) { enemyAction = "atk"; enemySpan = AttackFrames("skel"); }
+                else if (_family == "dog" && ai.InMeleeWindup) { enemyAction = "atk"; enemySpan = AttackFrames("dog"); }
+                else if (_family == "mage" && ai.InCastWindup) { enemyAction = "cast"; enemySpan = AttackFrames("mage"); }
                 if (enemyAction != null)
                 {
                     if (ai.Facing.sqrMagnitude > 0.0001f)
@@ -115,7 +130,10 @@ namespace RogueShooter.Demo
                     if (_renderer != null)
                     {
                         bool swingFlip;
-                        Sprite sprite = Stage1IsoArt.ActorAction(_family, enemyAction, _facing, Mathf.FloorToInt(_swingClock), enemySpan, out swingFlip);
+                        int shown = Mathf.FloorToInt(_swingClock);
+                        if (shown >= enemySpan)
+                            shown = enemySpan - 1;
+                        Sprite sprite = Stage1IsoArt.ActorAction(_family, enemyAction, _facing, shown, enemySpan, out swingFlip);
                         if (sprite != null)
                             _renderer.sprite = sprite;
                         _renderer.flipX = swingFlip;

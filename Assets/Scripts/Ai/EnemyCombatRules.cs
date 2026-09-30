@@ -37,7 +37,7 @@ namespace RogueShooter.Ai
         // DRAFT play-scale walk from balance_enemy_move_draft.csv (player = 6).
         public const float WalkPlayerStub = 6.00f;
         public const float WalkNormalStub = 4.50f;
-        public const float WalkDogStub = 7.20f;
+        public const float WalkDogStub = 5.40f;
         public const float WalkMageStub = 3.60f;
         public const float WalkShieldStub = 4.50f;
         public const float WalkShieldedStub = 2.25f;
