@@ -79,7 +79,11 @@ namespace RogueShooter.Ai
             }
         }
 
+        public const float CultKeepOut = 5f;
+        public const float CultOrbRange = 12f;
+
         public float DistToPlayer { get; private set; }
+        public string KiteAction { get; private set; }
         public string DisplayName => name;
         public float LastDealtDamage => _lastDealt;
         public bool IsStaggered => Time.time < _staggerUntil;
@@ -138,6 +142,11 @@ namespace RogueShooter.Ai
 
             var stub = GetComponent<StubEnemy>();
             string kind = stub != null ? stub.KindId : "E1";
+            if (kind == EnemyKindIds.CultMage)
+            {
+                attack = CultOrbRange;
+                detect = CultOrbRange + 4f;
+            }
             if (playScale)
                 ApplyPlaySpeed(kind);
             else
@@ -417,7 +426,23 @@ namespace RogueShooter.Ai
             if (_brain.State == MobAiState.Attack || _inWindup)
                 TickAttack(Time.deltaTime);
 
-            Move(delta);
+            Move(delta, Time.deltaTime);
+        }
+
+        public void Simulate(float dt)
+        {
+            if (RunPause.IsPaused || _player == null || dt <= 0f)
+                return;
+            Vector3 delta = _player.position - transform.position;
+            delta.z = 0f;
+            DistToPlayer = delta.magnitude;
+            if (DistToPlayer <= _brain.DetectRadius)
+                _lastKnown = _player.position;
+            _brain.Tick(DistToPlayer, false, dt, false);
+            Move(delta, dt);
+            Vector3 left = _player.position - transform.position;
+            left.z = 0f;
+            DistToPlayer = left.magnitude;
         }
 
         void ArmShield()
@@ -693,9 +718,48 @@ namespace RogueShooter.Ai
                 _pressure.LockEngage();
         }
 
-        void Move(Vector3 toPlayer)
+        int _kiteSide = 1;
+
+        bool IsCultMage()
         {
-            float dt = Time.deltaTime;
+            return CurrentKindId() == EnemyKindIds.CultMage;
+        }
+
+        void MoveCultMage(Vector3 toPlayer, float step)
+        {
+            Vector3 away = toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.right;
+            Vector3 dir;
+            if (DistToPlayer < CultKeepOut)
+            {
+                KiteAction = "拉开";
+                dir = -away;
+            }
+            else if (DistToPlayer > CultOrbRange)
+            {
+                KiteAction = "靠近";
+                dir = away;
+            }
+            else
+            {
+                KiteAction = "游走";
+                dir = new Vector3(-away.y, away.x, 0f) * _kiteSide;
+            }
+
+            Vector3 next = transform.position + dir * step;
+            if (DistToPlayer >= CultKeepOut)
+            {
+                Vector3 rel = _player.position - next;
+                rel.z = 0f;
+                if (rel.magnitude < CultKeepOut && rel.sqrMagnitude > 0.0001f)
+                    next = _player.position - rel.normalized * CultKeepOut;
+            }
+
+            next.z = transform.position.z;
+            transform.position = next;
+        }
+
+        void Move(Vector3 toPlayer, float dt)
+        {
             float mul = 1f;
             if (_shieldRaised)
             {
@@ -711,16 +775,23 @@ namespace RogueShooter.Ai
                     transform.position = Vector3.MoveTowards(transform.position, patrol, _patrolSpeed * mul * dt);
                     break;
                 case MobAiState.Alert:
-                    transform.position = Vector3.MoveTowards(transform.position, _lastKnown, _patrolSpeed * 0.75f * mul * dt);
+                    if (IsCultMage())
+                        MoveCultMage(toPlayer, _chaseSpeed * mul * dt);
+                    else
+                        transform.position = Vector3.MoveTowards(transform.position, _lastKnown, _patrolSpeed * 0.75f * mul * dt);
                     break;
                 case MobAiState.Chase:
-                    if (DistToPlayer > 0.2f)
+                    if (IsCultMage())
+                        MoveCultMage(toPlayer, _chaseSpeed * mul * dt);
+                    else if (DistToPlayer > 0.2f)
                         transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
                     break;
                 case MobAiState.Attack:
                     if (_inWindup)
                         break;
-                    if (DistToPlayer > 0.2f)
+                    if (IsCultMage())
+                        MoveCultMage(toPlayer, _chaseSpeed * mul * dt);
+                    else if (DistToPlayer > 0.2f)
                         transform.position += toPlayer.normalized * (_chaseSpeed * mul * dt);
                     break;
                 case MobAiState.Disengage:
