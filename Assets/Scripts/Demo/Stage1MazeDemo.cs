@@ -77,6 +77,9 @@ namespace RogueShooter.Demo
         public const float LockEdge = 0.45f;
         /// <summary>Clear-wave key. Off in a normal run so the key cannot kill a room without clearing it.</summary>
         public const bool DevClearHotkey = false;
+        /// <summary>N, F1–F4, 1–4, F6–F9. Off for a normal play. K stays on DevClearHotkey.</summary>
+        public const bool DevHotkeys = false;
+        public const string RestartLabel = "重新开始（R）";
 
         IEnumerator Start()
         {
@@ -89,6 +92,8 @@ namespace RogueShooter.Demo
 
         void Update()
         {
+            if (PlayerDown())
+                CatchDeath();
             if (PlayerDown() && RewardOpen())
                 CloseReward();
             SyncPressureClock();
@@ -103,6 +108,8 @@ namespace RogueShooter.Demo
         }
 
         float _settleSeconds = -1f;
+        bool _deathFrozen;
+        int _restartNonce;
 
         public float RunSeconds
         {
@@ -114,10 +121,21 @@ namespace RogueShooter.Demo
             }
         }
 
+        public int Seed { get { return seed; } }
+
         public void RestartRun()
         {
-            BuildRun(seed);
+            BuildRun(PickRestartSeed());
             RunAcceptance();
+        }
+
+        public int PickRestartSeed()
+        {
+            _restartNonce++;
+            int next = unchecked(Environment.TickCount + _restartNonce * 104729);
+            if (next == seed || next == 0)
+                next = unchecked(seed + _restartNonce * 17 + 1);
+            return next;
         }
 
         void BuildRun(int newSeed)
@@ -304,7 +322,7 @@ namespace RogueShooter.Demo
                 var parked = new List<GameObject>(n);
                 for (int u = 0; u < n; u++)
                 {
-                    GameObject go = PlaceEnemy(node.Id, 1, u, n, drawn.Units[u], center, false);
+                    GameObject go = PlaceEnemy(node.Id, 1, u, n, drawn.Units[u], center, false, false);
                     if (go != null)
                         parked.Add(go);
                 }
@@ -361,6 +379,19 @@ namespace RogueShooter.Demo
                     return 0;
                 return EconomyGold.DeathInherit(_build.Gold);
             }
+        }
+
+        public RunEndInfo EndInfo()
+        {
+            EnsureBuild();
+            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+            return new RunEndInfo
+            {
+                Seconds = Mathf.FloorToInt(RunSeconds),
+                Rewards = rewards,
+                Keep = EconomyGold.DeathInherit(_build.Gold),
+                Restart = RestartLabel
+            };
         }
 
         public int HeldGold
@@ -519,6 +550,20 @@ namespace RogueShooter.Demo
             return vitals != null && vitals.IsDown;
         }
 
+        public void CatchDeath()
+        {
+            if (_deathFrozen || !PlayerDown())
+                return;
+            _deathFrozen = true;
+            if (_settleSeconds < 0f)
+                _settleSeconds = Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch);
+            RunPause.EnterCombatEnd();
+            ClearShots();
+            Debug.Log("[Stage1] death end t=" + RunSeconds.ToString("0.0")
+                      + " scale=" + Time.timeScale.ToString("0")
+                      + " shots cleared");
+        }
+
         void HandleHotkeys()
         {
             if (PlayerDown())
@@ -534,7 +579,7 @@ namespace RogueShooter.Demo
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.N))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.N))
             {
                 BuildRun(Environment.TickCount);
                 RunAcceptance();
@@ -543,34 +588,70 @@ namespace RogueShooter.Demo
             if (Input.GetKeyDown(KeyCode.R))
                 RestartRun();
 
-            if (Input.GetKeyDown(KeyCode.F1))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F1))
                 Teleport("START");
-            if (Input.GetKeyDown(KeyCode.F2))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F2))
                 Teleport("CONN");
-            if (Input.GetKeyDown(KeyCode.F3))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F3))
                 TeleportFirst(MazeNodeKind.Altar);
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F4))
                 TeleportFirstChest();
-            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)))
                 Teleport("N1");
-            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)))
                 Teleport("N2");
-            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)))
                 TeleportFirst(MazeNodeKind.Altar);
-            if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)))
                 TeleportFirstChest();
             if (Input.GetKeyDown(KeyCode.K))
                 TryDevClear();
-            if (Input.GetKeyDown(KeyCode.F9))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F9))
                 WriteEvidence();
             if (Input.GetKeyDown(KeyCode.E))
                 TryInteract();
-            if (Input.GetKeyDown(KeyCode.F6))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F6))
                 GrantZhenShi(KnockbackRewardDraft.IdLow);
-            if (Input.GetKeyDown(KeyCode.F7))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F7))
                 GrantZhenShi(KnockbackRewardDraft.IdMid);
-            if (Input.GetKeyDown(KeyCode.F8))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F8))
                 ClearZhenShi();
+        }
+
+        public static bool DevKeyLive(KeyCode key)
+        {
+            return DevKeyAllowed(key, DevHotkeys, DevClearHotkey);
+        }
+
+        public static bool DevKeyAllowed(KeyCode key, bool devOn, bool clearOn)
+        {
+            if (key == KeyCode.K)
+                return clearOn;
+            if (key == KeyCode.R || key == KeyCode.E)
+                return true;
+            switch (key)
+            {
+                case KeyCode.N:
+                case KeyCode.F1:
+                case KeyCode.F2:
+                case KeyCode.F3:
+                case KeyCode.F4:
+                case KeyCode.Alpha1:
+                case KeyCode.Alpha2:
+                case KeyCode.Alpha3:
+                case KeyCode.Alpha4:
+                case KeyCode.Keypad1:
+                case KeyCode.Keypad2:
+                case KeyCode.Keypad3:
+                case KeyCode.Keypad4:
+                case KeyCode.F6:
+                case KeyCode.F7:
+                case KeyCode.F8:
+                case KeyCode.F9:
+                    return devOn;
+            }
+
+            return true;
         }
 
         void EnsureBuild()
@@ -692,10 +773,15 @@ namespace RogueShooter.Demo
             int n = drawn.Units != null ? drawn.Units.Length : 0;
             if (n < 1)
                 n = 1;
+            Vector3 player = _player != null ? _player.position : center;
+            string[] kinds = new string[n];
+            for (int i = 0; i < n; i++)
+                kinds[i] = drawn.Units != null && i < drawn.Units.Length ? drawn.Units[i].KindId : EnemyKindIds.Normal;
+            Vector3[] spots = wave > 1 ? Stage1Wave2.Spots(node, player, kinds) : null;
             ClearPortals();
             for (int i = 0; i < n; i++)
             {
-                Vector3 pos = SpawnCluster.Offset(center, i, n);
+                Vector3 pos = spots != null ? spots[i] : SpawnCluster.Offset(center, i, n);
                 GameObject fx = PortalFxStub.SpawnAt(
                     "PortalFx_" + node.Id + "_w" + wave + "_" + i, pos, transform);
                 _portals.Add(fx);
@@ -719,10 +805,10 @@ namespace RogueShooter.Demo
             ClearPortals();
             _portalWaiting = false;
             _cadence = null;
-            SpawnDrawn(session, wave, drawn, center);
+            SpawnDrawn(session, wave, drawn, center, spots);
         }
 
-        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3 center)
+        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3 center, Vector3[] spots)
         {
             Debug.Log(drawn.LogLine());
             Debug.Log("[StagePool] extra=+" + drawn.ExtraAdded
@@ -736,7 +822,8 @@ namespace RogueShooter.Demo
             string roomId = node != null ? node.Id : session.RoomId;
             for (int i = 0; i < n; i++)
             {
-                GameObject go = PlaceEnemy(roomId, wave, i, n, drawn.Units[i], center, true);
+                Vector3 at = spots != null && i < spots.Length ? spots[i] : center;
+                GameObject go = PlaceEnemy(roomId, wave, i, n, drawn.Units[i], at, true, spots != null);
                 if (go != null)
                     _live.Add(go);
             }
@@ -778,11 +865,11 @@ namespace RogueShooter.Demo
                 ApplySteps(session, session.NotifyKilled());
         }
 
-        GameObject PlaceEnemy(string roomId, int wave, int index, int n, DrawnUnit u, Vector3 center, bool aiOn)
+        GameObject PlaceEnemy(string roomId, int wave, int index, int n, DrawnUnit u, Vector3 center, bool aiOn, bool placed)
         {
             if (_stubPrefab == null)
                 return null;
-            Vector3 pos = SpawnCluster.Offset(center, index, n);
+            Vector3 pos = placed ? center : SpawnCluster.Offset(center, index, n);
             GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
             go.name = "S1_" + roomId + "_w" + wave + "_" + index + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
             string family = u.KindId == EnemyKindIds.Dog ? "dog"
@@ -1327,14 +1414,14 @@ namespace RogueShooter.Demo
             for (int i = 0; i < arrows.Length; i++)
             {
                 if (arrows[i] != null)
-                    Destroy(arrows[i].gameObject);
+                    DestroyImmediate(arrows[i].gameObject);
             }
 
             MageOrbProjectile[] orbs = UnityEngine.Object.FindObjectsOfType<MageOrbProjectile>();
             for (int i = 0; i < orbs.Length; i++)
             {
                 if (orbs[i] != null)
-                    Destroy(orbs[i].gameObject);
+                    DestroyImmediate(orbs[i].gameObject);
             }
         }
 
@@ -1371,7 +1458,9 @@ namespace RogueShooter.Demo
             _altarRolls.Clear();
             _connSettle = false;
             _settleSeconds = -1f;
+            _deathFrozen = false;
             RunPause.RunSettled = false;
+            RunPause.ClearCombatEnd();
             CloseReward();
             _active = null;
             if (_player != null)
@@ -1427,20 +1516,20 @@ namespace RogueShooter.Demo
 
             if (!_connSettle)
                 return;
+            RunEndInfo end = EndInfo();
             int w = 360;
-            int h = 188;
+            int h = 228;
             float x = (Screen.width - w) * 0.5f;
             float y = (Screen.height - h) * 0.5f;
             GUI.Box(new Rect(x, y, w, h), "");
             var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
             var line = new GUIStyle(GUI.skin.label) { fontSize = 16 };
-            EnsureBuild();
-            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
             GUI.Label(new Rect(x + 16f, y + 16f, w - 32f, 28f), "连接口结算", title);
-            GUI.Label(new Rect(x + 16f, y + 52f, w - 32f, 24f), "金币 " + _build.Gold, line);
-            GUI.Label(new Rect(x + 16f, y + 80f, w - 32f, 24f), "强化 " + rewards, line);
-            GUI.Label(new Rect(x + 16f, y + 108f, w - 32f, 24f), "用时 " + Mathf.FloorToInt(RunSeconds) + " 秒", line);
-            GUI.Label(new Rect(x + 16f, y + 136f, w - 32f, 24f), "留下 " + EconomyGold.DeathInherit(_build.Gold), line);
+            GUI.Label(new Rect(x + 16f, y + 52f, w - 32f, 24f), "用时 " + end.Seconds + " 秒", line);
+            GUI.Label(new Rect(x + 16f, y + 80f, w - 32f, 24f), "强化 " + end.Rewards, line);
+            GUI.Label(new Rect(x + 16f, y + 108f, w - 32f, 24f), "留下 " + end.Keep, line);
+            if (GUI.Button(new Rect(x + 16f, y + 156f, w - 32f, 40f), RestartLabel))
+                RestartRun();
         }
     }
 }
