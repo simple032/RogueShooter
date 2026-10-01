@@ -227,6 +227,7 @@ namespace RogueShooter.Demo
         void DrawStatus()
         {
             DrawTimeRing(new Rect(12f, 12f, 72f, 72f));
+            DrawDigitalClock(new Rect(12f, 88f, 72f, 30f));
             float hp = _vitals != null ? _vitals.Hp : 0f;
             float max = _vitals != null && _vitals.MaxHp > 0.01f ? _vitals.MaxHp : 1f;
             DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", new Rect(96f, 24f, 180f, 22f), hp / max);
@@ -252,6 +253,27 @@ namespace RogueShooter.Demo
             GUIUtility.RotateAroundPivot(angle, rect.center);
             GUI.DrawTexture(rect, ring.texture);
             GUI.matrix = prev;
+        }
+
+        /// <summary>Digital wall clock right under the time ring: MM:SS of the same
+        /// wall clock the ring hand sweeps, plus the pressure phase it is running in.</summary>
+        void DrawDigitalClock(Rect rect)
+        {
+            if (_demo == null)
+                return;
+            float seconds = Mathf.Max(0f, _demo.RunSeconds);
+            int total = Mathf.FloorToInt(seconds);
+            string text = string.Format("{0:00}:{1:00}", total / 60, total % 60);
+            GUI.Box(new Rect(rect.x, rect.y, rect.width, rect.height), "");
+            var time = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 15,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            GUI.Label(new Rect(rect.x, rect.y + 1f, rect.width, 18f), text, time);
+            var phase = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter };
+            GUI.Label(new Rect(rect.x, rect.y + 18f, rect.width, 14f), PhaseText ?? "", phase);
         }
 
         void DrawBar(string backId, string fillId, Rect rect, float amount)
@@ -326,8 +348,10 @@ namespace RogueShooter.Demo
             GUI.color = prev;
         }
 
-        public const float MinimapSize = 168f;
-        public const float MinimapScale = 3.2f;
+        public const float MinimapSize = 190f;
+        /// <summary>Rooms at 1.5 px per unit (was 3.2) so the window spans most of the
+        /// maze: corridors draw short and the 28×22 room blocks read as small chips.</summary>
+        public const float MinimapScale = 1.5f;
 
         /// <summary>Player world position lands on the middle of the map.</summary>
         public static Vector2 MinimapLocal(float wx, float wy, float playerX, float playerY)
@@ -366,7 +390,7 @@ namespace RogueShooter.Demo
                 {
                     Vector2 a = MapPos(pts[i].X, pts[i].Y);
                     Vector2 b = MapPos(pts[i + 1].X, pts[i + 1].Y);
-                    DrawMapLine(a, b, 3f, new Color(0.55f, 0.5f, 0.4f, 0.85f), line);
+                    DrawMapLine(a, b, 2f, new Color(0.55f, 0.5f, 0.4f, 0.85f), line);
                 }
             }
 
@@ -436,13 +460,17 @@ namespace RogueShooter.Demo
 
         void DrawDeath()
         {
-            var box = new Rect(Screen.width * 0.5f - 180f, Screen.height * 0.5f - 60f, 360f, 120f);
+            RunEndInfo end = _demo != null ? _demo.EndInfo() : new RunEndInfo();
+            var box = new Rect(Screen.width * 0.5f - 180f, Screen.height * 0.5f - 110f, 360f, 220f);
             GUI.Box(box, "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-            GUI.Label(new Rect(box.x, box.y + 16f, box.width, 28f), "本局结束", style);
-            int pct = Mathf.RoundToInt(EconomyGold.DeathInheritRate * 100f);
-            GUI.Label(new Rect(box.x, box.y + 52f, box.width, 28f),
-                "继承金币 " + _inherit + "（" + pct + "%，上限 " + EconomyGold.DeathInheritCap + "）", style);
+            GUI.Label(new Rect(box.x, box.y + 12f, box.width, 28f), "本局结束", style);
+            GUI.Label(new Rect(box.x, box.y + 48f, box.width, 24f), "用时 " + end.Seconds + " 秒", style);
+            GUI.Label(new Rect(box.x, box.y + 76f, box.width, 24f), "强化 " + end.Rewards, style);
+            GUI.Label(new Rect(box.x, box.y + 104f, box.width, 24f), "留下 " + end.Keep, style);
+            if (GUI.Button(new Rect(box.x + 40f, box.y + 152f, box.width - 80f, 40f), Stage1MazeDemo.RestartLabel)
+                && _demo != null)
+                _demo.RestartRun();
         }
 
         Sprite Icon(string rewardName)
