@@ -60,7 +60,7 @@ namespace RogueShooter.Player
 
         void Update()
         {
-            if (_done)
+            if (_done || RunPause.IsPaused)
                 return;
             Vector3 delta = _dest - transform.position;
             delta.z = 0f;

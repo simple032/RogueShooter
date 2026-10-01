@@ -41,6 +41,8 @@ namespace RogueShooter.Player
 
         void ResolveStrike()
         {
+            if (RunPause.IsPaused)
+                return;
             MobFourStateAi best = null;
             float bestD = range;
             IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;

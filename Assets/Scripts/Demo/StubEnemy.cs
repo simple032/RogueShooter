@@ -1,5 +1,6 @@
 using UnityEngine;
 using RogueShooter.Ai;
+using RogueShooter.Player;
 
 namespace RogueShooter.Demo
 {
@@ -76,7 +77,7 @@ namespace RogueShooter.Demo
 
         public void TakeDamage(int amount)
         {
-            if (_dead)
+            if (_dead || RunPause.RunSettled)
                 return;
             Damaged?.Invoke();
             hitPoints -= amount < 1 ? 1 : amount;
