@@ -46,12 +46,14 @@ namespace RogueShooter.Player
 
         public void ApplyHit(float amount, string kindId)
         {
-            if (RunPause.RunSettled)
+            if (RunPause.RunSettled || RunPause.CombatEnded || IsDown)
                 return;
             float dmg = amount < 0f ? 0f : amount;
             LastHitDamage = dmg;
             LastHitKind = kindId;
             Hp = Mathf.Max(0f, Hp - dmg);
+            if (IsDown)
+                RunPause.EnterCombatEnd();
             Debug.Log($"[PlayerVitals] hit kind={kindId} dmg={dmg:0.#} hp={Hp:0.#}/{MaxHp:0.#}");
         }
 

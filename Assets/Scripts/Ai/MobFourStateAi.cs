@@ -526,7 +526,10 @@ namespace RogueShooter.Ai
             _inWindup = false;
             SetBang(false);
             if (profile.RangedOrb)
-                FireOrbs(profile);
+            {
+                if (!RunPause.CombatEnded && !RunPause.RunSettled)
+                    FireOrbs(profile);
+            }
             else if (DistToPlayer <= _brain.AttackRange + 0.08f)
                 DealMeleeHit();
             _cooldownLeft = profile.AttackIntervalSeconds;
