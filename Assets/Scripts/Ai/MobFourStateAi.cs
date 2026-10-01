@@ -48,10 +48,25 @@ namespace RogueShooter.Ai
         bool _shieldRaised;
         bool _shieldBroken;
         float _shieldRaiseAt = -1f;
+        enum ShieldLungePhase
+        {
+            None,
+            Track,
+            Lock,
+            Dash,
+            Recover
+        }
+
         bool _lunging;
-        float _lungeLeft;
         float _lungeCd;
+        float _lungePhaseLeft;
+        float _lungeTravel;
+        bool _lungeHit;
+        ShieldLungePhase _lungePhase;
         Vector3 _lungeDir;
+        public string LungePhase { get; private set; }
+        public int LungeHits { get; private set; }
+        public Vector3 LungeAim => _lungeDir;
         Vector3 _knockDir;
         float _knockLeft;
         float _knockSpeed;
@@ -167,7 +182,7 @@ namespace RogueShooter.Ai
             _shieldRaised = false;
             _shieldBroken = false;
             _shieldRaiseAt = -1f;
-            _lunging = false;
+            ClearLungeMotion();
             _lungeCd = 0f;
             _knockLeft = 0f;
             _rootUntil = 0f;
@@ -225,7 +240,7 @@ namespace RogueShooter.Ai
             _staggerUntil = Time.time + dur;
             _inWindup = false;
             _windupLeft = 0f;
-            _lunging = false;
+            ClearLungeMotion();
             SetBang(false);
             NotifyDamaged();
             if (_shieldRaised)
@@ -254,7 +269,7 @@ namespace RogueShooter.Ai
             _knockLeft = dur;
             _knockSpeed = dur > 0.001f ? distance / dur : 0f;
             _rootUntil = 0f;
-            _lunging = false;
+            ClearLungeMotion();
             NotifyDamaged();
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
                       + " dist=" + distance.ToString("0.00")
@@ -271,7 +286,7 @@ namespace RogueShooter.Ai
             float dur = seconds > 0.01f ? seconds : FullChargeKnockback.ShieldRaisedRootSeconds;
             _rootUntil = Time.time + dur;
             _knockLeft = 0f;
-            _lunging = false;
+            ClearLungeMotion();
             NotifyDamaged();
             Debug.Log("[Knockback] DRAFT_NOT_LOCKED kind=" + CurrentKindId()
                       + " root=" + dur.ToString("0.00") + "s kb=0 shield=1 elite="
@@ -367,7 +382,7 @@ namespace RogueShooter.Ai
             DistToPlayer = delta.magnitude;
             if (DistToPlayer <= _brain.DetectRadius)
                 _lastKnown = _player.position;
-            if (delta.sqrMagnitude > 0.0001f && _brain.State != MobAiState.Patrol)
+            if (AimsAtPlayer() && delta.sqrMagnitude > 0.0001f && _brain.State != MobAiState.Patrol)
                 _facing = delta.normalized;
 
             TickShield();
@@ -414,10 +429,7 @@ namespace RogueShooter.Ai
                 return;
             }
 
-            if (EnemyCombatRules.CanLunge(CurrentKindId(), _stage)
-                && _brain.State == MobAiState.Chase
-                && DistToPlayer <= EnemyCombatRules.LungeRangeStub
-                && _lungeCd <= 0f)
+            if (ReadyToLunge())
             {
                 BeginLunge(delta);
                 return;
@@ -438,11 +450,23 @@ namespace RogueShooter.Ai
             DistToPlayer = delta.magnitude;
             if (DistToPlayer <= _brain.DetectRadius)
                 _lastKnown = _player.position;
+            if (_lunging)
+            {
+                TickLunge(dt);
+                RefreshDist();
+                return;
+            }
+
             _brain.Tick(DistToPlayer, false, dt, false);
+            if (ReadyToLunge())
+            {
+                BeginLunge(delta);
+                RefreshDist();
+                return;
+            }
+
             Move(delta, dt);
-            Vector3 left = _player.position - transform.position;
-            left.z = 0f;
-            DistToPlayer = left.magnitude;
+            RefreshDist();
         }
 
         void ArmShield()
@@ -659,41 +683,136 @@ namespace RogueShooter.Ai
                 _knockLeft = 0f;
         }
 
+        bool AimsAtPlayer()
+        {
+            return _lungePhase != ShieldLungePhase.Lock
+                && _lungePhase != ShieldLungePhase.Dash
+                && _lungePhase != ShieldLungePhase.Recover;
+        }
+
+        bool ReadyToLunge()
+        {
+            if (_lunging || _lungeCd > 0f)
+                return false;
+            if (!EnemyCombatRules.CanLunge(CurrentKindId(), _stage))
+                return false;
+            if (_brain.State != MobAiState.Alert && _brain.State != MobAiState.Chase)
+                return false;
+            if (DistToPlayer <= _brain.AttackRange)
+                return false;
+            return DistToPlayer <= EnemyCombatRules.ShieldLungeWarnRange;
+        }
+
+        void AimLunge(Vector3 toPlayer)
+        {
+            toPlayer.z = 0f;
+            _lungeDir = toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.right;
+            _facing = _lungeDir;
+        }
+
         void BeginLunge(Vector3 toPlayer)
         {
             _lunging = true;
-            _lungeLeft = EnemyCombatRules.LungeDistanceStub;
-            _lungeDir = toPlayer.sqrMagnitude > 0.0001f ? toPlayer.normalized : Vector3.right;
-            Debug.Log($"[Lunge] {name} start dist={DistToPlayer:0.00} DRAFT dmg=[{EnemyCombatRules.LungeDamageMinEasyStub},{EnemyCombatRules.LungeDamageMaxEasyStub}]");
+            _lungeHit = false;
+            _lungeTravel = 0f;
+            _lungePhase = ShieldLungePhase.Track;
+            _lungePhaseLeft = EnemyCombatRules.ShieldLungeTrackSeconds;
+            LungePhase = "跟踪";
+            AimLunge(toPlayer);
+            Debug.Log("[ShieldLunge] warn track=" + EnemyCombatRules.ShieldLungeTrackSeconds.ToString("0.00")
+                      + " lock=" + (EnemyCombatRules.ShieldLungeWarnSeconds - EnemyCombatRules.ShieldLungeTrackSeconds).ToString("0.00"));
         }
 
         void TickLunge(float dt)
         {
-            float step = EnemyCombatRules.LungeSpeedStub * dt;
-            if (step > _lungeLeft)
-                step = _lungeLeft;
-            transform.position += _lungeDir * step;
-            _lungeLeft -= step;
-            if (DistToPlayer <= EnemyCombatRules.LungeContactRadiusStub)
+            if (dt < 0f)
+                dt = 0f;
+            if (_lungePhase == ShieldLungePhase.Track)
             {
-                float dmg = EnemyPoolDraft.LungeDamageMinEasy
-                    + (EnemyPoolDraft.LungeDamageMaxEasy - EnemyPoolDraft.LungeDamageMinEasy) * 0.5f;
-                _lastDealt = dmg;
-                if (_playerVitals != null)
-                    _playerVitals.ApplyHit(dmg, CurrentKindId() + "_thrust");
-                Debug.Log($"[Lunge] {name} hit dmg={dmg:0.#} (DRAFT easy mid of [30,40])");
-                EndLunge();
+                Vector3 to = _player != null ? _player.position - transform.position : _lungeDir;
+                AimLunge(to);
+                _lungePhaseLeft -= dt;
+                if (_lungePhaseLeft > 0f)
+                    return;
+                _lungePhase = ShieldLungePhase.Lock;
+                _lungePhaseLeft = EnemyCombatRules.ShieldLungeWarnSeconds - EnemyCombatRules.ShieldLungeTrackSeconds;
+                LungePhase = "锁定";
                 return;
             }
 
-            if (_lungeLeft <= 0f)
-                EndLunge();
+            if (_lungePhase == ShieldLungePhase.Lock)
+            {
+                _lungePhaseLeft -= dt;
+                if (_lungePhaseLeft > 0f)
+                    return;
+                _lungePhase = ShieldLungePhase.Dash;
+                _lungeTravel = 0f;
+                LungePhase = "冲";
+                return;
+            }
+
+            if (_lungePhase == ShieldLungePhase.Dash)
+            {
+                float remain = EnemyCombatRules.ShieldLungeDistance - _lungeTravel;
+                float step = EnemyCombatRules.ShieldLungeSpeed * dt;
+                if (step > remain)
+                    step = remain;
+                if (step < 0f)
+                    step = 0f;
+                transform.position += _lungeDir * step;
+                _lungeTravel += step;
+                RefreshDist();
+                if (!_lungeHit && DistToPlayer <= EnemyCombatRules.MeleeHitRadius)
+                {
+                    _lungeHit = true;
+                    LungeHits++;
+                    float dmg = HitDamage();
+                    _lastDealt = dmg;
+                    if (_playerVitals != null)
+                        _playerVitals.ApplyHit(dmg, CurrentKindId());
+                    Debug.Log("[ShieldLunge] hit dmg=" + dmg.ToString("0.#") + " hits=" + LungeHits);
+                }
+
+                if (_lungeTravel >= EnemyCombatRules.ShieldLungeDistance - 0.0001f)
+                {
+                    _lungePhase = ShieldLungePhase.Recover;
+                    _lungePhaseLeft = EnemyCombatRules.ShieldLungeRecoverSeconds;
+                    LungePhase = "恢复";
+                }
+
+                return;
+            }
+
+            if (_lungePhase == ShieldLungePhase.Recover)
+            {
+                _lungePhaseLeft -= dt;
+                if (_lungePhaseLeft <= 0f)
+                    EndLunge();
+            }
+        }
+
+        void RefreshDist()
+        {
+            if (_player == null)
+                return;
+            Vector3 left = _player.position - transform.position;
+            left.z = 0f;
+            DistToPlayer = left.magnitude;
+        }
+
+        void ClearLungeMotion()
+        {
+            _lunging = false;
+            _lungePhase = ShieldLungePhase.None;
+            _lungePhaseLeft = 0f;
+            _lungeTravel = 0f;
+            LungePhase = "";
         }
 
         void EndLunge()
         {
-            _lunging = false;
-            _lungeCd = EnemyCombatRules.LungeCooldownStub;
+            ClearLungeMotion();
+            _lungeCd = 0f;
             ApplyVisual();
         }
 
