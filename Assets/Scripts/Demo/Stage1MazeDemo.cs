@@ -925,6 +925,25 @@ namespace RogueShooter.Demo
             }
         }
 
+        public void OpenConnectorSettle()
+        {
+            if (_connSettle || RunPause.RunSettled)
+                return;
+            _settleSeconds = Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch);
+            _connSettle = true;
+            RunPause.EnterSettled();
+            ClearShots();
+            EnsureBuild();
+            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+            int keep = EconomyGold.DeathInherit(_build.Gold);
+            Debug.Log("[Stage1] conn settle gold=" + _build.Gold
+                      + " keep=" + keep
+                      + " build=" + _build.BuildCount
+                      + " rewards=" + rewards
+                      + " t=" + RunSeconds.ToString("0.0")
+                      + " scale=" + Time.timeScale.ToString("0"));
+        }
+
         void TryInteract()
         {
             if (_connSettle || RunPause.RunSettled)
@@ -944,19 +963,7 @@ namespace RogueShooter.Demo
 
             if (n.Kind == MazeNodeKind.Connector)
             {
-                if (_connSettle)
-                    return;
-                _settleSeconds = Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch);
-                _connSettle = true;
-                RunPause.RunSettled = true;
-                EnsureBuild();
-                int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
-                int keep = EconomyGold.DeathInherit(_build.Gold);
-                Debug.Log("[Stage1] conn settle gold=" + _build.Gold
-                          + " keep=" + keep
-                          + " build=" + _build.BuildCount
-                          + " rewards=" + rewards
-                          + " t=" + RunSeconds.ToString("0.0"));
+                OpenConnectorSettle();
                 return;
             }
 
@@ -1110,7 +1117,8 @@ namespace RogueShooter.Demo
             if (_rewardScreen != null)
                 _rewardScreen.Hide();
             RunPause.InteractOpen = false;
-            Time.timeScale = 1f;
+            if (!RunPause.RunSettled)
+                Time.timeScale = 1f;
             _offerRoom = null;
         }
 

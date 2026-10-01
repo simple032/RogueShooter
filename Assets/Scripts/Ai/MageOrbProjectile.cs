@@ -48,7 +48,7 @@ namespace RogueShooter.Ai
 
         void Update()
         {
-            if (_dead)
+            if (_dead || RunPause.IsPaused)
                 return;
             float dt = Time.deltaTime;
             float step = _speed * dt;

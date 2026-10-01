@@ -46,6 +46,8 @@ namespace RogueShooter.Player
 
         public void ApplyHit(float amount, string kindId)
         {
+            if (RunPause.RunSettled)
+                return;
             float dmg = amount < 0f ? 0f : amount;
             LastHitDamage = dmg;
             LastHitKind = kindId;

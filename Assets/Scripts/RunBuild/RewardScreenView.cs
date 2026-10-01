@@ -146,7 +146,10 @@ namespace RogueShooter.Build
         void ApplyPause(bool paused)
         {
             RunPause.InteractOpen = paused;
-            Time.timeScale = paused ? 0f : 1f;
+            if (paused)
+                Time.timeScale = 0f;
+            else if (!RunPause.RunSettled)
+                Time.timeScale = 1f;
             if (_canvas != null)
                 _canvas.gameObject.SetActive(paused || (Session != null && Session.Open));
         }
