@@ -31,6 +31,14 @@ namespace RogueShooter.Ai
         public const int LungeDamageMinEasyStub = 30;
         public const int LungeDamageMaxEasyStub = 40;
 
+        // Shield lunge. Not the deleted normal-mob thrust. Off on stage 1.
+        public const float ShieldLungeWarnSeconds = 1.20f;
+        public const float ShieldLungeTrackSeconds = 0.50f;
+        public const float ShieldLungeDistance = 4f;
+        public const float ShieldLungeSpeed = 8f;
+        public const float ShieldLungeRecoverSeconds = 1.00f;
+        public const float ShieldLungeWarnRange = 4f;
+
         public const float MeleeHitRadius = 0.70f;
         public const float OrbHitRadiusStub = 0.40f;
 
@@ -133,11 +141,13 @@ namespace RogueShooter.Ai
         }
 
         /// <summary>
-        /// Lunge belongs to shield soldiers only. Normals do not lunge on any stage.
-        /// S1 does not spawn shields; the rule is ready for when they appear.
+        /// Shield lunge is for later stages. Stage 1 does not run it.
+        /// Normals do not lunge. Damage is the shield's own attack, not the old thrust band.
         /// </summary>
         public static bool CanLunge(string kindId, StageId stage)
         {
+            if (stage == StageId.S1)
+                return false;
             return kindId == EnemyKindIds.Shield;
         }
     }
