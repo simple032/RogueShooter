@@ -1012,6 +1012,18 @@ namespace RogueShooter.Demo
             }
         }
 
+        public bool ArriveConnector()
+        {
+            if (RunFlow.IsStage1Trial)
+            {
+                OpenConnectorSettle();
+                return true;
+            }
+
+            RunFlow.HaltFull();
+            return false;
+        }
+
         public void OpenConnectorSettle()
         {
             if (_connSettle || RunPause.RunSettled)
@@ -1050,7 +1062,7 @@ namespace RogueShooter.Demo
 
             if (n.Kind == MazeNodeKind.Connector)
             {
-                OpenConnectorSettle();
+                ArriveConnector();
                 return;
             }
 
