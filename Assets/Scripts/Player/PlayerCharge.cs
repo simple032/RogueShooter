@@ -11,8 +11,8 @@ using RogueShooter.Vision;
 namespace RogueShooter.Player
 {
     /// <summary>
-    /// Hold-to-charge bow. Ring full at 0.70s; fire if held over 0.2s;
-    /// weak under 0.4s x0.50; weak-spot 0.68-0.72s. After a shot, 0.2s recovery.
+    /// Hold-to-charge bow. Ring full at 0.70s; no arrow under 0.30s; 0.30s can fire.
+    /// Weak under 0.4s x0.50; weak-spot 0.68-0.72s. After a shot, 0.2s recovery.
     /// Movement x0.5 while charging.
     /// </summary>
     public class PlayerCharge : MonoBehaviour
@@ -183,6 +183,14 @@ namespace RogueShooter.Player
 
         ChargeShotKind Fire(float heldSeconds, Vector3 aim)
         {
+            if (RunPause.IsPaused)
+            {
+                CancelCharge();
+                LastShot = ChargeShotKind.None;
+                LastDamage = 0f;
+                return ChargeShotKind.None;
+            }
+
             ShotRead read = CurrentRead;
             ChargeShotKind kind = read.Resolve(heldSeconds);
             if (_guaranteed == null)

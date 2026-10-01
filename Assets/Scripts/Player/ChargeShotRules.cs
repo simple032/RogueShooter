@@ -10,13 +10,13 @@ namespace RogueShooter.Player
 
     /// <summary>
     /// Charge bow (制作人 retune): ring full at 0.70s; recover 0.2s after fire.
-    /// Fire if held over 0.2s; weak if held under 0.4s (x0.50); weak-spot 0.68-0.72s.
+    /// No arrow if held under 0.30s. 0.30s can fire. Weak if held under 0.4s (x0.50); weak-spot 0.68-0.72s.
     /// </summary>
     public static class ChargeShotRules
     {
         public const float RingFillSeconds = 0.70f;
         public const float ChargeSeconds = RingFillSeconds;
-        public const float MinChargeSeconds = 0.20f;
+        public const float MinChargeSeconds = 0.30f;
         public const float WeakMaxSeconds = 0.40f;
         public const float GreenEnterSeconds = 0.68f;
         public const float GreenExitSeconds = 0.72f;
@@ -41,7 +41,7 @@ namespace RogueShooter.Player
 
         public static ChargeShotKind Resolve(float heldSeconds)
         {
-            if (heldSeconds <= MinChargeSeconds)
+            if (heldSeconds < MinChargeSeconds)
                 return ChargeShotKind.None;
             if (heldSeconds >= GreenEnterSeconds && heldSeconds <= GreenExitSeconds)
                 return ChargeShotKind.Crit;

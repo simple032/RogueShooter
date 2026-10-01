@@ -67,7 +67,7 @@ namespace RogueShooter.Player
 
         public ChargeShotKind Resolve(float heldSeconds)
         {
-            if (heldSeconds <= ChargeShotRules.MinChargeSeconds)
+            if (heldSeconds < ChargeShotRules.MinChargeSeconds)
                 return ChargeShotKind.None;
             if (heldSeconds >= GreenEnter && heldSeconds <= GreenExit)
                 return ChargeShotKind.Crit;
