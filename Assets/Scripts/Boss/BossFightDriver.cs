@@ -1,17 +1,21 @@
 using UnityEngine;
+using RogueShooter.Art;
 using RogueShooter.Balance;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
+using RogueShooter.Vision;
 
 namespace RogueShooter.Boss
 {
     /// <summary>
-    /// Room-local BOSS fight runner. Owns door seal + brain ticks + W3-02 HP lock + W3-03 settle.
+    /// Room-local BOSS fight runner. Door seal and the locked HP stay on BossBrain.
+    /// Each new beat is FinalBossLive, so the scene fight uses the distance switch.
     /// Does not attach MobFourStateAi / MobAiBrain.
     /// </summary>
     public sealed class BossFightDriver : MonoBehaviour
     {
         public BossBrain Brain { get; private set; }
+        public FinalBossCombat Combat { get; private set; }
         public BossSettlePanel Settle { get; private set; }
         public bool FightStarted { get; private set; }
         public bool FightWon { get; private set; }
@@ -20,9 +24,10 @@ namespace RogueShooter.Boss
         public BossSettleReport LastSettle { get; private set; }
         public static BossFightDriver Live { get; private set; }
 
-        [SerializeField] float stubMaxHp = BossBrain.DefaultMaxHp;
+        [SerializeField] float stubMaxHp = FinalBossRules.MaxHp;
         [SerializeField] Transform doorVisual;
 
+        PlayerMotor2D _player;
         float _lastWallMinutes;
         int _lastTimeTier = -1;
         float _staggerUntil;
@@ -59,7 +64,7 @@ namespace RogueShooter.Boss
                 doorVisual.gameObject.SetActive(Brain != null && Brain.DoorClosed);
         }
 
-        /// <summary>Enter with Build + wall minutes → lock HP from CSV A–E, then seal fight.</summary>
+        /// <summary>Enter with Build + wall minutes. This fight locks MaxHP at 1200; damage mul still comes from the scale snapshot.</summary>
         public void BeginEnter(int buildCount, float wallMinutes)
         {
             if (FightStarted)
@@ -67,14 +72,13 @@ namespace RogueShooter.Boss
             float tm = TimePressure.AttrMul(wallMinutes);
             float bm = SpawnWaveCatalog.BuildMul(buildCount);
             var snap = BossScaleTable.Resolve(buildCount, wallMinutes, tm, bm);
+            Combat = FinalBossLive.Begin(Brain, ref snap);
             LastScale = snap;
-            Brain.LockHpOnEnter(snap);
             FightStarted = true;
             FightWon = false;
             FightSettled = false;
             _lastWallMinutes = wallMinutes;
             _lastTimeTier = BossScaleTable.TimeTierFromMinutes(wallMinutes);
-            Brain.NotifyEnter();
             ApplyDoorVisual(false);
             Debug.Log(string.Format(
                 "[BossFight] ENTER lock anchor={0} MaxHP={1:0} dmg={2:0.00} B={3} T={4} Tm={5:0.00} Bm={6:0.00} | {7}",
@@ -108,19 +112,18 @@ namespace RogueShooter.Boss
         {
             if (Brain == null || !FightStarted || FightSettled)
                 return;
-            Brain.ApplyDamage(amount);
-            if (Brain.Phase == BossPhase.Defeated)
+            FinalBossLive.ApplyDamage(Combat, Brain, amount);
+            if ((Combat != null && Combat.Hp <= 0f) || Brain.Phase == BossPhase.Defeated)
                 Finish(BossSettleOutcome.Win);
         }
 
-        /// <summary>Spec §4 弱点命中硬直: interrupt current boss move and freeze ticks.</summary>
+        /// <summary>Spec §4 弱点命中硬直: freeze the live beat clock. The beat already playing is not cancelled.</summary>
         public void ApplyWeakSpotStagger(float seconds)
         {
             if (!FightStarted || FightSettled || Brain == null)
                 return;
             float dur = seconds > 0.01f ? seconds : 0.50f;
             _staggerUntil = Time.time + dur;
-            Brain.InterruptCurrentMove();
             Debug.Log($"[BossFight] weak-spot stagger {dur:0.00}s");
         }
 
@@ -173,9 +176,17 @@ namespace RogueShooter.Boss
             TickKnockback(Time.deltaTime);
             if (IsStaggered)
                 return;
+
             var before = Brain.Phase;
             bool doorBefore = Brain.DoorClosed;
-            Brain.Tick(Time.deltaTime);
+            FinalBossMoveId moveBefore = Combat != null ? Combat.CurrentMove : FinalBossMoveId.None;
+            FinalBossPhase phaseBefore = Combat != null ? Combat.Phase : FinalBossPhase.P1;
+            bool hasPlayer = TrySensePlayer(out float px, out float py, out bool body, out bool crown, out bool iframe);
+            FinalBossLive.Step(
+                Brain, Combat, Time.deltaTime, hasPlayer,
+                transform.position.x, transform.position.y,
+                px, py, body, crown, iframe);
+
             if (!doorBefore && Brain.DoorClosed)
             {
                 ApplyDoorVisual(true);
@@ -185,8 +196,50 @@ namespace RogueShooter.Boss
             if (before != Brain.Phase)
                 Debug.Log("[BossFight] PHASE " + before + "→" + Brain.Phase + " " + Brain.Snapshot());
 
-            if (Brain.Phase == BossPhase.Defeated)
+            if (Combat != null && (Combat.CurrentMove != moveBefore || Combat.Phase != phaseBefore))
+            {
+                Debug.Log("[BossFight] BEAT " + Combat.Phase + " " + Combat.CurrentMove
+                    + " replaced=" + Combat.ReplacedMove
+                    + " dist=" + Combat.Distance.ToString("0.00")
+                    + " proj=" + Combat.BeatProjectiles
+                    + " hp=" + Brain.Hp.ToString("0") + "/" + Brain.MaxHp.ToString("0"));
+            }
+
+            if (Brain.Phase == BossPhase.Defeated || (Combat != null && Combat.Hp <= 0f))
                 Finish(BossSettleOutcome.Win);
+        }
+
+        bool TrySensePlayer(out float px, out float py, out bool bodyInView, out bool crownInView, out bool iframe)
+        {
+            px = 0f;
+            py = 0f;
+            bodyInView = false;
+            crownInView = false;
+            iframe = false;
+            if (_player == null)
+                _player = FindObjectOfType<PlayerMotor2D>();
+            if (_player == null)
+                return false;
+
+            Vector3 feet = _player.transform.position;
+            px = feet.x;
+            py = feet.y;
+            var dodge = _player.GetComponent<PlayerDodge>();
+            iframe = dodge != null && dodge.IsInvulnerable;
+
+            Vector3 bossFeet = transform.position;
+            bodyInView = ViewSpace.InViewQuad(bossFeet);
+            crownInView = ViewSpace.InViewQuad(bossFeet + Vector3.up * CrownAboveFeet());
+            return true;
+        }
+
+        /// <summary>现有 Boss 画布脚到冠的高度。不引用被否的近战帧。</summary>
+        static float CrownAboveFeet()
+        {
+            const float canvas = 128f;
+            return (1f - JianHaiArtCatalog.PivotBoss.y)
+                * (canvas / JianHaiArtCatalog.Ppu)
+                * JianHaiArtCatalog.EntityStubWorldScale;
         }
 
         void TickKnockback(float dt)

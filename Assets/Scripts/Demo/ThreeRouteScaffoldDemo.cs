@@ -628,8 +628,11 @@ namespace RogueShooter.Demo
             if (_boss != null && _boss.Brain != null && _boss.FightStarted)
             {
                 var brain = _boss.Brain;
+                string beat = _boss.Combat == null
+                    ? brain.Phase.ToString()
+                    : _boss.Combat.Phase + " " + _boss.Combat.CurrentMove;
                 GUI.Label(new Rect(pad + 8, pad + 226, w - 16, 18),
-                    "BOSS " + brain.Phase
+                    "BOSS " + beat
                     + " door=" + (brain.DoorClosed ? "CLOSED" : "OPEN")
                     + " lockHP=" + (brain.HpLocked ? "YES" : "NO")
                     + " " + brain.Hp.ToString("0") + "/" + brain.MaxHp.ToString("0"),
