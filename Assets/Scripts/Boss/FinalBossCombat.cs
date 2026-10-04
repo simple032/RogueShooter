@@ -125,6 +125,12 @@ namespace RogueShooter.Boss
             PlayerY = y;
         }
 
+        public void SetBossPosition(float x, float y)
+        {
+            BossX = x;
+            BossY = y;
+        }
+
         /// <summary>掉血可以切阶段。不取消正在放的招。</summary>
         public void ApplyDamage(float amount)
         {

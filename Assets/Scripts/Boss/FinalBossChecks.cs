@@ -43,6 +43,8 @@ namespace RogueShooter.Boss
             if (err != null) return err;
             err = CheckHpUntouched();
             if (err != null) return err;
+            err = CheckLiveEntry();
+            if (err != null) return err;
             return null;
         }
 
@@ -52,7 +54,8 @@ namespace RogueShooter.Boss
                 + FinalBossRules.MeleeTriggerDistance.ToString("0.0")
                 + "u dmg=" + FinalBossRules.MeleeDamage.ToString("0")
                 + " draft-unlocked hp=" + FinalBossRules.MaxHp.ToString("0")
-                + " ranged P1 nail/charge P2 triple/ring";
+                + " ranged P1 nail/charge P2 triple/ring"
+                + " live=BossFightDriver";
         }
 
         static string CheckDraftConstants()
@@ -508,6 +511,191 @@ namespace RogueShooter.Boss
                 return "p2 melee fired the triple";
             if (c.CurrentMove != FinalBossMoveId.RingBolt)
                 return "p2 repeated triple";
+            return null;
+        }
+
+        /// <summary>
+        /// 场景入口 BossFightDriver.BeginEnter / Update 调用 FinalBossLive.Begin / Step。
+        /// 这里走同一对方法。单独 new FinalBossCombat 不算接上。
+        /// </summary>
+        static string CheckLiveEntry()
+        {
+            string err = Require(BossBrain.DefaultMaxHp, 3850f, "scaled default hp changed");
+            if (err != null) return err;
+            err = Require(BossScaleTable.BaseHp, 3850f, "scale base hp changed");
+            if (err != null) return err;
+
+            BossBrain brain;
+            FinalBossCombat combat;
+            err = EnterLive(out brain, out combat);
+            if (err != null) return err;
+            if (brain.MaxHp == BossBrain.DefaultMaxHp || combat.MaxHp == BossScaleTable.BaseHp)
+                return "live fight kept scaled hp";
+            err = Require(brain.MaxHp, 1200f, "live max hp");
+            if (err != null) return err;
+            err = Require(brain.Hp, 1200f, "live hp");
+            if (err != null) return err;
+            err = Require(combat.MaxHp, 1200f, "combat max hp");
+            if (err != null) return err;
+            err = Require(combat.Hp, 1200f, "combat hp");
+            if (err != null) return err;
+            if (!brain.HpLocked || brain.Phase != BossPhase.Entering || brain.CurrentMove != BossMoveId.None)
+                return "enter started a brain move";
+
+            float lockedHp = brain.MaxHp;
+            brain.NotifyTimeCross(11f);
+            err = Require(brain.MaxHp, lockedHp, "cross changed live max hp");
+            if (err != null) return err;
+            err = Require(combat.MaxHp, lockedHp, "cross changed combat max hp");
+            if (err != null) return err;
+            err = Require(brain.Hp, lockedHp, "cross changed live hp");
+            if (err != null) return err;
+
+            err = LiveCloseThenFar(brain, combat);
+            if (err != null) return err;
+
+            err = EnterLive(out brain, out combat);
+            if (err != null) return err;
+            err = LiveHoldThenNail(brain, combat);
+            if (err != null) return err;
+
+            err = EnterLive(out brain, out combat);
+            if (err != null) return err;
+            err = LiveP2Melee(brain, combat);
+            if (err != null) return err;
+            return null;
+        }
+
+        static string EnterLive(out BossBrain brain, out FinalBossCombat combat)
+        {
+            brain = new BossBrain();
+            brain.Configure(BossBrain.DefaultMaxHp);
+            combat = null;
+            if (brain.MaxHp != BossBrain.DefaultMaxHp)
+                return "brain did not start scaled";
+            var snap = new BossScaleSnapshot
+            {
+                AnchorId = "A",
+                BuildCount = 14,
+                TimeTier = 2,
+                MaxHp = BossScaleTable.BaseHp,
+                DmgMul = 1.28f,
+                HpMul = 1f
+            };
+            if (snap.MaxHp != BossScaleTable.BaseHp)
+                return "fixture was not scaled hp";
+            combat = FinalBossLive.Begin(brain, ref snap);
+            if (combat == null)
+                return "live begin missing combat";
+            if (snap.MaxHp == BossScaleTable.BaseHp)
+                return "begin left scaled max hp";
+            string err = Require(snap.MaxHp, 1200f, "begin snapshot hp");
+            if (err != null) return err;
+            err = Require(brain.LiveDmgMul, 1.28f, "begin dropped dmg mul");
+            if (err != null) return err;
+            return null;
+        }
+
+        static string LiveCloseThenFar(BossBrain brain, FinalBossCombat combat)
+        {
+            var seal = FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 4f, 0f, false, false, false);
+            if (seal != FinalBossFightClock.DoorSealed)
+                return "first live tick should only seal";
+            if (brain.Phase != BossPhase.DoorSealed || brain.CurrentMove != BossMoveId.None || brain.MovesCompleted != 0)
+                return "door tick started brain rotation";
+            if (combat.CurrentMove != FinalBossMoveId.None)
+                return "door tick opened a beat";
+
+            var missing = FinalBossLive.Step(brain, combat, 0.02f, false, 0f, 0f, 0f, 0f, false, false, false);
+            if (missing != FinalBossFightClock.NoPlayer || combat.CurrentMove != FinalBossMoveId.None)
+                return "missing player opened a beat";
+
+            var opened = FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 4f, 0f, false, false, false);
+            if (opened != FinalBossFightClock.Ticked)
+                return "close beat did not tick";
+            if (combat.CurrentMove != FinalBossMoveId.Melee || combat.BeatProjectiles != 0)
+                return "live close did not melee";
+            if (combat.ReplacedMove != FinalBossMoveId.NailBow || combat.P1Index != 1)
+                return "live melee did not take the nail slot";
+            if (brain.Phase != BossPhase.DoorSealed || brain.CurrentMove != BossMoveId.None)
+                return "live fight still on brain rotation";
+
+            FinalBossLive.Step(brain, combat, 0.2f, true, 0f, 0f, 8f, 0f, true, true, false);
+            if (combat.CurrentMove != FinalBossMoveId.Melee)
+                return "windup switched back to ranged";
+
+            float windup;
+            float active;
+            float recovery;
+            FinalBossRules.Timing(FinalBossMoveId.Melee, out windup, out active, out recovery);
+            float left = windup + active + recovery - combat.MoveTime;
+            FinalBossLive.Step(brain, combat, left, true, 0f, 0f, 8f, 0f, true, true, false);
+            if (combat.LastBeatMove != FinalBossMoveId.Melee || !combat.LastBeatWhiff || combat.LastBeatProjectiles != 0)
+                return "live whiff fired a projectile";
+            if (combat.LastReplacedMove != FinalBossMoveId.NailBow)
+                return "live replaced nail was dropped";
+            if (combat.CurrentMove != FinalBossMoveId.ShieldCharge)
+                return "live pointer did not advance";
+            if (combat.BeatProjectiles != FinalBossRules.ShieldChargeVolley)
+                return "live charge spawned a volley";
+            if (brain.CurrentMove != BossMoveId.None || brain.Phase == BossPhase.P1)
+                return "brain rotation ran beside live combat";
+            return null;
+        }
+
+        static string LiveHoldThenNail(BossBrain brain, FinalBossCombat combat)
+        {
+            FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 8f, 0f, true, false, false);
+            var held = FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 8f, 0f, true, false, false);
+            if (held != FinalBossFightClock.Ticked)
+                return "hold did not reach combat";
+            if (combat.CurrentMove != FinalBossMoveId.None || combat.P1Index != 0)
+                return "far without crown opened ranged";
+
+            FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 8f, 0f, true, true, false);
+            if (combat.CurrentMove != FinalBossMoveId.NailBow || combat.Step != FinalBossStep.Windup)
+                return "far in view did not open nail";
+            FinalBossLive.Step(brain, combat, 0.1f, true, 0f, 0f, 1f, 0f, true, true, false);
+            if (combat.CurrentMove != FinalBossMoveId.NailBow || combat.BeatProjectiles != 0)
+                return "in-progress nail was interrupted";
+
+            float windup;
+            float active;
+            float recovery;
+            FinalBossRules.Timing(FinalBossMoveId.NailBow, out windup, out active, out recovery);
+            float intoVolley = windup - combat.MoveTime;
+            FinalBossLive.Step(brain, combat, intoVolley, true, 0f, 0f, 1f, 0f, true, true, false);
+            if (combat.CurrentMove != FinalBossMoveId.NailBow)
+                return "nail changed when the player walked in";
+            if (combat.BeatProjectiles != FinalBossRules.NailBowVolley)
+                return "in-progress nail skipped its volley";
+            if (brain.CurrentMove != BossMoveId.None)
+                return "brain played the nail";
+            return null;
+        }
+
+        static string LiveP2Melee(BossBrain brain, FinalBossCombat combat)
+        {
+            FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 2f, 0f, false, false, false);
+            FinalBossLive.ApplyDamage(combat, brain, combat.MaxHp * BossBrain.Phase2HpFrac + 1f);
+            if (combat.Phase != FinalBossPhase.P2)
+                return "live phase cut missed";
+            if (brain.Phase != BossPhase.DoorSealed || brain.CurrentMove != BossMoveId.None)
+                return "live phase cut started a brain phase";
+            string err = Require(brain.Hp, combat.Hp, "live hp pools diverged");
+            if (err != null) return err;
+            err = Require(brain.MaxHp, 1200f, "p2 changed max hp");
+            if (err != null) return err;
+
+            var opened = FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 2f, 0f, false, false, false);
+            if (opened != FinalBossFightClock.Ticked)
+                return "p2 close did not tick";
+            if (combat.CurrentMove != FinalBossMoveId.Melee || combat.ReplacedMove != FinalBossMoveId.TripleArrow)
+                return "p2 close did not melee";
+            if (combat.BeatProjectiles != 0)
+                return "p2 melee spawned a projectile";
+            if (brain.Phase == BossPhase.P2 || brain.CurrentMove != BossMoveId.None)
+                return "p2 still driven by brain";
             return null;
         }
 
