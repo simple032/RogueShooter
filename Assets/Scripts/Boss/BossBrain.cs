@@ -278,9 +278,9 @@ namespace RogueShooter.Boss
             _recovery = 0f;
         }
 
-        static void TimingsFor(BossMoveId move, out float windup, out float active, out float recovery)
+        /// <summary>§10.1 策划设计表。终局远程四招读这里；近战不改这四段。</summary>
+        public static void TimingsFor(BossMoveId move, out float windup, out float active, out float recovery)
         {
-            // §10.1 策划设计表 defaults.
             switch (move)
             {
                 case BossMoveId.StraightShot:
