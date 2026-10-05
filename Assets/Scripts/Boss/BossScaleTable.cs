@@ -29,14 +29,15 @@ namespace RogueShooter.Boss
     }
 
     /// <summary>
-    /// W3-04 continuous BOSS scale: IDW over A–E control points (CSV 点验偏差≤0.02；锚点处精确命中).
-    /// Also exposes Power = 0.45B+0.55RS for evidence / Bm·Tm 口径.
-    /// Enter locks MaxHP; cross-seg only refreshes dmg mul.
+    /// Final-boss scale: IDW over A–E on build and continuous pressure coordinate c(p).
+    /// Enter HP uses locked base 1200 (design package wrote 1100). Damage weights are divided by 1.28.
+    /// Enter locks MaxHP; live pressure only refreshes the outgoing multiplier.
     /// </summary>
     public static class BossScaleTable
     {
-        public const float BaseHp = 3850f;
+        public const float BaseHp = FinalBossRules.BaseHp;
         public const float DiffRefAttr = 1.25f;
+        public const float PressureRef = FinalBossRules.PressureRef;
         public const float PowerBuildCoef = 0.45f;
         public const float PowerRarityCoef = 0.55f;
         public const float AnchorTol = 0.02f;
@@ -79,11 +80,20 @@ namespace RogueShooter.Boss
             return false;
         }
 
-        /// <summary>Continuous muls via inverse-distance weighting over A–E (exact at anchors).</summary>
+        /// <summary>Discrete tier helper. Time-tier integers match the anchor c values 1/2/3.</summary>
         public static void ContinuousMuls(int buildCount, int timeTier, out float hpMul, out float dmgMul)
         {
+            ContinuousMuls(buildCount, (float)timeTier, out hpMul, out dmgMul);
+        }
+
+        /// <summary>
+        /// IDW over A–E. Distance² = (B-anchorB)² + 4(c-anchorC)², weight = 1/(distance²+0.000001).
+        /// Exact anchors return the anchor pair.
+        /// </summary>
+        public static void ContinuousMuls(int buildCount, float coordinate, out float hpMul, out float dmgMul)
+        {
             BossScaleRow exact;
-            if (TryExact(buildCount, timeTier, out exact))
+            if (TryExactCoordinate(buildCount, coordinate, out exact))
             {
                 hpMul = exact.HpMul;
                 dmgMul = exact.DmgMul;
@@ -97,9 +107,9 @@ namespace RogueShooter.Boss
             {
                 var a = Anchors[i];
                 double db = buildCount - a.BuildMin;
-                double dt = timeTier - a.TimeTierMax;
-                double dist2 = db * db + dt * dt * 4.0; // tier weighted
-                double w = 1.0 / (dist2 + 1e-6);
+                double dc = coordinate - a.TimeTierMax;
+                double dist2 = db * db + 4.0 * dc * dc;
+                double w = 1.0 / (dist2 + 0.000001);
                 wSum += w;
                 hpSum += w * a.HpMul;
                 dmgSum += w * a.DmgMul;
@@ -107,6 +117,23 @@ namespace RogueShooter.Boss
 
             hpMul = (float)(hpSum / wSum);
             dmgMul = (float)(dmgSum / wSum);
+        }
+
+        public static bool TryExactCoordinate(int buildCount, float coordinate, out BossScaleRow row)
+        {
+            for (int i = 0; i < Anchors.Length; i++)
+            {
+                var a = Anchors[i];
+                if (buildCount >= a.BuildMin && buildCount <= a.BuildMax
+                    && Math.Abs(coordinate - a.TimeTierMax) <= 0.0005f)
+                {
+                    row = a;
+                    return true;
+                }
+            }
+
+            row = default(BossScaleRow);
+            return false;
         }
 
         public static BossScaleSnapshot Resolve(int buildCount, float wallMinutes, float tm, float bm)
@@ -117,17 +144,17 @@ namespace RogueShooter.Boss
         public static BossScaleSnapshot Resolve(int buildCount, float rarityScore, float wallMinutes, float tm, float bm)
         {
             int tier = TimeTierFromMinutes(wallMinutes);
+            float pressure = tm > 0.01f ? tm : FinalBossRules.PressureRef;
+            float coordinate = FinalBossRules.PressureCoordinate(pressure);
             float hpMul, dmgMul;
-            ContinuousMuls(buildCount, tier, out hpMul, out dmgMul);
+            ContinuousMuls(buildCount, coordinate, out hpMul, out dmgMul);
             float power = ComputePower(buildCount, rarityScore);
 
             string anchorId = "cont";
             BossScaleRow row;
-            if (TryExact(buildCount, tier, out row))
+            if (TryExactCoordinate(buildCount, coordinate, out row))
                 anchorId = row.Id;
 
-            float attr = tm > 0.01f ? tm : DiffRefAttr;
-            float attrScale = attr / DiffRefAttr;
             return new BossScaleSnapshot
             {
                 AnchorId = anchorId,
@@ -136,20 +163,17 @@ namespace RogueShooter.Boss
                 Power = power,
                 TimeTier = tier,
                 HpMul = hpMul,
-                DmgMul = dmgMul * attrScale,
-                MaxHp = BaseHp * hpMul * attrScale,
+                DmgMul = FinalBossRules.OutgoingMultiplier(buildCount, pressure),
+                MaxHp = FinalBossRules.EnterMaxHp(buildCount, pressure),
                 Bm = bm,
-                Tm = tm,
+                Tm = pressure,
                 UsedContinuous = true
             };
         }
 
-        public static float DmgMulFor(int buildCount, float wallMinutes)
+        public static float DmgMulFor(int buildCount, float pressure)
         {
-            int tier = TimeTierFromMinutes(wallMinutes);
-            float hpMul, dmgMul;
-            ContinuousMuls(buildCount, tier, out hpMul, out dmgMul);
-            return dmgMul;
+            return FinalBossRules.OutgoingMultiplier(buildCount, pressure);
         }
 
         public static float DmgMulFor(int buildCount, float rarityScore, float wallMinutes)

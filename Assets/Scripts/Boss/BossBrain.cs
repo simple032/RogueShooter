@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace RogueShooter.Boss
 {
@@ -12,13 +13,20 @@ namespace RogueShooter.Boss
         Defeated
     }
 
+    /// <summary>
+    /// One final-boss clock. RingBurst stays in the enum so old ids do not shift, and it is never started.
+    /// </summary>
     public enum BossMoveId
     {
-        None,
-        StraightShot,
-        WarningCharge,
-        TripleShot,
-        RingBurst
+        None = 0,
+        StraightShot = 1,
+        WarningCharge = 2,
+        TripleShot = 3,
+        RingBurst = 4,
+        BurstShot = 5,
+        ShieldBash = 6,
+        LeapSlam = 7,
+        CrossbowBash = 8
     }
 
     public enum BossMoveStep
@@ -29,14 +37,27 @@ namespace RogueShooter.Boss
         Recovery
     }
 
+    public struct MoveSpan
+    {
+        public BossMoveId Move;
+        public int Index;
+        public float From;
+        public float To;
+        public bool Finished;
+
+        public bool HasMove
+        {
+            get { return Move != BossMoveId.None && To > From; }
+        }
+    }
+
     /// <summary>
-    /// Independent BOSS fight SM (W3-01/02). Not MobAiBrain / patrol tree.
-    /// Enter → seal door → P1 moves → HP≤50% → P2 moves → HP≤0 → Defeated.
-    /// W3-02: MaxHP locked on enter from Build×time CSV; cross-seg only bumps DmgMul.
+    /// Single final-boss state machine: door, HP, phase, skill clock, cooldowns, ranged counter.
+    /// Spatial hits live on <see cref="FinalBossCombat"/>. There is no second move rotator.
     /// </summary>
     public sealed class BossBrain
     {
-        public const float DefaultMaxHp = 3850f;
+        public const float DefaultMaxHp = FinalBossRules.BaseHp;
         public const float Phase2HpFrac = 0.5f;
 
         public float MaxHp { get; private set; }
@@ -53,26 +74,80 @@ namespace RogueShooter.Boss
         public BossMoveStep MoveStep { get; private set; }
         public int MoveIndex { get; private set; }
         public int MovesCompleted { get; private set; }
+        public int Phase2Transitions { get; private set; }
+        public float ActionElapsed { get; private set; }
+        public float CombatSeconds { get; private set; }
+        public int P1RangedUses { get; private set; }
+        public float TransitionLeft { get; private set; }
         public bool UsesMobAi { get { return false; } }
+        public bool Transitioning { get { return TransitionLeft > 0.00001f; } }
 
-        float _stepT;
+        public float QuietLeft
+        {
+            get { return Math.Max(0f, _quietUntil - CombatSeconds); }
+        }
+
+        public BossMoveId NextP1Ranged
+        {
+            get { return P1RangedUses % 3 == 2 ? BossMoveId.BurstShot : BossMoveId.StraightShot; }
+        }
+
+        public bool ReadyToSelect
+        {
+            get
+            {
+                return !Transitioning
+                    && MoveStep == BossMoveStep.Idle
+                    && CurrentMove == BossMoveId.None
+                    && QuietLeft <= 0.00001f
+                    && (Phase == BossPhase.P1 || Phase == BossPhase.P2);
+            }
+        }
+
+        public float StepElapsed
+        {
+            get
+            {
+                if (MoveStep == BossMoveStep.Active)
+                    return ActionElapsed - _windup;
+                if (MoveStep == BossMoveStep.Recovery)
+                    return ActionElapsed - _windup - _active;
+                return ActionElapsed;
+            }
+        }
+
+        public bool GroundVulnerable
+        {
+            get
+            {
+                if (CurrentMove != BossMoveId.LeapSlam)
+                    return true;
+                return ActionElapsed < FinalBossRules.LeapLandTime - FinalBossRules.LeapAirSeconds
+                    || ActionElapsed >= FinalBossRules.LeapLandTime;
+            }
+        }
+
+        public bool BlocksDisplacement
+        {
+            get
+            {
+                if (MoveStep != BossMoveStep.Active)
+                    return false;
+                return CurrentMove == BossMoveId.WarningCharge || CurrentMove == BossMoveId.LeapSlam;
+            }
+        }
+
         float _windup;
         float _active;
         float _recovery;
-        int _p1Pick;
-        int _p2Pick;
-
-        static readonly BossMoveId[] P1Moves =
-        {
-            BossMoveId.StraightShot,
-            BossMoveId.WarningCharge
-        };
-
-        static readonly BossMoveId[] P2Moves =
-        {
-            BossMoveId.TripleShot,
-            BossMoveId.RingBurst
-        };
+        float _quietUntil;
+        float _weakUntil;
+        int _weakMoveIndex = -1;
+        int _rangedConsumedIndex = -1;
+        int _sameCount;
+        BossMoveId _lastMove;
+        bool _quietArmed;
+        readonly Dictionary<BossMoveId, float> _cooldowns = new Dictionary<BossMoveId, float>();
 
         public void Configure(float maxHp)
         {
@@ -82,9 +157,9 @@ namespace RogueShooter.Boss
 
         public void Reset()
         {
-            Hp = MaxHp > 1f ? MaxHp : DefaultMaxHp;
             if (MaxHp < 1f)
                 MaxHp = DefaultMaxHp;
+            Hp = MaxHp;
             HpLocked = false;
             EnterAnchorId = "";
             EnterBuild = 0;
@@ -93,17 +168,23 @@ namespace RogueShooter.Boss
             LiveDmgMul = 1f;
             Phase = BossPhase.IdleOutside;
             DoorClosed = false;
-            CurrentMove = BossMoveId.None;
-            MoveStep = BossMoveStep.Idle;
+            ClearMove();
             MoveIndex = 0;
             MovesCompleted = 0;
-            _stepT = 0f;
-            _p1Pick = 0;
-            _p2Pick = 0;
-            ClearTiming();
+            Phase2Transitions = 0;
+            P1RangedUses = 0;
+            CombatSeconds = 0f;
+            TransitionLeft = 0f;
+            _quietUntil = 0f;
+            _weakUntil = 0f;
+            _weakMoveIndex = -1;
+            _rangedConsumedIndex = -1;
+            _sameCount = 0;
+            _lastMove = BossMoveId.None;
+            _quietArmed = false;
+            _cooldowns.Clear();
         }
 
-        /// <summary>W3-02: lock MaxHP / enter dmg from scale snapshot. Call before NotifyEnter.</summary>
         public void LockHpOnEnter(BossScaleSnapshot snap)
         {
             if (HpLocked)
@@ -118,19 +199,19 @@ namespace RogueShooter.Boss
             LiveDmgMul = EnterDmgMul;
         }
 
-        /// <summary>
-        /// Mid-fight time cross: refresh damage mul only; MaxHP/Hp stay locked.
-        /// </summary>
-        public void NotifyTimeCross(float wallMinutes)
+        /// <summary>Refresh outgoing damage from the current pressure. Max HP stays locked.</summary>
+        public void RefreshDamage(float pressure)
         {
-            if (!HpLocked)
+            if (!HpLocked || pressure <= 0.01f)
                 return;
-            float next = BossScaleTable.DmgMulFor(EnterBuild, wallMinutes);
-            if (next > 0.01f)
-                LiveDmgMul = next;
+            LiveDmgMul = FinalBossRules.OutgoingMultiplier(EnterBuild, pressure);
         }
 
-        /// <summary>Player crossed BOSS room threshold.</summary>
+        public void NotifyTimeCross(float wallMinutes)
+        {
+            // Damage no longer follows the discrete time tier. Call RefreshDamage(pressure).
+        }
+
         public void NotifyEnter()
         {
             if (Phase != BossPhase.IdleOutside)
@@ -141,20 +222,18 @@ namespace RogueShooter.Boss
 
         public void ApplyDamage(float amount)
         {
-            if (Phase == BossPhase.IdleOutside || Phase == BossPhase.Defeated)
+            if (Phase == BossPhase.IdleOutside || Phase == BossPhase.Defeated || Transitioning)
                 return;
             if (amount <= 0f)
                 return;
             Hp -= amount;
             if (Hp < 0f)
                 Hp = 0f;
-
             if (Hp <= 0f)
             {
                 Phase = BossPhase.Defeated;
-                CurrentMove = BossMoveId.None;
-                MoveStep = BossMoveStep.Idle;
-                ClearTiming();
+                ClearMove();
+                _quietArmed = false;
                 return;
             }
 
@@ -162,161 +241,212 @@ namespace RogueShooter.Boss
                 EnterPhase2();
         }
 
-        /// <summary>Spec §4 弱点命中硬直: drop current windup/active/recovery.</summary>
+        public void DrainTransition(float unscaledDt)
+        {
+            if (unscaledDt < 0f)
+                unscaledDt = 0f;
+            if (TransitionLeft <= 0f)
+                return;
+            TransitionLeft -= unscaledDt;
+            if (TransitionLeft < 0f)
+                TransitionLeft = 0f;
+        }
+
+        public bool CanUse(BossMoveId move)
+        {
+            if (FinalBossRules.IsRetired(move) || move == BossMoveId.None)
+                return false;
+            bool valid = Phase == BossPhase.P1
+                ? FinalBossRules.IsP1Ranged(move) || move == BossMoveId.WarningCharge || move == BossMoveId.ShieldBash
+                : Phase == BossPhase.P2 && (move == BossMoveId.TripleShot || move == BossMoveId.LeapSlam || move == BossMoveId.CrossbowBash);
+            if (!valid)
+                return false;
+            float until;
+            BossMoveId key = FinalBossRules.CooldownKey(move);
+            if (_cooldowns.TryGetValue(key, out until) && CombatSeconds + 0.00001f < until)
+                return false;
+            bool same = key == FinalBossRules.CooldownKey(_lastMove);
+            if (same && (FinalBossRules.IsHeavy(move) || _sameCount >= 2))
+                return false;
+            return true;
+        }
+
+        public bool TryStart(BossMoveId move)
+        {
+            if (!ReadyToSelect || !CanUse(move))
+                return false;
+            if (FinalBossRules.IsP1Ranged(move) && move != NextP1Ranged)
+                return false;
+            BossSkill skill = FinalBossRules.Skill(move);
+            _windup = skill.Windup;
+            _active = skill.Active;
+            _recovery = skill.Recovery;
+            BossMoveId key = FinalBossRules.CooldownKey(move);
+            _sameCount = key == FinalBossRules.CooldownKey(_lastMove) ? _sameCount + 1 : 1;
+            _lastMove = move;
+            CurrentMove = move;
+            MoveIndex++;
+            ActionElapsed = 0f;
+            MoveStep = BossMoveStep.Windup;
+            _cooldowns[key] = CombatSeconds + skill.Cooldown;
+            return true;
+        }
+
+        public void NotifyRangedFired(BossMoveId move, int moveIndex)
+        {
+            if (Phase != BossPhase.P1 || !FinalBossRules.IsP1Ranged(move))
+                return;
+            if (_rangedConsumedIndex == moveIndex)
+                return;
+            _rangedConsumedIndex = moveIndex;
+            P1RangedUses++;
+        }
+
+        public bool TryWeakSpot()
+        {
+            if (Transitioning || MoveStep != BossMoveStep.Recovery)
+                return false;
+            if (Phase != BossPhase.P1 && Phase != BossPhase.P2)
+                return false;
+            if (_weakMoveIndex == MoveIndex || CombatSeconds < _weakUntil)
+                return false;
+            _recovery += FinalBossRules.RecoveryExtension;
+            _weakUntil = CombatSeconds + FinalBossRules.WeakCooldown;
+            _weakMoveIndex = MoveIndex;
+            return true;
+        }
+
         public void InterruptCurrentMove()
         {
-            if (Phase == BossPhase.Defeated || Phase == BossPhase.IdleOutside)
+            TryWeakSpot();
+        }
+
+        public void EndChargeEarly()
+        {
+            if (CurrentMove != BossMoveId.WarningCharge || MoveStep != BossMoveStep.Active)
                 return;
-            CurrentMove = BossMoveId.None;
-            MoveStep = BossMoveStep.Idle;
-            ClearTiming();
+            _active = Math.Max(0f, ActionElapsed - _windup);
+            MoveStep = BossMoveStep.Recovery;
         }
 
         public BossPhase Tick(float dt)
         {
+            Tick(dt, true);
+            return Phase;
+        }
+
+        public MoveSpan Tick(float dt, bool projectilesClear)
+        {
             if (dt < 0f)
                 dt = 0f;
-
-            switch (Phase)
+            if (Phase == BossPhase.Entering)
             {
-                case BossPhase.Entering:
-                    // Seal immediately on first tick after enter.
-                    DoorClosed = true;
-                    Phase = BossPhase.DoorSealed;
-                    break;
-
-                case BossPhase.DoorSealed:
-                    Phase = BossPhase.P1;
-                    BeginNextMove();
-                    break;
-
-                case BossPhase.P1:
-                case BossPhase.P2:
-                    TickMove(dt);
-                    break;
+                DoorClosed = true;
+                Phase = BossPhase.DoorSealed;
+                return default(MoveSpan);
             }
 
-            return Phase;
+            if (Phase == BossPhase.DoorSealed)
+            {
+                Phase = BossPhase.P1;
+                if (Hp <= MaxHp * Phase2HpFrac)
+                    EnterPhase2();
+                return default(MoveSpan);
+            }
+
+            if ((Phase != BossPhase.P1 && Phase != BossPhase.P2) || Transitioning)
+                return default(MoveSpan);
+
+            CombatSeconds += dt;
+            MoveSpan span = default(MoveSpan);
+            if (CurrentMove != BossMoveId.None && MoveStep != BossMoveStep.Idle)
+            {
+                float from = ActionElapsed;
+                ActionElapsed += dt;
+                float end = _windup + _active + _recovery;
+                bool finished = ActionElapsed >= end - 0.00001f;
+                float to = finished ? end : ActionElapsed;
+                span = new MoveSpan
+                {
+                    Move = CurrentMove,
+                    Index = MoveIndex,
+                    From = from,
+                    To = to,
+                    Finished = finished
+                };
+                if (!finished)
+                {
+                    if (ActionElapsed >= _windup + _active)
+                        MoveStep = BossMoveStep.Recovery;
+                    else if (ActionElapsed >= _windup)
+                        MoveStep = BossMoveStep.Active;
+                    else
+                        MoveStep = BossMoveStep.Windup;
+                }
+                else
+                {
+                    MovesCompleted++;
+                    ClearMove();
+                    _quietArmed = true;
+                }
+            }
+
+            if (_quietArmed && projectilesClear && MoveStep == BossMoveStep.Idle)
+            {
+                _quietArmed = false;
+                _quietUntil = CombatSeconds + FinalBossRules.Quiet(Phase);
+            }
+
+            return span;
+        }
+
+        public void NoteProjectiles(bool clear)
+        {
+            if (_quietArmed && clear && MoveStep == BossMoveStep.Idle)
+            {
+                _quietArmed = false;
+                _quietUntil = CombatSeconds + FinalBossRules.Quiet(Phase);
+            }
+        }
+
+        public static void TimingsFor(BossMoveId move, out float windup, out float active, out float recovery)
+        {
+            BossSkill skill = FinalBossRules.Skill(move);
+            windup = skill.Windup;
+            active = skill.Active;
+            recovery = skill.Recovery;
         }
 
         void EnterPhase2()
         {
+            if (Phase == BossPhase.Defeated || Phase2Transitions > 0)
+                return;
             Phase = BossPhase.P2;
+            Phase2Transitions++;
+            ClearMove();
+            _quietArmed = false;
+            _quietUntil = CombatSeconds;
+            _lastMove = BossMoveId.None;
+            _sameCount = 0;
+            TransitionLeft = FinalBossRules.TransitionSeconds;
+        }
+
+        void ClearMove()
+        {
             CurrentMove = BossMoveId.None;
             MoveStep = BossMoveStep.Idle;
-            ClearTiming();
-            BeginNextMove();
-        }
-
-        void TickMove(float dt)
-        {
-            if (MoveStep == BossMoveStep.Idle)
-            {
-                BeginNextMove();
-                return;
-            }
-
-            _stepT += dt;
-            switch (MoveStep)
-            {
-                case BossMoveStep.Windup:
-                    if (_stepT >= _windup)
-                        EnterStep(BossMoveStep.Active, _active);
-                    break;
-                case BossMoveStep.Active:
-                    if (_stepT >= _active)
-                        EnterStep(BossMoveStep.Recovery, _recovery);
-                    break;
-                case BossMoveStep.Recovery:
-                    if (_stepT >= _recovery)
-                    {
-                        MovesCompleted++;
-                        MoveStep = BossMoveStep.Idle;
-                        CurrentMove = BossMoveId.None;
-                        ClearTiming();
-                        BeginNextMove();
-                    }
-                    break;
-            }
-        }
-
-        void BeginNextMove()
-        {
-            BossMoveId move;
-            if (Phase == BossPhase.P1)
-            {
-                move = P1Moves[_p1Pick % P1Moves.Length];
-                _p1Pick++;
-            }
-            else if (Phase == BossPhase.P2)
-            {
-                move = P2Moves[_p2Pick % P2Moves.Length];
-                _p2Pick++;
-            }
-            else
-                return;
-
-            CurrentMove = move;
-            MoveIndex++;
-            TimingsFor(move, out _windup, out _active, out _recovery);
-            EnterStep(BossMoveStep.Windup, _windup);
-        }
-
-        void EnterStep(BossMoveStep step, float duration)
-        {
-            MoveStep = step;
-            _stepT = 0f;
-            if (duration < 0f)
-                duration = 0f;
-        }
-
-        void ClearTiming()
-        {
-            _stepT = 0f;
+            ActionElapsed = 0f;
             _windup = 0f;
             _active = 0f;
             _recovery = 0f;
         }
 
-        /// <summary>§10.1 策划设计表。终局远程四招读这里；近战不改这四段。</summary>
-        public static void TimingsFor(BossMoveId move, out float windup, out float active, out float recovery)
-        {
-            switch (move)
-            {
-                case BossMoveId.StraightShot:
-                    windup = 0.5f;
-                    active = 0.4f;
-                    recovery = 0.3f;
-                    break;
-                case BossMoveId.WarningCharge:
-                    windup = 0.7f;
-                    active = 0.35f;
-                    recovery = 0.5f;
-                    break;
-                case BossMoveId.TripleShot:
-                    windup = 0.4f;
-                    active = 0.45f;
-                    recovery = 0.4f;
-                    break;
-                case BossMoveId.RingBurst:
-                    windup = 0.8f;
-                    active = 0.35f;
-                    recovery = 0.6f;
-                    break;
-                default:
-                    windup = 0.3f;
-                    active = 0.2f;
-                    recovery = 0.2f;
-                    break;
-            }
-        }
-
         public string Snapshot()
         {
             return string.Format(
-                "phase={0} door={1} hp={2:0}/{3:0} lock={4} anchor={5} B={6} T={7} dmg={8:0.00}→{9:0.00} move={10}/{11} done={12} mobAi={13}",
+                "phase={0} door={1} hp={2:0}/{3:0} lock={4} anchor={5} B={6} T={7} dmg={8:0.00}→{9:0.00} move={10}/{11} done={12} ranged={13} mobAi={14}",
                 Phase, DoorClosed, Hp, MaxHp, HpLocked, EnterAnchorId, EnterBuild, EnterTimeTier,
-                EnterDmgMul, LiveDmgMul, CurrentMove, MoveStep, MovesCompleted, UsesMobAi);
+                EnterDmgMul, LiveDmgMul, CurrentMove, MoveStep, MovesCompleted, P1RangedUses, UsesMobAi);
         }
     }
 }
