@@ -100,9 +100,9 @@ namespace RogueShooter.Boss
             float bm = SpawnWaveCatalog.BuildMul(bossBuild);
             var snap = BossScaleTable.Resolve(bossBuild, arriveMinutes, tm, bm);
             var brain = new BossBrain();
-            brain.Configure(BossScaleTable.BaseHp);
-            brain.LockHpOnEnter(snap);
-            brain.NotifyEnter();
+            brain.Configure(BossBrain.DefaultMaxHp);
+            // Scale Resolve still fills anchor, tier, and dmg mul. Fight HP is the locked 1200.
+            FinalBossCombat combat = FinalBossLive.Begin(brain, ref snap);
             brain.Tick(0.02f);
             brain.Tick(0.02f);
 
@@ -112,7 +112,7 @@ namespace RogueShooter.Boss
             float guard = 600f;
             while (hp > 0f && ttk < guard)
             {
-                brain.ApplyDamage(stubDps * dt);
+                FinalBossLive.ApplyDamage(combat, brain, stubDps * dt);
                 hp = brain.Hp;
                 ttk += dt;
                 if (brain.Phase == BossPhase.Defeated)

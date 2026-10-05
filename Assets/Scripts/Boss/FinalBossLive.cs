@@ -10,12 +10,12 @@ namespace RogueShooter.Boss
 
     /// <summary>
     /// 场景终局战和自检共用的入口。BossFightDriver.BeginEnter / Update 只走这里。
-    /// 开战把这场最大生命写成终局 1200；之后每一拍用距离切换，不再推进 BossBrain 的招式。
+    /// 开战把这场最大生命写成已锁定的 1200，不采用缩放快照里的 MaxHp；之后每一拍用距离切换，不再推进 BossBrain 的招式。
     /// </summary>
     public static class FinalBossLive
     {
         /// <summary>
-        /// 进门。缩放快照里的最大生命改成这场的 1200 再锁上，伤害倍率仍留在快照上。
+        /// 进门。缩放快照里的最大生命改成已锁定的 1200 再锁上，伤害倍率仍留在快照上。
         /// </summary>
         public static FinalBossCombat Begin(BossBrain brain, ref BossScaleSnapshot snap)
         {

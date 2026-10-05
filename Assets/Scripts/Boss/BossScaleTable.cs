@@ -31,10 +31,12 @@ namespace RogueShooter.Boss
     /// <summary>
     /// W3-04 continuous BOSS scale: IDW over A–E control points (CSV 点验偏差≤0.02；锚点处精确命中).
     /// Also exposes Power = 0.45B+0.55RS for evidence / Bm·Tm 口径.
-    /// Enter locks MaxHP; cross-seg only refreshes dmg mul.
+    /// BaseHp stays the old scale stub. Resolve().MaxHp is not the final-fight HP;
+    /// FinalBossLive.Begin replaces it with FinalBossRules.MaxHp. Cross-seg only refreshes dmg mul.
     /// </summary>
     public static class BossScaleTable
     {
+        /// <summary>W3 scale stub. Not the locked final-fight HP.</summary>
         public const float BaseHp = 3850f;
         public const float DiffRefAttr = 1.25f;
         public const float PowerBuildCoef = 0.45f;

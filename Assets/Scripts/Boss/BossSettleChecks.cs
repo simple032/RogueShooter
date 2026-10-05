@@ -2,15 +2,20 @@ using System;
 
 namespace RogueShooter.Boss
 {
+    /// <summary>
+    /// W3-03 settle labels. Enter goes through FinalBossLive.Begin, so the locked HP is 1200.
+    /// Build, phase label, and cross-seg still come from the scale snapshot's damage mul.
+    /// </summary>
     public static class BossSettleChecks
     {
         public static string Run()
         {
             var brain = new BossBrain();
-            brain.Configure(BossScaleTable.BaseHp);
+            brain.Configure(BossBrain.DefaultMaxHp);
             var snap = BossScaleTable.Resolve(12, 8f, 1.35f, 1.06f);
-            brain.LockHpOnEnter(snap);
-            brain.NotifyEnter();
+            FinalBossLive.Begin(brain, ref snap);
+            if (Math.Abs(brain.MaxHp - FinalBossRules.MaxHp) > 0.01f || Math.Abs(brain.Hp - FinalBossRules.MaxHp) > 0.01f)
+                return "settle enter hp";
             brain.Tick(0.02f);
             brain.Tick(0.02f);
             brain.NotifyTimeCross(11f);
@@ -26,8 +31,11 @@ namespace RogueShooter.Boss
                 return "crossed=是";
 
             brain.Reset();
-            brain.Configure(BossScaleTable.BaseHp);
-            brain.LockHpOnEnter(BossScaleTable.Resolve(12, 8f, 1.35f, 1.06f));
+            brain.Configure(BossBrain.DefaultMaxHp);
+            var loseSnap = BossScaleTable.Resolve(12, 8f, 1.35f, 1.06f);
+            FinalBossLive.Begin(brain, ref loseSnap);
+            if (Math.Abs(brain.MaxHp - FinalBossRules.MaxHp) > 0.01f || Math.Abs(brain.Hp - FinalBossRules.MaxHp) > 0.01f)
+                return "settle enter hp";
             var lose = BossSettleReport.From(BossSettleOutcome.Lose, brain, 8f);
             if (lose.OutcomeLabel != "负")
                 return "lose label";

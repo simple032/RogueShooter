@@ -32,14 +32,15 @@ namespace RogueShooter.Boss
     }
 
     /// <summary>
-    /// 终局 Boss 开招规则。近战数字来自 balance_boss_melee_draft.csv，草案不锁。
+    /// 终局 Boss 开招规则。最大生命已锁定为 1200，不读缩放表。
+    /// 近战距离、前摇、出手、恢复、伤害来自 balance_boss_melee_draft.csv，草案不锁。
     /// 远程四招的伤害和时序不在这张近战表里改。
     /// </summary>
     public static class FinalBossRules
     {
         public const string DraftCsv = "balance_boss_melee_draft.csv";
 
-        /// <summary>终局 Boss 血量。不改。</summary>
+        /// <summary>终局 Boss 最大生命。已锁定，固定 1200，不读 BossScaleTable，不是草案。</summary>
         public const float MaxHp = 1200f;
 
         /// <summary>钉骨弩伤害。不改。</summary>

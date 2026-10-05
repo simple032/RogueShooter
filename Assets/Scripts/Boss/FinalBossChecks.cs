@@ -11,7 +11,9 @@ namespace RogueShooter.Boss
     {
         public static string Run()
         {
-            string err = CheckDraftConstants();
+            string err = CheckLockedHp();
+            if (err != null) return err;
+            err = CheckDraftConstants();
             if (err != null) return err;
             err = CheckRangedScheduleUntouched();
             if (err != null) return err;
@@ -53,16 +55,22 @@ namespace RogueShooter.Boss
             return "ACCEPTANCE PASS final-boss melee ≤"
                 + FinalBossRules.MeleeTriggerDistance.ToString("0.0")
                 + "u dmg=" + FinalBossRules.MeleeDamage.ToString("0")
-                + " draft-unlocked hp=" + FinalBossRules.MaxHp.ToString("0")
+                + " melee-draft-unlocked locked-hp=" + FinalBossRules.MaxHp.ToString("0")
                 + " ranged P1 nail/charge P2 triple/ring"
                 + " live=BossFightDriver";
         }
 
+        static string CheckLockedHp()
+        {
+            string err = Require(FinalBossRules.MaxHp, 1200f, "locked hp changed");
+            if (err != null) return err;
+            err = Require(BossBrain.DefaultMaxHp, FinalBossRules.MaxHp, "default pool is not the locked hp");
+            return err;
+        }
+
         static string CheckDraftConstants()
         {
-            string err = Require(FinalBossRules.MaxHp, 1200f, "boss hp changed");
-            if (err != null) return err;
-            err = Require(FinalBossRules.NailBowDamage, 20f, "nail damage changed");
+            string err = Require(FinalBossRules.NailBowDamage, 20f, "nail damage changed");
             if (err != null) return err;
             err = Require(FinalBossRules.ShieldChargeDamage, 25f, "charge damage changed");
             if (err != null) return err;
@@ -520,16 +528,19 @@ namespace RogueShooter.Boss
         /// </summary>
         static string CheckLiveEntry()
         {
-            string err = Require(BossBrain.DefaultMaxHp, 3850f, "scaled default hp changed");
+            string err = Require(FinalBossRules.MaxHp, 1200f, "locked hp changed");
             if (err != null) return err;
-            err = Require(BossScaleTable.BaseHp, 3850f, "scale base hp changed");
+            err = Require(BossBrain.DefaultMaxHp, FinalBossRules.MaxHp, "default pool is not the locked hp");
+            if (err != null) return err;
+            // Scale stub stays 3850. The live fight must not keep that MaxHp.
+            err = Require(BossScaleTable.BaseHp, 3850f, "scale stub base hp changed");
             if (err != null) return err;
 
             BossBrain brain;
             FinalBossCombat combat;
             err = EnterLive(out brain, out combat);
             if (err != null) return err;
-            if (brain.MaxHp == BossBrain.DefaultMaxHp || combat.MaxHp == BossScaleTable.BaseHp)
+            if (brain.MaxHp == BossScaleTable.BaseHp || combat.MaxHp == BossScaleTable.BaseHp)
                 return "live fight kept scaled hp";
             err = Require(brain.MaxHp, 1200f, "live max hp");
             if (err != null) return err;
@@ -571,8 +582,8 @@ namespace RogueShooter.Boss
             brain = new BossBrain();
             brain.Configure(BossBrain.DefaultMaxHp);
             combat = null;
-            if (brain.MaxHp != BossBrain.DefaultMaxHp)
-                return "brain did not start scaled";
+            if (brain.MaxHp != FinalBossRules.MaxHp)
+                return "default pool is not the locked hp";
             var snap = new BossScaleSnapshot
             {
                 AnchorId = "A",
@@ -582,8 +593,8 @@ namespace RogueShooter.Boss
                 DmgMul = 1.28f,
                 HpMul = 1f
             };
-            if (snap.MaxHp != BossScaleTable.BaseHp)
-                return "fixture was not scaled hp";
+            if (snap.MaxHp != BossScaleTable.BaseHp || snap.MaxHp == FinalBossRules.MaxHp)
+                return "fixture was not the scale stub hp";
             combat = FinalBossLive.Begin(brain, ref snap);
             if (combat == null)
                 return "live begin missing combat";
@@ -601,6 +612,14 @@ namespace RogueShooter.Boss
             var seal = FinalBossLive.Step(brain, combat, 0.02f, true, 0f, 0f, 4f, 0f, false, false, false);
             if (seal != FinalBossFightClock.DoorSealed)
                 return "first live tick should only seal";
+            string err = Require(brain.MaxHp, 1200f, "door seal max hp");
+            if (err != null) return err;
+            err = Require(brain.Hp, 1200f, "door seal hp");
+            if (err != null) return err;
+            err = Require(combat.MaxHp, 1200f, "door seal combat max hp");
+            if (err != null) return err;
+            err = Require(combat.Hp, 1200f, "door seal combat hp");
+            if (err != null) return err;
             if (brain.Phase != BossPhase.DoorSealed || brain.CurrentMove != BossMoveId.None || brain.MovesCompleted != 0)
                 return "door tick started brain rotation";
             if (combat.CurrentMove != FinalBossMoveId.None)

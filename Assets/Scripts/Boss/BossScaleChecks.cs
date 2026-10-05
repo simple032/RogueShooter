@@ -4,6 +4,10 @@ using RogueShooter.Spawning;
 
 namespace RogueShooter.Boss
 {
+    /// <summary>
+    /// W3-04 scale stub only. BaseHp and Resolve().MaxHp stay on the 3850 table.
+    /// This does not set the final-fight HP. That lock is FinalBossRules.MaxHp via FinalBossLive.Begin.
+    /// </summary>
     public static class BossScaleChecks
     {
         public static string Run()
@@ -34,7 +38,7 @@ namespace RogueShooter.Boss
             if (cont != null)
                 return cont;
 
-            // B1b: A@B14 T2 attr=1.25 → MaxHp=3850 * 1 * 1.25/1.25
+            // W3 scale stub only (not the final fight): A@B14 T2 attr=1.25 → MaxHp=3850 * 1 * 1.25/1.25
             float minsA = 5.5f;
             float tmA = TimePressure.AttrMul(minsA);
             float bmA = SpawnWaveCatalog.BuildMul(14);

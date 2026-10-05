@@ -32,11 +32,14 @@ namespace RogueShooter.Boss
     /// <summary>
     /// Independent BOSS fight SM (W3-01/02). Not MobAiBrain / patrol tree.
     /// Enter → seal door → P1 moves → HP≤50% → P2 moves → HP≤0 → Defeated.
-    /// W3-02: MaxHP locked on enter from Build×time CSV; cross-seg only bumps DmgMul.
+    /// Default MaxHp is the locked final-fight value. A raw W3 scale snapshot can
+    /// still carry BossScaleTable.BaseHp; FinalBossLive.Begin overwrites that
+    /// before LockHpOnEnter. Cross-seg only bumps DmgMul.
     /// </summary>
     public sealed class BossBrain
     {
-        public const float DefaultMaxHp = 3850f;
+        /// <summary>Locked final-fight pool. Not the W3 scale base.</summary>
+        public const float DefaultMaxHp = FinalBossRules.MaxHp;
         public const float Phase2HpFrac = 0.5f;
 
         public float MaxHp { get; private set; }
@@ -103,7 +106,11 @@ namespace RogueShooter.Boss
             ClearTiming();
         }
 
-        /// <summary>W3-02: lock MaxHP / enter dmg from scale snapshot. Call before NotifyEnter.</summary>
+        /// <summary>
+        /// Lock MaxHP and enter damage from the snapshot. Call before NotifyEnter.
+        /// The final fight passes FinalBossRules.MaxHp; FinalBossLive.Begin writes it first.
+        /// A raw scale snapshot still copies the W3 stub MaxHp. That path is not the final fight.
+        /// </summary>
         public void LockHpOnEnter(BossScaleSnapshot snap)
         {
             if (HpLocked)

@@ -64,7 +64,7 @@ namespace RogueShooter.Boss
                 doorVisual.gameObject.SetActive(Brain != null && Brain.DoorClosed);
         }
 
-        /// <summary>Enter with Build + wall minutes. This fight locks MaxHP at 1200; damage mul still comes from the scale snapshot.</summary>
+        /// <summary>Enter with Build + wall minutes. This fight locks MaxHP at the locked 1200, not the scale table; damage mul still comes from the scale snapshot.</summary>
         public void BeginEnter(int buildCount, float wallMinutes)
         {
             if (FightStarted)

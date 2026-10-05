@@ -2,6 +2,11 @@ using System;
 
 namespace RogueShooter.Boss
 {
+    /// <summary>
+    /// W3-01 legacy brain rotation only: door, P1/P2 moves, defeat.
+    /// The HP pool is BossBrain.DefaultMaxHp (the locked final 1200).
+    /// This check does not read BossScaleTable and does not define a second boss HP.
+    /// </summary>
     public static class BossFightChecks
     {
         /// <summary>Returns null on pass, else failure reason.</summary>
