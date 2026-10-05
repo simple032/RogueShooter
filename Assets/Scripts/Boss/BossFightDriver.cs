@@ -8,9 +8,8 @@ using RogueShooter.Vision;
 namespace RogueShooter.Boss
 {
     /// <summary>
-    /// Room-local BOSS fight runner. Door seal and the locked HP stay on BossBrain.
-    /// Each new beat is FinalBossLive, so the scene fight uses the distance switch.
-    /// Does not attach MobFourStateAi / MobAiBrain.
+    /// Room-local final-boss runner. One clock on BossBrain, executed by FinalBossCombat.
+    /// Enter HP uses the locked 1200 formula. Does not attach MobFourStateAi / MobAiBrain.
     /// </summary>
     public sealed class BossFightDriver : MonoBehaviour
     {
@@ -29,13 +28,14 @@ namespace RogueShooter.Boss
 
         PlayerMotor2D _player;
         float _lastWallMinutes;
-        int _lastTimeTier = -1;
-        float _staggerUntil;
+        float _introLeft;
+        float _savedTimeScale = 1f;
+        bool _ownsTimeScale;
         Vector3 _knockDir;
         float _knockLeft;
         float _knockSpeed;
 
-        public bool IsStaggered => Time.time < _staggerUntil;
+        public bool IsStaggered => Brain != null && Brain.Transitioning;
 
         void Awake()
         {
@@ -64,7 +64,7 @@ namespace RogueShooter.Boss
                 doorVisual.gameObject.SetActive(Brain != null && Brain.DoorClosed);
         }
 
-        /// <summary>Enter with Build + wall minutes. This fight locks MaxHP at 1200; damage mul still comes from the scale snapshot.</summary>
+        /// <summary>Enter with Build + wall minutes. Max HP comes from the locked 1200 enter formula.</summary>
         public void BeginEnter(int buildCount, float wallMinutes)
         {
             if (FightStarted)
@@ -73,12 +73,14 @@ namespace RogueShooter.Boss
             float bm = SpawnWaveCatalog.BuildMul(buildCount);
             var snap = BossScaleTable.Resolve(buildCount, wallMinutes, tm, bm);
             Combat = FinalBossLive.Begin(Brain, ref snap);
+            Combat.SetArena(transform.position.x, transform.position.y, 14f, 11f);
+            Combat.SetBossPosition(transform.position.x, transform.position.y);
             LastScale = snap;
             FightStarted = true;
             FightWon = false;
             FightSettled = false;
             _lastWallMinutes = wallMinutes;
-            _lastTimeTier = BossScaleTable.TimeTierFromMinutes(wallMinutes);
+            _introLeft = FinalBossRules.IntroSeconds;
             ApplyDoorVisual(false);
             Debug.Log(string.Format(
                 "[BossFight] ENTER lock anchor={0} MaxHP={1:0} dmg={2:0.00} B={3} T={4} Tm={5:0.00} Bm={6:0.00} | {7}",
@@ -93,43 +95,52 @@ namespace RogueShooter.Boss
         public void SetWallMinutes(float wallMinutes)
         {
             _lastWallMinutes = wallMinutes;
-            if (!FightStarted || Brain == null || !Brain.HpLocked)
-                return;
-            int tier = BossScaleTable.TimeTierFromMinutes(wallMinutes);
-            if (tier == _lastTimeTier)
+            if (!FightStarted || Brain == null || !Brain.HpLocked || Brain.Transitioning)
                 return;
             float hpBefore = Brain.Hp;
             float maxBefore = Brain.MaxHp;
-            Brain.NotifyTimeCross(wallMinutes);
-            _lastTimeTier = tier;
+            float dmgBefore = Brain.LiveDmgMul;
+            Brain.RefreshDamage(TimePressure.AttrMul(wallMinutes));
+            if (Mathf.Abs(dmgBefore - Brain.LiveDmgMul) <= 0.0001f)
+                return;
             Debug.Log(string.Format(
-                "[BossFight] CROSS_SEG T→{0} dmg={1:0.00} hp={2:0}/{3:0} (unchanged={4})",
-                tier, Brain.LiveDmgMul, Brain.Hp, Brain.MaxHp,
+                "[BossFight] PRESSURE dmg={0:0.00}→{1:0.00} hp={2:0}/{3:0} (hp unchanged={4})",
+                dmgBefore, Brain.LiveDmgMul, Brain.Hp, Brain.MaxHp,
                 Mathf.Approximately(hpBefore, Brain.Hp) && Mathf.Approximately(maxBefore, Brain.MaxHp)));
         }
 
-        public void DealDamage(float amount)
+        public float DealDamage(float amount)
         {
-            if (Brain == null || !FightStarted || FightSettled)
-                return;
-            FinalBossLive.ApplyDamage(Combat, Brain, amount);
-            if ((Combat != null && Combat.Hp <= 0f) || Brain.Phase == BossPhase.Defeated)
-                Finish(BossSettleOutcome.Win);
+            return DealDamage(amount, Vector3.zero, false);
         }
 
-        /// <summary>Spec §4 弱点命中硬直: freeze the live beat clock. The beat already playing is not cancelled.</summary>
+        public float DealDamage(float amount, Vector3 incoming, bool weak)
+        {
+            if (Brain == null || !FightStarted || FightSettled)
+                return 0f;
+            int cuts = Brain.Phase2Transitions;
+            float dealt = FinalBossLive.ApplyDamage(Combat, Brain, amount, incoming.x, incoming.y, weak);
+            if (Brain.Phase2Transitions > cuts && Brain.Phase != BossPhase.Defeated)
+                StartTransition();
+            if (Brain.Phase == BossPhase.Defeated || (Combat != null && Combat.Hp <= 0f))
+                Finish(BossSettleOutcome.Win);
+            return dealt;
+        }
+
+        /// <summary>A weak hit during recovery extends that recovery by 0.50s. It does not cancel the skill.</summary>
         public void ApplyWeakSpotStagger(float seconds)
         {
-            if (!FightStarted || FightSettled || Brain == null)
+            if (!FightStarted || FightSettled || Brain == null || Brain.Transitioning)
                 return;
-            float dur = seconds > 0.01f ? seconds : 0.50f;
-            _staggerUntil = Time.time + dur;
-            Debug.Log($"[BossFight] weak-spot stagger {dur:0.00}s");
+            if (Brain.TryWeakSpot())
+                Debug.Log("[BossFight] weak-spot recovery +" + FinalBossRules.RecoveryExtension.ToString("0.00") + "s");
         }
 
         public void ApplyKnockback(Vector3 shotAway, float distance)
         {
-            if (!FightStarted || FightSettled || distance < 0.01f)
+            if (!FightStarted || FightSettled || distance < 0.01f || Brain == null || Brain.Transitioning)
+                return;
+            if (Brain.BlocksDisplacement)
                 return;
             shotAway.z = 0f;
             if (shotAway.sqrMagnitude < 0.0001f)
@@ -163,29 +174,90 @@ namespace RogueShooter.Boss
                 return;
             FightSettled = true;
             FightWon = outcome == BossSettleOutcome.Win;
+            EndTransition();
+            if (Combat != null)
+                Combat.ClearShots();
             LastSettle = BossSettleReport.From(outcome, Brain, _lastWallMinutes);
             if (Settle != null)
                 Settle.Show(LastSettle);
             Debug.Log("[BossFight] SETTLE " + LastSettle.FormatLines());
         }
 
+        void StartTransition()
+        {
+            if (Combat != null)
+                Combat.ClearShots();
+            _knockLeft = 0f;
+            if (!_ownsTimeScale)
+            {
+                _savedTimeScale = Time.timeScale;
+                _ownsTimeScale = true;
+                Time.timeScale = 0f;
+            }
+
+            Debug.Log("[BossFight] P2 transition hp=" + Brain.Hp.ToString("0") + " no heal");
+        }
+
+        void EndTransition()
+        {
+            if (!_ownsTimeScale)
+                return;
+            _ownsTimeScale = false;
+            Time.timeScale = _savedTimeScale;
+        }
+
         void Update()
         {
             if (!FightStarted || Brain == null || FightSettled)
                 return;
-            TickKnockback(Time.deltaTime);
-            if (IsStaggered)
-                return;
+            if (Brain.Transitioning)
+            {
+                Brain.DrainTransition(Time.unscaledDeltaTime);
+                if (Combat != null)
+                    Combat.AllowActions = false;
+                if (!Brain.Transitioning)
+                {
+                    EndTransition();
+                    if (Combat != null)
+                        Combat.AllowActions = true;
+                }
 
+                return;
+            }
+
+            if (_introLeft > 0f)
+            {
+                _introLeft -= Time.deltaTime;
+                if (Combat != null)
+                    Combat.AllowActions = false;
+            }
+            else if (Combat != null)
+            {
+                Combat.AllowActions = true;
+            }
+
+            TickKnockback(Time.deltaTime);
             var before = Brain.Phase;
             bool doorBefore = Brain.DoorClosed;
-            FinalBossMoveId moveBefore = Combat != null ? Combat.CurrentMove : FinalBossMoveId.None;
-            FinalBossPhase phaseBefore = Combat != null ? Combat.Phase : FinalBossPhase.P1;
+            BossMoveId moveBefore = Combat != null ? Combat.CurrentMove : BossMoveId.None;
+            int indexBefore = Brain.MoveIndex;
             bool hasPlayer = TrySensePlayer(out float px, out float py, out bool body, out bool crown, out bool iframe);
+            if (Combat != null && _player != null)
+            {
+                var roll = _player.GetComponent<PlayerRoll>();
+                var dodge = _player.GetComponent<PlayerDodge>();
+                Combat.AcceptWalkSample = (roll == null || !roll.IsRolling) && (dodge == null || !dodge.IsRolling);
+            }
+
             FinalBossLive.Step(
                 Brain, Combat, Time.deltaTime, hasPlayer,
                 transform.position.x, transform.position.y,
                 px, py, body, crown, iframe);
+            if (Combat != null)
+            {
+                transform.position = new Vector3(Combat.BossX, Combat.BossY, transform.position.z);
+                FlushHits();
+            }
 
             if (!doorBefore && Brain.DoorClosed)
             {
@@ -196,17 +268,28 @@ namespace RogueShooter.Boss
             if (before != Brain.Phase)
                 Debug.Log("[BossFight] PHASE " + before + "→" + Brain.Phase + " " + Brain.Snapshot());
 
-            if (Combat != null && (Combat.CurrentMove != moveBefore || Combat.Phase != phaseBefore))
+            if (Combat != null && (Combat.CurrentMove != moveBefore || Brain.MoveIndex != indexBefore))
             {
                 Debug.Log("[BossFight] BEAT " + Combat.Phase + " " + Combat.CurrentMove
-                    + " replaced=" + Combat.ReplacedMove
                     + " dist=" + Combat.Distance.ToString("0.00")
-                    + " proj=" + Combat.BeatProjectiles
+                    + " shots=" + Combat.LiveShots
                     + " hp=" + Brain.Hp.ToString("0") + "/" + Brain.MaxHp.ToString("0"));
             }
 
             if (Brain.Phase == BossPhase.Defeated || (Combat != null && Combat.Hp <= 0f))
                 Finish(BossSettleOutcome.Win);
+        }
+
+        void FlushHits()
+        {
+            var hits = Combat.ConsumeHits();
+            if (hits == null || hits.Count == 0 || _player == null)
+                return;
+            PlayerVitals vitals = _player.GetComponent<PlayerVitals>();
+            if (vitals == null)
+                return;
+            for (int i = 0; i < hits.Count; i++)
+                vitals.ApplyHit(hits[i].Damage, hits[i].Kind);
         }
 
         bool TrySensePlayer(out float px, out float py, out bool bodyInView, out bool crownInView, out bool iframe)

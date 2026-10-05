@@ -396,8 +396,8 @@ namespace RogueShooter.Player
             RewardStatHooks.SyncClock(Time.time);
             bool bossFull = boss.Brain != null && boss.Brain.Hp >= boss.Brain.MaxHp - 0.001f;
             float scaled = RewardStatHooks.ModifyOutgoing(_ownedRewards, damage, bossFull, Time.time);
-            boss.DealDamage(scaled);
-            ApplyLifesteal(scaled);
+            float dealt = boss.DealDamage(scaled, aim, kind == ChargeShotKind.Crit);
+            ApplyLifesteal(dealt);
             bool bossWeak = kind == ChargeShotKind.Crit;
             if (bossWeak && !piercePacket)
                 boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);

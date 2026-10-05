@@ -9,38 +9,48 @@ namespace RogueShooter.Boss
     }
 
     /// <summary>
-    /// 场景终局战和自检共用的入口。BossFightDriver.BeginEnter / Update 只走这里。
-    /// 开战把这场最大生命写成终局 1200；之后每一拍用距离切换，不再推进 BossBrain 的招式。
+    /// Scene and headless checks share this enter path.
+    /// Begin rewrites the snapshot with the 1200 enter formula, then one combat executor
+    /// follows <see cref="BossBrain"/>.
     /// </summary>
     public static class FinalBossLive
     {
-        /// <summary>
-        /// 进门。缩放快照里的最大生命改成这场的 1200 再锁上，伤害倍率仍留在快照上。
-        /// </summary>
         public static FinalBossCombat Begin(BossBrain brain, ref BossScaleSnapshot snap)
         {
-            snap.MaxHp = FinalBossRules.MaxHp;
+            float pressure = snap.Tm > 0.01f ? snap.Tm : FinalBossRules.PressureRef;
+            int build = snap.BuildCount;
+            snap.Tm = pressure;
+            snap.MaxHp = FinalBossRules.EnterMaxHp(build, pressure);
+            snap.DmgMul = FinalBossRules.OutgoingMultiplier(build, pressure);
+            float hpWeight;
+            float dmgWeight;
+            FinalBossRules.Weights(build, pressure, out hpWeight, out dmgWeight);
+            snap.HpMul = hpWeight;
             if (brain != null)
             {
                 brain.LockHpOnEnter(snap);
                 brain.NotifyEnter();
             }
 
-            return new FinalBossCombat();
+            return new FinalBossCombat(brain);
         }
 
-        public static void ApplyDamage(FinalBossCombat combat, BossBrain brain, float amount)
+        public static float ApplyDamage(FinalBossCombat combat, BossBrain brain, float amount)
+        {
+            return ApplyDamage(combat, brain, amount, 0f, 0f, false);
+        }
+
+        public static float ApplyDamage(FinalBossCombat combat, BossBrain brain, float amount, float dirX, float dirY, bool weak)
         {
             if (combat != null)
-                combat.ApplyDamage(amount);
-            if (brain != null)
-                brain.ApplyDamage(amount);
+                return combat.ApplyPlayerShot(amount, dirX, dirY, weak);
+            if (brain == null || amount <= 0f)
+                return 0f;
+            float before = brain.Hp;
+            brain.ApplyDamage(amount);
+            return before - brain.Hp;
         }
 
-        /// <summary>
-        /// 与 BossFightDriver.Update 同一拍。进门第一拍只关门，不开招。
-        /// 之后有玩家才把距离交给 FinalBossCombat。
-        /// </summary>
         public static FinalBossFightClock Step(
             BossBrain brain,
             FinalBossCombat combat,
@@ -67,10 +77,14 @@ namespace RogueShooter.Boss
                 return FinalBossFightClock.NoPlayer;
 
             combat.SetBossPosition(bossX, bossY);
-            combat.SetPlayerPosition(playerX, playerY);
+            combat.PlacePlayer(playerX, playerY, dt);
             combat.BodyAndCrownInView = bodyInView && crownInView;
             combat.PlayerInvulnerable = playerInvulnerable;
-            combat.Tick(dt);
+            if (brain.Phase == BossPhase.DoorSealed)
+                brain.Tick(dt);
+            if (brain.Transitioning)
+                return FinalBossFightClock.Ticked;
+            combat.Simulate(dt);
             return FinalBossFightClock.Ticked;
         }
     }

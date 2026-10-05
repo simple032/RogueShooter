@@ -34,17 +34,23 @@ namespace RogueShooter.Boss
             if (cont != null)
                 return cont;
 
-            // B1b: A@B14 T2 attr=1.25 → MaxHp=3850 * 1 * 1.25/1.25
+            // A@B14 pressure 1.25 → enter HP = 1200 * 1 * 1.25/1.55, damage = 1/1.28 * 1.25/1.55.
             float minsA = 5.5f;
             float tmA = TimePressure.AttrMul(minsA);
             float bmA = SpawnWaveCatalog.BuildMul(14);
             var snapA = BossScaleTable.Resolve(14, minsA, tmA, bmA);
             if (snapA.AnchorId != "A" || !snapA.UsedContinuous)
                 return "A continuous exact";
-            if (Math.Abs(BossScaleTable.BaseHp - 3850f) > 0.01f)
-                return "BaseHp!=3850";
-            if (Math.Abs(snapA.MaxHp - 3850f) > 0.01f || Math.Abs(snapA.DmgMul - 1.00f) > 0.001f)
+            if (Math.Abs(BossScaleTable.BaseHp - 1200f) > 0.01f)
+                return "BaseHp!=1200";
+            float expectHp = FinalBossRules.EnterMaxHp(14, tmA);
+            float expectDmg = FinalBossRules.OutgoingMultiplier(14, tmA);
+            if (Math.Abs(snapA.MaxHp - expectHp) > 0.02f || Math.Abs(snapA.DmgMul - expectDmg) > 0.001f)
                 return "A MaxHP/dmg";
+            if (Math.Abs(expectHp - (1200f * 1.25f / 1.55f)) > 1f)
+                return "A enter formula";
+            if (Math.Abs(snapA.MaxHp - 3850f) < 1f || Math.Abs(snapA.MaxHp - 1100f) < 1f)
+                return "A still on a retired hp";
 
             var brain = new BossBrain();
             brain.Configure(BossBrain.DefaultMaxHp);
@@ -53,10 +59,11 @@ namespace RogueShooter.Boss
             brain.Tick(0.02f);
             brain.Tick(0.02f);
             float hpAtEnter = brain.Hp;
-            brain.NotifyTimeCross(11f);
-            if (Math.Abs(brain.LiveDmgMul - 1.28f) > 0.001f)
-                return "cross dmg→E 1.28";
-            if (Math.Abs(brain.Hp - hpAtEnter) > 0.01f || Math.Abs(brain.MaxHp - 3850f) > 0.01f)
+            float crossPressure = TimePressure.AttrMul(11f);
+            brain.RefreshDamage(crossPressure);
+            if (Math.Abs(brain.LiveDmgMul - FinalBossRules.OutgoingMultiplier(14, crossPressure)) > 0.001f)
+                return "cross dmg";
+            if (Math.Abs(brain.Hp - hpAtEnter) > 0.01f || Math.Abs(brain.MaxHp - expectHp) > 0.05f)
                 return "cross must not change HP";
 
             // Mid-point continuous (not discrete-only)

@@ -64,7 +64,7 @@ namespace RogueShooter.Player
         {
             if (boss == null || !boss.FightStarted || boss.FightSettled)
                 return false;
-            boss.DealDamage(damage);
+            boss.DealDamage(damage, shotAway, kind == ChargeShotKind.Crit);
             bool bossWeak = kind == ChargeShotKind.Crit;
             if (bossWeak)
                 boss.ApplyWeakSpotStagger(ChargeShotRules.WeakSpotStaggerSeconds);

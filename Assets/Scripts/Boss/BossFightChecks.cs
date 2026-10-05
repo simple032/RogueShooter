@@ -4,93 +4,66 @@ namespace RogueShooter.Boss
 {
     public static class BossFightChecks
     {
-        /// <summary>Returns null on pass, else failure reason.</summary>
         public static string Run()
         {
             var brain = new BossBrain();
-            brain.Configure(BossBrain.DefaultMaxHp);
-
+            brain.Configure(FinalBossRules.BaseHp);
             if (brain.UsesMobAi)
                 return "BOSS must not use mob AI tree";
+            if (Math.Abs(brain.MaxHp - 1200f) > 0.01f || Math.Abs(brain.Hp - 1200f) > 0.01f)
+                return "fight brain did not start at 1200";
             if (brain.Phase != BossPhase.IdleOutside || brain.DoorClosed)
                 return "start IdleOutside door open";
 
             brain.NotifyEnter();
             if (brain.Phase != BossPhase.Entering)
                 return "enter → Entering";
-
             brain.Tick(0.02f);
             if (!brain.DoorClosed || brain.Phase != BossPhase.DoorSealed)
                 return "enter tick → DoorSealed";
-
             brain.Tick(0.02f);
-            if (brain.Phase != BossPhase.P1)
-                return "DoorSealed → P1";
-            if (brain.CurrentMove != BossMoveId.StraightShot || brain.MoveStep != BossMoveStep.Windup)
-                return "P1 first move StraightShot Windup";
+            if (brain.Phase != BossPhase.P1 || brain.CurrentMove != BossMoveId.None)
+                return "DoorSealed → P1 without an automatic legacy move";
+            if (brain.CanUse(BossMoveId.RingBurst) || brain.TryStart(BossMoveId.RingBurst))
+                return "RingBurst still starts";
+            if (!brain.TryStart(BossMoveId.StraightShot))
+                return "P1 single did not start";
+            if (brain.TryStart(BossMoveId.BurstShot))
+                return "burst replaced the single early";
 
-            // Finish first move timings: 0.5+0.4+0.3
-            Advance(brain, 1.3f);
-            if (brain.MovesCompleted < 1)
-                return "P1 move1 complete";
-            if (brain.CurrentMove != BossMoveId.WarningCharge)
-                return "P1 alternate → WarningCharge";
+            brain.ApplyDamage(700f);
+            if (brain.Phase != BossPhase.P2 || brain.Phase2Transitions != 1 || Math.Abs(brain.Hp - 500f) > 0.01f)
+                return "HP≤50% → P2 once, no heal";
+            float held = brain.Hp;
+            brain.ApplyDamage(10f);
+            if (Math.Abs(brain.Hp - held) > 0.01f)
+                return "transition changed hp";
+            brain.DrainTransition(2f);
+            brain.ApplyDamage(50f);
+            if (brain.Phase2Transitions != 1 || Math.Abs(brain.Hp - 450f) > 0.01f)
+                return "P2 transition repeated";
+            if (brain.CanUse(BossMoveId.RingBurst) || brain.CanUse(BossMoveId.ShieldBash))
+                return "wrong-phase skill";
 
-            // Drop to ≤50% → P2
-            brain.ApplyDamage(brain.MaxHp * 0.55f);
-            if (brain.Phase != BossPhase.P2)
-                return "HP≤50% → P2";
-            if (brain.CurrentMove != BossMoveId.TripleShot)
-                return "P2 first move TripleShot";
-
-            Advance(brain, 1.4f);
-            if (brain.CurrentMove != BossMoveId.RingBurst && brain.MovesCompleted < 2)
-            {
-                // may already be on RingBurst after TripleShot completes
-            }
-
-            bool sawRing = brain.CurrentMove == BossMoveId.RingBurst;
-            float guard = 0f;
-            while (!sawRing && guard < 5f)
-            {
-                brain.Tick(0.05f);
-                guard += 0.05f;
-                if (brain.CurrentMove == BossMoveId.RingBurst)
-                    sawRing = true;
-            }
-
-            if (!sawRing)
-                return "P2 must use RingBurst";
-
-            brain.ApplyDamage(brain.Hp + 1f);
-            if (brain.Phase != BossPhase.Defeated || brain.Hp > 0f)
-                return "HP≤0 → Defeated";
-            if (brain.UsesMobAi)
-                return "still must not use mob AI";
-
+            var kill = new BossBrain();
+            kill.Configure(1200f);
+            kill.NotifyEnter();
+            kill.Tick(0.02f);
+            kill.Tick(0.02f);
+            kill.ApplyDamage(1200f);
+            if (kill.Phase != BossPhase.Defeated || kill.Hp > 0.01f || kill.Phase2Transitions != 0)
+                return "lethal skips phase transition";
+            if (Math.Abs(FinalBossRules.MoveSpeed(BossPhase.P1) - 2.5f) > 0.001f
+                || Math.Abs(FinalBossRules.MoveSpeed(BossPhase.P2) - 4.5f) > 0.001f
+                || FinalBossRules.MoveSpeed(BossPhase.P2) >= 6f)
+                return "locked movement";
             return null;
-        }
-
-        static void Advance(BossBrain brain, float seconds)
-        {
-            float t = 0f;
-            while (t < seconds)
-            {
-                brain.Tick(0.05f);
-                t += 0.05f;
-            }
         }
 
         public static string FormatPass(BossBrain brain)
         {
-            return string.Format(
-                "ACCEPTANCE PASS W3-01 enter→door={0} P1→P2@50% moves P1={1}/{2} P2={3}/{4} win hp=0 mobAi={5}",
-                brain.DoorClosed,
-                BossMoveId.StraightShot,
-                BossMoveId.WarningCharge,
-                BossMoveId.TripleShot,
-                BossMoveId.RingBurst,
-                brain.UsesMobAi);
+            return "PASS boss clock enter→P1→P2@50% once, ring retired, hp="
+                + (brain != null ? brain.MaxHp.ToString("0") : "1200");
         }
     }
 }
