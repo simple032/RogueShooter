@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// Per-run Build counters. Shop buy always +1 Build per success
-    /// (制作人 2026-09-20 裁定，不用分层当量).
+    /// Per-run Build counters. Shop buy adds build_per_shop_buy (=1) per success, heal included
+    /// (制作人 2026-09-20 / P2 2026-09-25 裁定，不用分层当量).
     /// Power = 0.45*B + 0.55*RS.
     /// </summary>
     public sealed class RunBuildState
@@ -117,6 +117,23 @@ namespace RogueShooter.Build
             ShopBuys++;
             int add = ShopStock.BuildEquivFor(ShopSlotRole.Low);
             _ = buildEquiv;
+            BuildCount += add;
+            ApplyReward(rewardId);
+            LastPick = "SHOP +" + add + " " + rewardId + " gold-" + price;
+            return true;
+        }
+
+        /// <summary>
+        /// 商店购买界面 v0.2 §6: every successful buy adds Build from the table
+        /// (build_per_shop_buy; heal shelf build_heal_buy — both 1 per 制作人 P2). Failure: no gold, no Build.
+        /// </summary>
+        public bool TryShopBuy(int price, ShopSlotRole contentRole, string rewardId)
+        {
+            if (price < 0 || Gold < price)
+                return false;
+            Gold -= price;
+            ShopBuys++;
+            int add = ShopStock.BuildEquivFor(contentRole);
             BuildCount += add;
             ApplyReward(rewardId);
             LastPick = "SHOP +" + add + " " + rewardId + " gold-" + price;

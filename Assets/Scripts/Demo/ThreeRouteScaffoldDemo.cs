@@ -115,8 +115,8 @@ namespace RogueShooter.Demo
                           $"eff={eff:0.00}s (base {seg.baseIntervalSeconds} × seg {seg.intervalMul} × {time.id} {time.spawnIntervalMul})");
             }
 
-            Debug.Log($"[BalanceLock] shop gold LOADED inherit={_lock.shopInheritRate:0.00} cap={_lock.shopInheritCap:0} build_from_shop={_lock.shopBuildFromShop} " +
-                      $"arrive_p50={_lock.ShopGoldValue("arrive_shop_p50")} shelf={_lock.ShopGoldValue("shelf_roll")} path Pre_ready={_lock.pathPreReadySeconds:0}s");
+            Debug.Log($"[BalanceLock] shop gold LOADED inherit={_lock.shopInheritRate:0.00} cap={_lock.shopInheritCap:0} build/buy={_lock.shopBuildPerShopBuy} build/heal={_lock.shopBuildHealBuy} " +
+                      $"arrive_p50={_lock.ShopGoldValue("arrive_shop_p50")} shelf={_lock.shopShelfCount} flex={_lock.shopShelfFlexCount}×{_lock.shopShelfFlexW} price_ref={_lock.shopPriceRef} path Pre_ready={_lock.pathPreReadySeconds:0}s");
             Debug.Log($"[BalanceLock] Power {_lock.powerBuildCoef:0.00}*B+{_lock.powerRarityCoef:0.00}*RS formula={_lock.powerFormula} shop_in_power={_lock.shopInPower} " +
                       $"pool={(_lock.rewardPool != null ? _lock.rewardPool.Length : 0)} detect={_lock.mobDetectRadius:0.0} disengage×{_lock.mobDisengageMul:0.0}");
             if (_lock.gaps != null)
@@ -554,7 +554,8 @@ namespace RogueShooter.Demo
         void OnGUI()
         {
             // Reward/shop panel open: hide the debug HUD so it never covers the left card.
-            if (RewardScreenView.PanelOpen)
+            // Shop screen shows its own top-right gold (same RunBuildState.Gold as this HUD).
+            if (RewardScreenView.PanelOpen || ShopScreenView.IsOpen)
                 return;
             const int pad = 8;
             int w = 580;
@@ -603,7 +604,7 @@ namespace RogueShooter.Demo
                     $"P_spawn={_lock.pSpawn:0.00}  chest C/R/E=" +
                     $"{_lock.RarityWeight(_lock.chestRarity, "C"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "R"):0.00}/{_lock.RarityWeight(_lock.chestRarity, "E"):0.00}" +
                     $"  altar={_lock.RarityWeight(_lock.altarRarity, "C"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "R"):0.00}/{_lock.RarityWeight(_lock.altarRarity, "E"):0.00}\n" +
-                    $"Power {_lock.powerBuildCoef:0.00}*B+{_lock.powerRarityCoef:0.00}*RS  detect={_lock.mobDetectRadius:0.0} disengage×{_lock.mobDisengageMul:0.0}  shop price={_lock.shopStubPrice} gold0={_lock.shopStartGold}",
+                    $"Power {_lock.powerBuildCoef:0.00}*B+{_lock.powerRarityCoef:0.00}*RS  detect={_lock.mobDetectRadius:0.0} disengage×{_lock.mobDisengageMul:0.0}  shop {ShopBalance.Current.PriceLine()} gold0={_lock.shopStartGold}",
                     style);
             }
 
