@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using RogueShooter.Balance;
 using RogueShooter.Spawning;
 
@@ -34,43 +34,26 @@ namespace RogueShooter.Boss
             if (cont != null)
                 return cont;
 
-            // A@B14 pressure 1.25 → enter HP = 1200 * 1 * 1.25/1.55, damage = 1/1.28 * 1.25/1.55.
-            float minsA = 5.5f;
-            float tmA = TimePressure.AttrMul(minsA);
-            float bmA = SpawnWaveCatalog.BuildMul(14);
-            var snapA = BossScaleTable.Resolve(14, minsA, tmA, bmA);
-            if (snapA.AnchorId != "A" || !snapA.UsedContinuous)
-                return "A continuous exact";
-            if (Math.Abs(BossScaleTable.BaseHp - 1200f) > 0.01f)
-                return "BaseHp!=1200";
-            float expectHp = FinalBossRules.EnterMaxHp(14, tmA);
-            float expectDmg = FinalBossRules.OutgoingMultiplier(14, tmA);
-            if (Math.Abs(snapA.MaxHp - expectHp) > 0.02f || Math.Abs(snapA.DmgMul - expectDmg) > 0.001f)
-                return "A MaxHP/dmg";
-            if (Math.Abs(expectHp - (1200f * 1.25f / 1.55f)) > 1f)
-                return "A enter formula";
-            if (Math.Abs(snapA.MaxHp - 3850f) < 1f || Math.Abs(snapA.MaxHp - 1100f) < 1f)
-                return "A still on a retired hp";
-
-            var brain = new BossBrain();
-            brain.Configure(BossBrain.DefaultMaxHp);
-            brain.LockHpOnEnter(snapA);
-            brain.NotifyEnter();
-            brain.Tick(0.02f);
-            brain.Tick(0.02f);
-            float hpAtEnter = brain.Hp;
-            float crossPressure = TimePressure.AttrMul(11f);
-            brain.RefreshDamage(crossPressure);
-            if (Math.Abs(brain.LiveDmgMul - FinalBossRules.OutgoingMultiplier(14, crossPressure)) > 0.001f)
-                return "cross dmg";
-            if (Math.Abs(brain.Hp - hpAtEnter) > 0.01f || Math.Abs(brain.MaxHp - expectHp) > 0.05f)
-                return "cross must not change HP";
-
-            // Mid-point continuous (not discrete-only)
-            float hpMid, dmgMid;
-            BossScaleTable.ContinuousMuls(12, 2, out hpMid, out dmgMid);
-            if (hpMid < 0.88f || hpMid > 1.15f)
-                return "mid continuous hp in band";
+            foreach(int build in new[]{8,11,14,18})
+            foreach(float minutes in new[]{0f,8f,11.5f,12f,20f})
+            {
+                var snap=BossScaleTable.Resolve(build,minutes,TimePressure.AttrMul(minutes),1f);
+                if(Math.Abs(snap.MaxHp-1100f*TimePressure.AttrMul(minutes))>.01f) return "entry time HP";
+                if(Math.Abs(snap.DmgMul-TimePressure.DamageMul(minutes))>.001f) return "entry attack";
+                var brain=new BossBrain();brain.Configure(1100f);brain.LockHpOnEnter(snap);brain.NotifyTimeCross(25f);
+                if(Math.Abs(brain.LiveDmgMul-TimePressure.DamageMul(25f))>.001f) return "live attack curve";
+                if(Math.Abs(brain.MaxHp-snap.MaxHp)>.01f||Math.Abs(brain.Hp-snap.MaxHp)>.01f)return "HP changed during fight";
+            }
+            // GDD v0.61: fixed expected anchors, interpolation, and capped damage.
+            float[] damageTimes = { -1f, 0f, 2f, 4f, 6f, 8f, 10f, 12f, 13.5f, 15f, 17.5f, 20f, 30f };
+            float[] damageExpected = { 1f, 1f, 1.05f, 1.10f, 1.20f, 1.30f, 1.425f, 1.55f, 1.65f, 1.75f, 1.875f, 2f, 2f };
+            for (int i = 0; i < damageTimes.Length; i++)
+                if (Math.Abs(TimePressure.DamageMul(damageTimes[i]) - damageExpected[i]) > .001f)
+                    return "attack curve@" + damageTimes[i];
+            foreach (float knot in new[] { 4f, 8f, 12f, 15f, 20f })
+                if (Math.Abs(TimePressure.DamageMul(knot - .001f) - TimePressure.DamageMul(knot + .001f)) > .001f)
+                    return "attack discontinuity@" + knot;
+            if(Math.Abs(TimePressure.AttrMul(30f)-1.75f)>.001f) return "HP cap";
 
             return null;
         }

@@ -46,9 +46,9 @@ namespace RogueShooter.Build
         {
             switch (tier)
             {
-                case RewardTier.Low: return "低";
-                case RewardTier.Mid: return "中";
-                case RewardTier.High: return "高";
+                case RewardTier.Low: return "铜";
+                case RewardTier.Mid: return "银";
+                case RewardTier.High: return "金";
                 default: return "";
             }
         }
@@ -127,7 +127,7 @@ namespace RogueShooter.Build
             }
         }
 
-        public static AltarPick[] RollThree(AltarSize size, Random rng)
+        public static AltarPick[] RollThree(AltarSize size, Random rng, RewardRegressionWeights weights = null)
         {
             if (size == AltarSize.None)
                 return Array.Empty<AltarPick>();
@@ -139,9 +139,9 @@ namespace RogueShooter.Build
             for (int i = 0; i < 3; i++)
             {
                 RewardTier tier = RollTier(size, rng);
-                if (!TryPick(tier, used, rng, out AltarPick pick))
+                if (!TryPick(tier, used, weights, rng, out AltarPick pick))
                     break;
-                used.Add(pick.Id);
+                RewardCatalog.ExcludeFamily(used, pick.Id);
                 list.Add(pick);
             }
 
@@ -149,7 +149,7 @@ namespace RogueShooter.Build
             return list.ToArray();
         }
 
-        public static AltarPick[] RollThreeChest(bool large, Random rng)
+        public static AltarPick[] RollThreeChest(bool large, Random rng, RewardRegressionWeights weights = null)
         {
             if (rng == null)
                 rng = new Random();
@@ -158,9 +158,9 @@ namespace RogueShooter.Build
             for (int i = 0; i < 3; i++)
             {
                 RewardTier tier = RollChestTier(large, rng);
-                if (!TryPick(tier, used, rng, out AltarPick pick))
+                if (!TryPick(tier, used, weights, rng, out AltarPick pick))
                     break;
-                used.Add(pick.Id);
+                RewardCatalog.ExcludeFamily(used, pick.Id);
                 list.Add(pick);
             }
 
@@ -193,23 +193,17 @@ namespace RogueShooter.Build
             return RewardTier.High;
         }
 
-        static bool TryPick(RewardTier tier, HashSet<string> used, Random rng, out AltarPick pick)
+        static bool TryPick(RewardTier tier, HashSet<string> used, RewardRegressionWeights weights, Random rng, out AltarPick pick)
         {
             pick = default;
-            for (int attempt = 0; attempt < 5; attempt++)
+            // Saturated/unique families may empty a tier; fill from a remaining legal tier.
+            foreach (var candidateTier in new[] { tier, RewardTier.Low, RewardTier.Mid, RewardTier.High })
             {
-                if (!RewardCatalog.TryPickWeighted(tier, used, null, rng, out RewardRow row))
-                    return false;
-                if (used != null && used.Contains(row.Id))
-                    continue;
+                if (!RewardCatalog.TryPickWeighted(candidateTier, used, weights, rng, out RewardRow row)) continue;
                 pick = new AltarPick { Id = row.Id, Effect = row.Desc, Tier = row.Tier };
                 return true;
             }
-
-            if (!RewardCatalog.TryPickWeighted(tier, used, null, rng, out RewardRow fallback))
-                return false;
-            pick = new AltarPick { Id = fallback.Id, Effect = fallback.Desc, Tier = fallback.Tier };
-            return true;
+            return false;
         }
     }
 }

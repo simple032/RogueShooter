@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using RogueShooter.Ai;
 using RogueShooter.Art;
 using RogueShooter.Balance;
@@ -13,12 +14,13 @@ using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
 using RogueShooter.Build;
+using RogueShooter.Boss;
 
 namespace RogueShooter.Demo
 {
     /// <summary>
     /// Playable Stage-1 maze skeleton (Spec v0.5). Seeded rooms + lock/clear/open.
-    /// Placeholder art. Connector is a stub — S2/S3 mazes are not built.
+    /// Three-stage run reusing the approved sample shells, floors and dressing.
     /// </summary>
     [DefaultExecutionOrder(50)]
     public class Stage1MazeDemo : MonoBehaviour
@@ -27,6 +29,7 @@ namespace RogueShooter.Demo
         [Tooltip("Play default ~6. 0 = MoveSpeeds.Player (L=22 lock)")]
         [SerializeField] float moveSpeed = MazeRules.PlayMoveSpeed;
         [SerializeField] int seed = 42;
+        [SerializeField] bool randomizeSeedOnStart = true;
 
         void Awake()
         {
@@ -37,6 +40,36 @@ namespace RogueShooter.Demo
         public const float IsoYawDeg = 45f;
 
         Stage1Maze _maze;
+        StageId _stage = StageId.S1;
+        S2S3Layout _phaseLayout;
+        StageLevelMap _level;
+        readonly Dictionary<string, StageAltarView> _altars = new Dictionary<string, StageAltarView>();
+        readonly List<Stage1DoorGate> _forwardGates = new List<Stage1DoorGate>();
+        readonly List<Stage1DoorGate> _returnGates = new List<Stage1DoorGate>();
+        StartRoomTutorial _tutorial;
+        public StartRoomTutorial Tutorial => _tutorial;
+        float _startPausedSeconds;
+        float _startPauseAt = -1f;
+        public bool StartClockPaused => _startPauseAt >= 0f;
+        public bool IsInStartRoom => _player != null && _maze != null && _maze.Find("START") != null
+            && _maze.Find("START").Contains(_player.position.x, _player.position.y, 0f);
+        float _altarPausedSeconds;
+        float _altarPauseAt = -1f;
+        float _menuPausedSeconds;
+        float _menuPauseAt = -1f;
+        /// <summary>ESC 暂停菜单打开中：世界冻结、热键与房间逻辑挂起、run clock 停走。</summary>
+        public bool MenuPaused { get { return _menuPauseAt >= 0f; } }
+        public const string StartMenuSceneName = "StartMenu";
+        float _stageBannerUntil;
+        public bool AltarClockPaused { get { return _altarPauseAt >= 0f; } }
+        public string StageBanner { get { return Time.unscaledTime < _stageBannerUntil ? "第"+(int)_stage+"阶段 · "+(_stage == StageId.S2 ? "锈铜遗库" : "寒骨内殿") : ""; } }
+        public StageId StageForRoom(string id) { return _level != null ? _level.RoomStage(id) : StageId.S1; }
+        public StageAltarView AltarView(string id) { return _altars.TryGetValue(id,out var v) ? v : null; }
+        static AltarSize SizeForStage(StageId stage) { return stage == StageId.S3 ? AltarSize.Large : stage == StageId.S2 ? AltarSize.Mid : AltarSize.Small; }
+        int _largeChestRooms;
+        public StageId CurrentStage { get { return _stage; } }
+        public S2S3Layout PhaseLayout { get { return _phaseLayout; } }
+        AltarSize CurrentAltarSize { get { return _stage == StageId.S3 ? AltarSize.Large : _stage == StageId.S2 ? AltarSize.Mid : AltarSize.Small; } }
         MazePacing _pace;
         Transform _player;
         CameraViewService _view;
@@ -62,57 +95,178 @@ namespace RogueShooter.Demo
         float _runEpoch;
         RunBuildState _build;
         RewardScreenView _rewardScreen;
-        RewardOption[] _chestOffers = System.Array.Empty<RewardOption>();
+        AltarPick[] _chestOffers = System.Array.Empty<AltarPick>();
         AltarPick[] _altarOffers = System.Array.Empty<AltarPick>();
         string _offerRoom;
         bool _offerIsAltar;
+        bool _offerIsShop;
+        FinalPrepShop _shop;
+        public FinalPrepShop FinalShop => _shop;
+        public bool FinalShopOpen => _offerIsShop && RewardOpen();
+        public bool ReadyForFinalShop => !RunFlow.IsStage1Trial && _stage==StageId.S3 && AltarReady(StageId.S3) && !_connSettle && !PlayerDown() && _finalBoss!=null && !_finalBoss.FightStarted;
+        public void ShowFinalShop(RewardCardData[] cards,string caption) { _offerIsShop=true;_offerIsAltar=false;_offerRoom=null;RewardView().ShowShop(cards,caption); }
+        public void ApplyShopReward(RewardRow row) { ApplyOwnedStats(row);_player?.GetComponent<PlayerCharge>()?.BindOwnedRewards(_build.OwnedRewardIds); }
         readonly HashSet<string> _takenRewards = new HashSet<string>();
-        readonly Dictionary<string, RewardOption[]> _chestRolls = new Dictionary<string, RewardOption[]>();
+        readonly Dictionary<string, AltarPick[]> _chestRolls = new Dictionary<string, AltarPick[]>();
         readonly Dictionary<string, AltarPick[]> _altarRolls = new Dictionary<string, AltarPick[]>();
         bool _connSettle;
+        bool _runWon;
+        BossFightDriver _finalBoss;
+        Stage1DoorGate _finalExit;
+        public BossFightDriver FinalBoss => _finalBoss;
+        public string EndTitle => _runWon ? (RunFlow.IsStage1Trial ? "第一阶段试玩完成" : "通关 · 骸冠已破") : "失败 · 结算";
         bool _ignoreClear;
+        bool _suppressExperience;
         SpawnBandClock _pressureClock;
         System.Random _offerRng;
 
         public const float LockEdge = 0.45f;
+        /// <summary>Clear-wave key. Off in a normal run so the key cannot kill a room without clearing it.</summary>
+        public const bool DevClearHotkey = false;
+        /// <summary>N, F1–F4, 1–4, F6–F9. Off for a normal play. K stays on DevClearHotkey.</summary>
+        public const bool DevHotkeys = false;
+        public const string RestartLabel = "重新开始（R）";
 
         IEnumerator Start()
         {
             BalanceLock.TryLoadFromStreamingAssets(out _lock, out _);
             LoadDraftPool();
-            BuildRun(seed);
+            BuildRun(randomizeSeedOnStart ? PickRestartSeed() : seed);
             yield return null;
             RunAcceptance();
         }
 
         void Update()
         {
+            if (PlayerDown())
+                CatchDeath();
             if (PlayerDown() && RewardOpen())
                 CloseReward();
-            SyncPressureClock();
             HandleHotkeys();
-            if (!PlayerDown())
+            if (!PlayerDown() && !MenuPaused)
             {
                 ContainPlayer();
                 TryEnterRoom();
+                UpdateProgressionGates();
             }
 
+            UpdateAltarClock();
+            UpdateStartClock();
+            GuaranteedCritActive.TimePressureHeld = StartClockPaused || AltarClockPaused || MenuPaused;
+            SyncPressureClock();
             SweepDead();
         }
 
+        float _settleSeconds = -1f;
+        bool _deathFrozen;
+        int _restartNonce;
+
         public float RunSeconds
         {
-            get { return Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch); }
+            get
+            {
+                if (_settleSeconds >= 0f)
+                    return _settleSeconds;
+                return Mathf.Max(0f, Time.timeSinceLevelLoad - _runEpoch - _startPausedSeconds
+                    - (_startPauseAt >= 0f ? Time.timeSinceLevelLoad - _startPauseAt : 0f) - _altarPausedSeconds
+                    - (_altarPauseAt >= 0f ? Time.timeSinceLevelLoad - _altarPauseAt : 0f) - _menuPausedSeconds
+                    - (_menuPauseAt >= 0f ? Time.timeSinceLevelLoad - _menuPauseAt : 0f));
+            }
         }
+
+        public int Seed { get { return seed; } }
 
         public void RestartRun()
         {
-            BuildRun(seed);
+            BuildRun(PickRestartSeed());
             RunAcceptance();
+        }
+
+        public int PickRestartSeed()
+        {
+            _restartNonce++;
+            int next = unchecked(Environment.TickCount + _restartNonce * 104729);
+            if (next == seed || next == 0)
+                next = unchecked(seed + _restartNonce * 17 + 1);
+            return next;
+        }
+
+        /// <summary>ESC menu can only open in normal play: no death, no card overlay,
+        /// no settle panel and no scripted transition already owning the clock.</summary>
+        public bool CanMenuPause()
+        {
+            return !MenuPaused && !PlayerDown() && !RewardOpen() && !_connSettle
+                && !RunPause.BossTransition && !RunPause.RitualActing;
+        }
+
+        /// <summary>Open the ESC pause. Start/altar holds are folded first so the paused
+        /// span is banked exactly once (RunSeconds subtracts it via the menu hold).</summary>
+        public void OpenMenuPause()
+        {
+            if (MenuPaused || !CanMenuPause())
+                return;
+            float now = Time.timeSinceLevelLoad;
+            if (_startPauseAt >= 0f)
+            {
+                _startPausedSeconds += now - _startPauseAt;
+                _startPauseAt = -1f;
+            }
+            if (_altarPauseAt >= 0f)
+            {
+                _altarPausedSeconds += now - _altarPauseAt;
+                _altarPauseAt = -1f;
+            }
+            _menuPauseAt = now;
+            RunPause.MenuOpen = true;
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_ui_open",this);
+            Time.timeScale = 0f;
+            Debug.Log("[Stage1] menu pause open t=" + RunSeconds.ToString("0.0"));
+        }
+
+        public void CloseMenuPause()
+        {
+            if (!MenuPaused)
+                return;
+            _menuPausedSeconds += Time.timeSinceLevelLoad - _menuPauseAt;
+            _menuPauseAt = -1f;
+            RunPause.MenuOpen = false;
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_ui_close",this);
+            if (!RunPause.RunSettled && !RunPause.InteractOpen && !RunPause.BossTransition && !RunPause.RitualActing)
+                Time.timeScale = 1f;
+            // Re-arm the room holds in the same frame so no sub-frame wall-clock
+            // leaks between the menu closing and the next Update.
+            UpdateStartClock();
+            UpdateAltarClock();
+            Debug.Log("[Stage1] menu pause close t=" + RunSeconds.ToString("0.0"));
+        }
+
+        public void RestartFromMenu()
+        {
+            CloseMenuPause();
+            RestartRun();
+        }
+
+        /// <summary>Back to the start-menu scene. Cross-scene pause statics are cleared
+        /// so neither the menu nor the next run inherits this scene's state.</summary>
+        public void ReturnToStartMenu()
+        {
+            _menuPauseAt = -1f;
+            RunPause.ResetAll();
+            SceneManager.LoadScene(StartMenuSceneName);
+        }
+
+        public void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         void BuildRun(int newSeed)
         {
+            RogueShooter.Audio.JianHaiAudio.BeforeRebuild();
             int kept = EconomyGold.StartGold;
             if (_build != null)
                 kept = EconomyGold.StartGold + EconomyGold.DeathInherit(_build.Gold);
@@ -120,8 +274,14 @@ namespace RogueShooter.Demo
             if (_build != null)
                 _build.Reset(kept);
             seed = newSeed;
-            _maze = Stage1MazeGen.Generate(seed);
-            _pace = Stage1MazeGen.MeasurePacing(_maze, PlaySpeed());
+            _offerRng = new System.Random(newSeed);
+            _stage = StageId.S1;
+            _phaseLayout = null;
+            _level = StageLevelMap.Generate(seed, RunFlow.IsStage1Trial);
+            _maze = _level.Maze;
+            _altarPausedSeconds = 0f; _altarPauseAt = -1f; _stageBannerUntil = 0f;
+            _largeChestRooms = _maze.CountKind(MazeNodeKind.LargeChest);
+            _pace = Stage1MazeGen.MeasurePacing(Stage1MazeGen.Generate(seed), PlaySpeed());
             Debug.Log("[S1Maze] " + Stage1MazeGen.FormatGraph(_maze));
             Debug.Log("[S1Maze] " + Stage1MazeGen.FormatQuota(_maze));
             Debug.Log("[S1Maze] pacing shortestWalk=" + _pace.ShortestWalk.ToString("0.0")
@@ -145,6 +305,7 @@ namespace RogueShooter.Demo
                       + " pitch=" + MazeRules.PitchX.ToString("0") + "/"
                       + MazeRules.PitchY.ToString("0"));
             _runEpoch = Time.timeSinceLevelLoad;
+            _startPausedSeconds = 0f; _startPauseAt = _runEpoch;
             BuildWorld();
             Debug.Log("[Stage1] restart gold=" + (_build != null ? _build.Gold : 0)
                       + " rewards=0 timer=0");
@@ -189,35 +350,59 @@ namespace RogueShooter.Demo
 
         void BuildWorld()
         {
-            Transform root = transform;
-            _world.Add(Stage1IsoArt.BuildFloors(_maze, root));
-
-            for (int i = 0; i < _maze.Nodes.Length; i++)
+            Transform prefabRoot = null;
+            for (int p = 0; p < _level.Parts.Count; p++)
             {
-                MazeNode n = _maze.Nodes[i];
-                _roomFloors[n.Id] = null;
-                Stage1IsoArt.BuildRoomShell(n, _maze, root, _world, seed);
-                AddWorldLabel(root, n.Id + " " + MazeRules.Label(n.Kind),
-                    new Vector3(n.Center.X, n.Center.Y + n.Height * 0.42f, 0f));
-                GameObject prop = Stage1IsoArt.BuildProp(n, root);
-                if (prop != null)
+                var part = _level.Parts[p]; var stage = (StageId)(p+1);
+                var layout = _level.Layout(stage);
+                Transform root = new GameObject("StageMap_" + stage).transform;
+                root.SetParent(transform, false); _world.Add(root.gameObject);
+                if (p == 0) prefabRoot = root;
+                var floorRoot = Stage1IsoArt.BuildFloors(part, root, _maze, p == 0); _world.Add(floorRoot);
+                foreach (var n in part.Nodes)
                 {
-                    _world.Add(prop);
-                    if (n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.LargeChest)
-                        _chests[n.Id] = prop;
+                    _roomFloors[n.Id] = null;
+                    RoomWalkShape.BuildWalls(n,root);
+                    Stage1IsoArt.BuildRoomShell(n, _maze, root, _world, part.Seed, _doors, stage != StageId.S3);
+                    if (n.Kind != MazeNodeKind.Altar)
+                    {
+                        GameObject prop = Stage1IsoArt.BuildProp(n, root);
+                        if (prop != null) { _world.Add(prop); if (n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.LargeChest) _chests[n.Id] = prop; }
+                        if (layout != null && n.Kind!=MazeNodeKind.Heal) S2S3PhaseDress.DressRoom(layout, layout.Find(n.Id), _maze, root, _world);
+                    }
+                    if(n.Kind==MazeNodeKind.Heal) HealingRoomView.Create(n,root,_world);
+                    RoomSolidProps.Bind(n,root);
+                    _sessions[n.Id] = new CombatRoomSession(n);
                 }
-                _sessions[n.Id] = new CombatRoomSession(n);
+                S2S3CorridorShell.Build(StageLevelMap.CorridorLayout(part), root, _world);
+                if (layout != null) S2S3PhaseDress.FinishPhase(layout, _maze, root, _world, floorRoot.GetComponentInChildren<UnityEngine.Tilemaps.Tilemap>());
+                foreach (var n in part.Nodes)
+                    if (n.Kind == MazeNodeKind.Altar)
+                    {
+                        var link = _level.Links.Find(e => e.FromId == n.Id) ?? (_level.FinalLink != null && _level.FinalLink.FromId==n.Id ? _level.FinalLink : null);
+                        Vector2 outlet = link != null ? new Vector2(link.From.X,link.From.Y) : new Vector2(n.Center.X,n.Center.Y+11f);
+                        _altars[n.Id] = StageAltarView.Create(n,stage,outlet,root,_world);
+                        RoomSolidProps.Bind(n,root);
+                    }
             }
-
-            AddDoors(root);
-
+            foreach (var link in _level.Links)
+            {
+                var n = _maze.Find(link.FromId); var dx = link.From.X-n.Center.X; var dy = link.From.Y-n.Center.Y;
+                char rim = Mathf.Abs(dx)>Mathf.Abs(dy) ? (dx>0?'E':'W') : (dy>0?'N':'S');
+                _forwardGates.Add(_doors.Find(g => g != null && g.name == "Door_"+n.Id+"_"+rim)?.GetComponent<Stage1DoorGate>());
+                var target = _maze.Find(link.ToId);
+                float tx=link.To.X-target.Center.X,ty=link.To.Y-target.Center.Y;
+                char backRim=Mathf.Abs(tx)>Mathf.Abs(ty)?(tx>0?'E':'W'):(ty>0?'N':'S');
+                _returnGates.Add(_doors.Find(g => g != null && g.name == "Door_"+link.ToId+"_"+backRim)?.GetComponent<Stage1DoorGate>());
+            }
+            UpdateProgressionGates();
             MazeNode start = _maze.Find("START");
-            Vector3 startPos = start != null
-                ? new Vector3(start.Center.X, start.Center.Y, 0f)
-                : Vector3.zero;
+            Vector3 startPos = start != null ? new Vector3(start.Center.X,start.Center.Y,0f) : Vector3.zero;
 
-            GameObject player = new GameObject("Player");
+            GameObject player = _player != null ? _player.gameObject : new GameObject("Player");
             player.transform.position = startPos;
+            if (_player == null)
+            {
             player.AddComponent<Stage1IsoActor>().Bind("archer");
             player.AddComponent<PlayerMotor2D>().Configure(PlaySpeed());
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
@@ -225,13 +410,18 @@ namespace RogueShooter.Demo
             player.AddComponent<PlayerCharge>();
             player.AddComponent<PlayerRoll>();
             player.AddComponent<GuaranteedCritActive>();
+            }
+            var experience = player.GetComponent<PlayerExperience>();
+            if (experience == null) experience = player.AddComponent<PlayerExperience>();
+            experience.ResetRun(player.GetComponent<PlayerVitals>());
             EnsureBuild();
             var charge = player.GetComponent<PlayerCharge>();
             if (charge != null)
             {
                 charge.BindOwnedRewards(_build.OwnedRewardIds);
-                charge.BindMaze(_maze);
+                charge.BindMaze(_maze, _doors);
             }
+            player.GetComponent<PlayerMotor2D>().BindMaze(_maze,_doors);
             _player = player.transform;
             _lastGood = startPos;
             var hud = GetComponent<Stage1PlayHud>();
@@ -239,6 +429,10 @@ namespace RogueShooter.Demo
                 hud = gameObject.AddComponent<Stage1PlayHud>();
             hud.Bind(this);
             hud.BeginRun();
+            var pauseMenu = GetComponent<Stage1PauseMenu>();
+            if (pauseMenu == null)
+                pauseMenu = gameObject.AddComponent<Stage1PauseMenu>();
+            pauseMenu.Bind(this);
             _world.Add(player);
             Debug.Log("[MoveSpeed] player=" + PlaySpeed().ToString("0.000")
                       + " ortho=" + orthographicSize.ToString("0")
@@ -274,12 +468,25 @@ namespace RogueShooter.Demo
                 cam.gameObject.AddComponent<IsoSortAxis>();
 
             _stubPrefab = new GameObject("StubEnemyPrefab");
-            _stubPrefab.transform.SetParent(root, false);
+            _stubPrefab.transform.SetParent(prefabRoot, false);
             _stubPrefab.SetActive(false);
             JianHaiBind.ApplyTo(_stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             _stubPrefab.AddComponent<StubEnemy>();
             _world.Add(_stubPrefab);
             PreplaceOpeningWaves();
+            BuildRoomHazards();
+            BuildFinalBossWing();
+            _tutorial = player.GetComponent<StartRoomTutorial>();
+            if (_tutorial == null) _tutorial = player.AddComponent<StartRoomTutorial>();
+            _tutorial.Bind(this, start);
+            SetDoors("START", _tutorial.Active);
+            RogueShooter.Audio.JianHaiAudio.BindRun(this);
+        }
+
+        void BuildRoomHazards()
+        {
+            foreach(var node in _maze.Nodes)if(RoomHazard.MayBind(StageForRoom(node.Id),node.Kind))
+            {var go=new GameObject("RoomHazard_"+node.Id);go.transform.SetParent(transform,false);_world.Add(go);go.AddComponent<RoomHazard>().Bind(this,node);}
         }
 
         /// <summary>Wave 1 is already standing in each combat room. AI stays off until the door fight starts.</summary>
@@ -292,14 +499,16 @@ namespace RogueShooter.Demo
                 MazeNode node = _maze.Nodes[i];
                 if (node == null || !node.SpawnsEnemies || node.WaveCount < 1)
                     continue;
-                DrawnComposition drawn = StageEnemyPool.DrawComposition(
-                    StageId.S1, node.PoolRoom, Stage1MazeGen.DrawRng(seed, node.Id, 1));
+                DrawnComposition drawn = StageEnemyPool.DrawRoom(
+                    StageForRoom(node.Id), node.Id, node.PoolRoom, 1, Stage1MazeGen.DrawRng(_level.Parts[(int)StageForRoom(node.Id)-1].Seed, node.Id, 1));
                 Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
                 int n = drawn.Units != null ? drawn.Units.Length : 0;
                 var parked = new List<GameObject>(n);
+                var kinds=Array.ConvertAll(drawn.Units, unit=>unit.KindId);
+                var firstSpots=Stage1Wave2.Spots(node,center,kinds,_maze,opening:true);
                 for (int u = 0; u < n; u++)
                 {
-                    GameObject go = PlaceEnemy(node.Id, 1, u, n, drawn.Units[u], center, false);
+                    GameObject go = PlaceEnemy(node.Id, 1, u, n, drawn.Units[u], firstSpots[u], false, true);
                     if (go != null)
                         parked.Add(go);
                 }
@@ -308,6 +517,35 @@ namespace RogueShooter.Demo
                 Debug.Log("[Stage1] prespawn " + node.Id + " " + node.Kind + " n=" + parked.Count);
             }
         }
+
+        void BuildFinalBossWing()
+        {
+            if(_level.BossWing==null)return;var root=new GameObject("Final boss wing").transform;root.SetParent(transform,false);_world.Add(root.gameObject);
+            _world.Add(Stage1IsoArt.BuildFloors(_level.BossWing,root,_maze,false));
+            foreach(var n in _level.BossWing.Nodes)Stage1IsoArt.BuildRoomShell(n,_maze,root,_world,seed,_doors,false,true);
+            S2S3CorridorShell.Build(StageLevelMap.CorridorLayout(_level.BossWing),root,_world);
+            var arena=_level.BossRoom;var center=new Vector2(arena.Center.X,arena.Center.Y);
+            S2S3EnvironmentPolish.RingPaving(center,"BOSS",root,_world);
+            var bossLink=_level.BossWing.Edges[0];var at=bossLink.To;
+            char entranceRim=at.Y<center.y?'S':'N';
+            var entrance=_doors.Find(g=>g!=null && g.name=="Door_BOSS_"+entranceRim)?.GetComponent<Stage1DoorGate>();
+            var go=new GameObject("骸冠典狱长 · Meshy v04");go.transform.SetParent(root,false);go.transform.position=new Vector3(center.x,center.y-3,0);
+            _finalBoss=go.AddComponent<BossFightDriver>();_finalBoss.BindArena(this,_maze,arena,_player);_finalBoss.BindEntranceGate(entrance);
+            var outlet=_level.FinalLink;var source=_maze.Find(outlet.FromId);float dx=outlet.From.X-source.Center.X,dy=outlet.From.Y-source.Center.Y;
+            char rim=Mathf.Abs(dx)>Mathf.Abs(dy)?(dx>0?'E':'W'):(dy>0?'N':'S');_finalExit=_doors.Find(g=>g!=null&&g.name=="Door_"+source.Id+"_"+rim)?.GetComponent<Stage1DoorGate>();
+            var safe=_maze.Find("PRE_BOSS");var shopGo=new GameObject("Final safe room supplies");shopGo.transform.SetParent(root,false);_shop=shopGo.AddComponent<FinalPrepShop>();_shop.Bind(this,safe,seed);
+            UpdateProgressionGates();
+        }
+        void BeginFinalBoss()
+        {
+            if(_finalBoss==null||_finalBoss.FightStarted)return;
+            foreach(var ai in UnityEngine.Object.FindObjectsOfType<MobFourStateAi>(true))ai.enabled=false;
+            ClearCombatProjectiles();_finalBoss.BeginEnter(_build.BuildCount,RunSeconds/60f);
+            Flash("骸冠典狱长 · 入口已封闭");
+        }
+        public void ClearCombatProjectiles(){ClearShots();}
+        public void CompleteBossFight(bool won)
+        {if(_connSettle)return;if(won) Experience?.CreditBossVictory();_runWon=won;RogueShooter.Audio.JianHaiAudio.Settle(won?"jh_run_victory":"jh_run_defeat");_settleSeconds=RunSeconds;_connSettle=true;CloseReward();ClearCombatProjectiles();RunPause.EnterSettled();}
 
         public Stage1Maze BuiltMaze { get { return _maze; } }
 
@@ -320,6 +558,7 @@ namespace RogueShooter.Demo
             }
         }
         public Transform PlayerBody { get { return _player; } }
+        public PlayerExperience Experience => _player != null ? _player.GetComponent<PlayerExperience>() : null;
         public bool DoorHoldActive { get { return _portalWaiting; } }
 
         public int LiveEnemyCount
@@ -345,7 +584,47 @@ namespace RogueShooter.Demo
             get { return Time.unscaledTime <= _flashUntil ? _flash : ""; }
         }
 
+        public bool AudioCombatActive => _active != null && _active.Phase == CombatRoomPhase.Fighting;
         public bool ConnSettle { get { return _connSettle; } }
+
+        /// <summary>Victory keep uses the death-inherit rate and cap. No second ratio.</summary>
+        public int VictoryKeep
+        {
+            get
+            {
+                if (!_connSettle || _build == null)
+                    return 0;
+                return EconomyGold.DeathInherit(_build.Gold);
+            }
+        }
+
+        public RunEndInfo EndInfo()
+        {
+            EnsureBuild();
+            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+            return new RunEndInfo
+            {
+                Seconds = Mathf.FloorToInt(RunSeconds),
+                Rewards = rewards,
+                Keep = EconomyGold.DeathInherit(_build.Gold),
+                Restart = RestartLabel
+            };
+        }
+
+        public int HeldGold
+        {
+            get
+            {
+                EnsureBuild();
+                return _build.Gold;
+            }
+        }
+
+        public void ProofSetGold(int gold)
+        {
+            EnsureBuild();
+            _build.Reset(gold < 0 ? 0 : gold);
+        }
 
         public bool OfferChoices
         {
@@ -366,7 +645,7 @@ namespace RogueShooter.Demo
         {
             if (_offerIsAltar)
                 return IdsOfAltar(_altarOffers);
-            return IdsOfChest(_chestOffers);
+            return IdsOfAltar(_chestOffers);
         }
 
         public int ActiveDoorCount(string roomId)
@@ -383,16 +662,6 @@ namespace RogueShooter.Demo
             }
 
             return n;
-        }
-
-        static string[] IdsOfChest(RewardOption[] offers)
-        {
-            if (offers == null)
-                return System.Array.Empty<string>();
-            var ids = new string[offers.Length];
-            for (int i = 0; i < offers.Length; i++)
-                ids[i] = offers[i].Id;
-            return ids;
         }
 
         static string[] IdsOfAltar(AltarPick[] offers)
@@ -442,73 +711,35 @@ namespace RogueShooter.Demo
             KillLiveWave();
         }
 
-        void AddDoors(Transform root)
+        public void ProofTeleportChest()
         {
-            for (int i = 0; i < _maze.Edges.Length; i++)
-            {
-                MazeEdge e = _maze.Edges[i];
-                MazeNode a = _maze.Find(e.FromId);
-                MazeNode b = _maze.Find(e.ToId);
-                if (a == null || b == null)
-                    continue;
-                PlaceDoor(root, a, b);
-                PlaceDoor(root, b, a);
-            }
+            TeleportFirstChest();
         }
 
-        void PlaceDoor(Transform root, MazeNode room, MazeNode other)
+        public void ProofTeleportAltar()
         {
-            float dx = other.Center.X - room.Center.X;
-            float dy = other.Center.Y - room.Center.Y;
-            char side;
-            bool alongX;
-            float span;
-            float hx = room.Width * 0.5f - LockEdge;
-            float hy = room.Height * 0.5f - LockEdge;
-            Vector3 pos;
-            if (Mathf.Abs(dx) >= Mathf.Abs(dy))
-            {
-                side = dx >= 0f ? 'E' : 'W';
-                pos = new Vector3(room.Center.X + (side == 'E' ? hx : -hx), room.Center.Y, 0f);
-                alongX = false;
-                span = room.Height - LockEdge * 2f;
-            }
-            else
-            {
-                side = dy >= 0f ? 'N' : 'S';
-                pos = new Vector3(room.Center.X, room.Center.Y + (side == 'N' ? hy : -hy), 0f);
-                alongX = true;
-                span = room.Width - LockEdge * 2f;
-            }
+            TeleportFirst(MazeNodeKind.Altar);
+        }
 
-            string doorName = "Door_" + room.Id + "_" + side;
-            for (int i = 0; i < _doors.Count; i++)
-            {
-                if (_doors[i] != null && _doors[i].name == doorName)
-                    return;
-            }
+        public void ProofOpenConnector()
+        {
+            Teleport("CONN");
+            TryInteract();
+        }
 
-            string file = side == 'E' || side == 'W' ? "door_l_00" : "door_r_00";
-            Sprite sprite = Stage1IsoArt.LoadSprite(
-                "Assets/Art/JianHai/Iso/Tiles/S1/Wall/jh_iso_wall_s1_" + file + ".png");
-            var go = new GameObject(doorName);
-            go.transform.SetParent(root, false);
-            go.transform.position = pos;
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.sortingOrder = 6;
-            if (sprite != null)
-            {
-                Vector2 size = sprite.bounds.size;
-                if (alongX)
-                    go.transform.localScale = new Vector3(span / Mathf.Max(0.05f, size.x), 1f, 1f);
-                else
-                    go.transform.localScale = new Vector3(1f, span / Mathf.Max(0.05f, size.y), 1f);
-            }
-
-            go.SetActive(false);
-            _doors.Add(go);
-            _world.Add(go);
+        public string ProofApply(string id)
+        {
+            EnsureBuild();
+            if (!RewardCatalog.TryGet(id, out RewardRow row))
+                return "missing " + id;
+            if(RewardCatalog.IsUniqueId(id)&&_build.OwnedRewardIds.Contains(id))return "already owned "+id;
+            string rarity = row.Tier == RewardTier.High ? "高" : row.Tier == RewardTier.Mid ? "中" : "低";
+            _build.GrantBuildPick(id, rarity, 0, row.BuildEquiv);
+            ApplyOwnedStats(row);
+            PlayerCharge charge = _player != null ? _player.GetComponent<PlayerCharge>() : null;
+            if (charge != null)
+                charge.BindOwnedRewards(_build.OwnedRewardIds);
+            return null;
         }
 
         void LogDryRun()
@@ -537,8 +768,25 @@ namespace RogueShooter.Demo
             return vitals != null && vitals.IsDown;
         }
 
+        public void CatchDeath()
+        {
+            if (_deathFrozen || !PlayerDown())
+                return;
+            _deathFrozen = true;
+            RogueShooter.Audio.JianHaiAudio.Settle("jh_run_defeat");
+            if (_settleSeconds < 0f)
+                _settleSeconds = RunSeconds;
+            RunPause.EnterCombatEnd();
+            ClearShots();
+            Debug.Log("[Stage1] death end t=" + RunSeconds.ToString("0.0")
+                      + " scale=" + Time.timeScale.ToString("0")
+                      + " shots cleared");
+        }
+
         void HandleHotkeys()
         {
+            if (MenuPaused)
+                return;
             if (PlayerDown())
             {
                 if (Input.GetKeyDown(KeyCode.R))
@@ -552,7 +800,7 @@ namespace RogueShooter.Demo
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.N))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.N))
             {
                 BuildRun(Environment.TickCount);
                 RunAcceptance();
@@ -561,34 +809,70 @@ namespace RogueShooter.Demo
             if (Input.GetKeyDown(KeyCode.R))
                 RestartRun();
 
-            if (Input.GetKeyDown(KeyCode.F1))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F1))
                 Teleport("START");
-            if (Input.GetKeyDown(KeyCode.F2))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F2))
                 Teleport("CONN");
-            if (Input.GetKeyDown(KeyCode.F3))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F3))
                 TeleportFirst(MazeNodeKind.Altar);
-            if (Input.GetKeyDown(KeyCode.F4))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F4))
                 TeleportFirstChest();
-            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)))
                 Teleport("N1");
-            if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)))
                 Teleport("N2");
-            if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)))
                 TeleportFirst(MazeNodeKind.Altar);
-            if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+            if (DevHotkeys && (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)))
                 TeleportFirstChest();
             if (Input.GetKeyDown(KeyCode.K))
-                HotkeyKillIgnoreClear();
-            if (Input.GetKeyDown(KeyCode.F9))
+                TryDevClear();
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F9))
                 WriteEvidence();
             if (Input.GetKeyDown(KeyCode.E))
                 TryInteract();
-            if (Input.GetKeyDown(KeyCode.F6))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F6))
                 GrantZhenShi(KnockbackRewardDraft.IdLow);
-            if (Input.GetKeyDown(KeyCode.F7))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F7))
                 GrantZhenShi(KnockbackRewardDraft.IdMid);
-            if (Input.GetKeyDown(KeyCode.F8))
+            if (DevHotkeys && Input.GetKeyDown(KeyCode.F8))
                 ClearZhenShi();
+        }
+
+        public static bool DevKeyLive(KeyCode key)
+        {
+            return DevKeyAllowed(key, DevHotkeys, DevClearHotkey);
+        }
+
+        public static bool DevKeyAllowed(KeyCode key, bool devOn, bool clearOn)
+        {
+            if (key == KeyCode.K)
+                return clearOn;
+            if (key == KeyCode.R || key == KeyCode.E)
+                return true;
+            switch (key)
+            {
+                case KeyCode.N:
+                case KeyCode.F1:
+                case KeyCode.F2:
+                case KeyCode.F3:
+                case KeyCode.F4:
+                case KeyCode.Alpha1:
+                case KeyCode.Alpha2:
+                case KeyCode.Alpha3:
+                case KeyCode.Alpha4:
+                case KeyCode.Keypad1:
+                case KeyCode.Keypad2:
+                case KeyCode.Keypad3:
+                case KeyCode.Keypad4:
+                case KeyCode.F6:
+                case KeyCode.F7:
+                case KeyCode.F8:
+                case KeyCode.F9:
+                    return devOn;
+            }
+
+            return true;
         }
 
         void EnsureBuild()
@@ -641,8 +925,20 @@ namespace RogueShooter.Demo
             if (_portalWaiting)
                 return;
             MazeNode inside = RoomAt(_player.position.x, _player.position.y, 1.15f);
-            if (inside == null || !inside.SpawnsEnemies)
+            if (inside == null) return;
+            if(inside.Kind==MazeNodeKind.Safe||inside.Kind==MazeNodeKind.Boss)
+            {
+                if(_stage!=StageId.S3||!AltarReady(StageId.S3)){_player.position=_lastGood;return;}
+                if(inside.Kind==MazeNodeKind.Boss)BeginFinalBoss();else _shop?.EnsureStock();
                 return;
+            }
+            StageId roomStage = StageForRoom(inside.Id);
+            if (roomStage > _stage)
+            {
+                if (inside.Id != "S"+(int)roomStage+"_A" || !AltarReady(_stage)) { _player.position=_lastGood; return; }
+                EnterStage(roomStage);
+            }
+            if (!inside.SpawnsEnemies) return;
             CombatRoomSession session;
             if (!_sessions.TryGetValue(inside.Id, out session))
                 return;
@@ -669,6 +965,7 @@ namespace RogueShooter.Demo
                 if (step.ShouldSpawn)
                 {
                     int wave = step.Wave > 0 ? step.Wave : cadenceWave;
+                    RogueShooter.Audio.JianHaiAudio.Emit(wave>1?"jh_room_wave_next":"jh_room_seal",this);
                     _cadence = StartCoroutine(PortalThenSpawn(session, wave));
                     continue;
                 }
@@ -677,8 +974,9 @@ namespace RogueShooter.Demo
                 if (step.ShouldOpen)
                 {
                     SetDoors(session.RoomId, false);
+                    RogueShooter.Audio.JianHaiAudio.Emit("jh_room_clear",this);
                     OpenRoomProps(session.RoomId);
-                    Flash("open " + session.RoomId);
+                    Flash("房间已清理 · 通道开启");
                     if (_active == session)
                         _active = null;
                 }
@@ -704,16 +1002,21 @@ namespace RogueShooter.Demo
 
             _portalWaiting = true;
             _skipPortalWait = false;
-            DrawnComposition drawn = StageEnemyPool.DrawComposition(
-                StageId.S1, node.PoolRoom, Stage1MazeGen.DrawRng(seed, node.Id, wave));
+            DrawnComposition drawn = StageEnemyPool.DrawRoom(
+                StageForRoom(node.Id), node.Id, node.PoolRoom, wave, Stage1MazeGen.DrawRng(_level.Parts[(int)StageForRoom(node.Id)-1].Seed, node.Id, wave));
             Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
             int n = drawn.Units != null ? drawn.Units.Length : 0;
             if (n < 1)
                 n = 1;
+            Vector3 player = _player != null ? _player.position : center;
+            string[] kinds = new string[n];
+            for (int i = 0; i < n; i++)
+                kinds[i] = drawn.Units != null && i < drawn.Units.Length ? drawn.Units[i].KindId : EnemyKindIds.Normal;
+            Vector3[] spots = Stage1Wave2.Spots(node, player, kinds, _maze);
             ClearPortals();
             for (int i = 0; i < n; i++)
             {
-                Vector3 pos = SpawnCluster.Offset(center, i, n);
+                Vector3 pos = spots != null ? spots[i] : SpawnCluster.Offset(center, i, n);
                 GameObject fx = PortalFxStub.SpawnAt(
                     "PortalFx_" + node.Id + "_w" + wave + "_" + i, pos, transform);
                 _portals.Add(fx);
@@ -722,12 +1025,22 @@ namespace RogueShooter.Demo
 
             string show = PortalFxHook.PlayShow(session.RoomId, wave);
             Debug.Log(show);
-            Flash("PORTAL " + session.RoomId + " w" + wave + " now");
+            Flash("下一波即将出现");
 
             float hold = MazeRules.PlayPortalWaitSeconds;
             float t = 0f;
-            while (t < hold && !_skipPortalWait)
+            while (true)
             {
+                // Player movement during the warning cannot cause a hidden spawn
+                // away from its portal. Keep safe markers and re-preview changed ones.
+                if (!Stage1Wave2.IsSafe(node, _player != null ? _player.position : center, spots))
+                {
+                    spots = Stage1Wave2.Spots(node, _player != null ? _player.position : center, kinds, _maze, preferred:spots);
+                    for (int i=0;i<_portals.Count && i<spots.Length;i++)
+                        if (_portals[i]!=null) _portals[i].transform.position=spots[i]+Vector3.forward*.05f;
+                    t=0f;
+                }
+                if (t >= hold || _skipPortalWait) break;
                 t += Time.deltaTime;
                 yield return null;
             }
@@ -737,10 +1050,10 @@ namespace RogueShooter.Demo
             ClearPortals();
             _portalWaiting = false;
             _cadence = null;
-            SpawnDrawn(session, wave, drawn, center);
+            SpawnDrawn(session, wave, drawn, center, spots);
         }
 
-        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3 center)
+        void SpawnDrawn(CombatRoomSession session, int wave, DrawnComposition drawn, Vector3 center, Vector3[] spots)
         {
             Debug.Log(drawn.LogLine());
             Debug.Log("[StagePool] extra=+" + drawn.ExtraAdded
@@ -750,17 +1063,20 @@ namespace RogueShooter.Demo
                       + " DRAFT_NOT_LOCKED");
             ClearLive();
             int n = drawn.Units != null ? drawn.Units.Length : 0;
+            // PortalThenSpawn validates the final marker positions in this same
+            // frame. Never secretly redraw positions after the visible warning.
             MazeNode node = _maze.Find(session.RoomId);
             string roomId = node != null ? node.Id : session.RoomId;
             for (int i = 0; i < n; i++)
             {
-                GameObject go = PlaceEnemy(roomId, wave, i, n, drawn.Units[i], center, true);
+                Vector3 at = spots != null && i < spots.Length ? spots[i] : center;
+                GameObject go = PlaceEnemy(roomId, wave, i, n, drawn.Units[i], at, true, spots != null);
                 if (go != null)
                     _live.Add(go);
             }
 
             session.MarkSpawned(n);
-            Flash("wave " + wave + " " + drawn.CompId + " n=" + n);
+            Flash("第" + wave + "波敌人来袭");
             if (n <= 0)
                 ApplySteps(session, session.NotifyKilled());
         }
@@ -775,6 +1091,8 @@ namespace RogueShooter.Demo
             }
 
             int n = 0;
+            // These are already visible enemies, not a new spawn. Activate the
+            // existing instances in place; entrance clearance is planned before play.
             if (parked != null)
             {
                 for (int i = 0; i < parked.Count; i++)
@@ -782,9 +1100,16 @@ namespace RogueShooter.Demo
                     GameObject go = parked[i];
                     if (go == null)
                         continue;
+                    var parkedBody = go.GetComponent<StubEnemy>();
+                    if (parkedBody != null && parkedBody.IsDead)
+                    {
+                        // The room consumed its wave: track the corpse so ClearLive
+                        // owns it on rebuild. LiveEnemyCount already filters dead.
+                        _live.Add(go);
+                        continue;
+                    }
                     MobFourStateAi ai = go.GetComponent<MobFourStateAi>();
-                    if (ai != null)
-                        ai.enabled = true;
+                    if (ai != null) { ai.ActivateRoom(); ai.enabled = true; }
                     _live.Add(go);
                     n++;
                 }
@@ -796,15 +1121,19 @@ namespace RogueShooter.Demo
                 ApplySteps(session, session.NotifyKilled());
         }
 
-        GameObject PlaceEnemy(string roomId, int wave, int index, int n, DrawnUnit u, Vector3 center, bool aiOn)
+        GameObject PlaceEnemy(string roomId, int wave, int index, int n, DrawnUnit u, Vector3 center, bool aiOn, bool placed)
         {
             if (_stubPrefab == null)
                 return null;
-            Vector3 pos = SpawnCluster.Offset(center, index, n);
+            Vector3 pos = placed ? center : SpawnCluster.Offset(center, index, n);
+            var spawnRoom=_maze.Find(roomId);
+            if(spawnRoom!=null&&!_maze.OpenAt(pos.x,pos.y))
+                pos=RogueShooter.Maze.MazeCollision.Slide(_maze,null,new Vector3(spawnRoom.Center.X,spawnRoom.Center.Y,0),pos,.4f);
             GameObject go = Instantiate(_stubPrefab, pos, Quaternion.identity, transform);
-            go.name = "S1_" + roomId + "_w" + wave + "_" + index + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
+            go.name = StageForRoom(roomId) + "_" + roomId + "_w" + wave + "_" + index + "_" + u.KindId + (u.Elite ? "_ELITE" : "");
             string family = u.KindId == EnemyKindIds.Dog ? "dog"
-                : u.KindId == EnemyKindIds.CultMage ? "mage"
+                : EnemyKindCatalog.ForKind(u.KindId).RangedOrb ? "mage"
+                : u.KindId == EnemyKindIds.Shield ? "shield"
                 : "skel";
             go.AddComponent<Stage1IsoActor>().Bind(family);
             StubEnemy enemy = go.GetComponent<StubEnemy>();
@@ -814,9 +1143,13 @@ namespace RogueShooter.Demo
             MobFourStateAi ai = go.GetComponent<MobFourStateAi>();
             if (ai == null)
                 ai = go.AddComponent<MobFourStateAi>();
-            ai.Configure(_lock, _player, StageId.S1, true, u.Atk, u.Elite);
+            ai.Configure(_lock, _player, StageForRoom(roomId), true, u.Atk, u.Elite);
+            ai.BindMaze(_maze, roomId, _doors);
+            if (aiOn) ai.ActivateRoom();
+            if (go.GetComponent<RogueShooter.Art.MeleeAttackTelegraph>() == null) go.AddComponent<RogueShooter.Art.MeleeAttackTelegraph>();
             ai.enabled = aiOn;
             string capturedId = roomId;
+            Experience?.RegisterEnemy(enemy, StageForRoom(capturedId));
             enemy.Died += dead => OnEnemyDied(capturedId, dead);
             BindPressure(go);
             go.SetActive(true);
@@ -849,20 +1182,24 @@ namespace RogueShooter.Demo
 
         public void ProofSetRunSeconds(float seconds)
         {
+            _altarPausedSeconds = 0f; _altarPauseAt = -1f;
+            _startPausedSeconds = 0f; _startPauseAt = IsInStartRoom ? Time.timeSinceLevelLoad : -1f;
+            _menuPausedSeconds = 0f; _menuPauseAt = -1f;
             _runEpoch = Time.timeSinceLevelLoad - Mathf.Max(0f, seconds);
             SyncPressureClock();
         }
 
         public void ProofHotkeyKill()
         {
-            HotkeyKillIgnoreClear();
+            TryDevClear();
         }
 
         void OnEnemyDied(string roomId, StubEnemy enemy)
         {
-            if (_ignoreClear)
-                return;
-            DropCoin(enemy);
+            if (_ignoreClear) { Experience?.DiscardEnemy(enemy); return; }
+            if (_suppressExperience) Experience?.DiscardEnemy(enemy);
+            else Experience?.CreditEnemy(enemy);
+            if (enemy != null && !enemy.NoKillReward) DropCoin(enemy);
             CombatRoomSession session;
             if (!_sessions.TryGetValue(roomId, out session))
                 return;
@@ -881,7 +1218,7 @@ namespace RogueShooter.Demo
             coin.Bind(_player, amount, gain =>
             {
                 EnsureBuild();
-                _build.AddGold(gain);
+                _build.AddKillGold(gain);
             });
             _world.Add(go);
         }
@@ -893,6 +1230,17 @@ namespace RogueShooter.Demo
                 if (_live[i] == null)
                     _live.RemoveAt(i);
             }
+        }
+
+        void TryDevClear()
+        {
+            if (!DevClearHotkey)
+            {
+                Debug.Log("[Stage1] hotkey ignored dev=0");
+                return;
+            }
+
+            HotkeyKillIgnoreClear();
         }
 
         void HotkeyKillIgnoreClear()
@@ -914,6 +1262,14 @@ namespace RogueShooter.Demo
 
         void KillLiveWave()
         {
+            bool previous = _suppressExperience;
+            _suppressExperience = true;
+            try { KillLiveWaveForProof(); }
+            finally { _suppressExperience = previous; }
+        }
+
+        void KillLiveWaveForProof()
+        {
             if (_portalWaiting)
             {
                 _skipPortalWait = true;
@@ -932,8 +1288,132 @@ namespace RogueShooter.Demo
             }
         }
 
+        bool AltarReady(StageId stage)
+        {
+            if (_level == null) return false;
+            string id = _level.AltarId(stage);
+            return _altars.TryGetValue(id,out var view) && view.IsLit && _takenRewards.Contains(id);
+        }
+        public bool ArriveConnector()
+        {
+            if (_connSettle || RunPause.RunSettled || PlayerDown() || RewardOpen() || (_active != null && _active.DoorsLocked)) return false;
+            if (!AltarReady(_stage)) { Flash("先点燃祭坛并领取强化"); return false; }
+            if (RunFlow.IsStage1Trial) { OpenConnectorSettle(); return true; }
+            Flash("沿点亮的出口前进 · 进入下一阶段后无法返回"); return true;
+        }
+        void EnterStage(StageId stage)
+        {
+            if (stage <= _stage || stage != (StageId)((int)_stage+1) || !AltarReady(_stage)) return;
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_stage_enter",this);
+            _stage = stage; _phaseLayout = _level.Layout(stage); _stageBannerUntil = Time.unscaledTime+3f;
+            UpdateProgressionGates();
+            Flash("进入第"+(int)stage+"阶段 · 回程已封闭");
+            Debug.Log("[StageLevel] entered "+stage+" player/map/build retained");
+        }
+        void UpdateProgressionGates()
+        {
+            SetDoors("START", _tutorial != null && _tutorial.Active);
+            if(_finalExit!=null)_finalExit.SetLocked(!AltarReady(StageId.S3));
+            for(int i=0;i<_forwardGates.Count;i++)
+            {
+                StageId source=(StageId)(i+1);
+                var forward=_forwardGates[i];
+                bool combat=_sessions.TryGetValue(_level.Links[i].FromId,out var session) && session.DoorsLocked;
+                if(forward!=null)forward.SetLocked(combat || _stage>source || !AltarReady(source));
+                var back=_returnGates[i];
+                bool entryFight=_sessions.TryGetValue(_level.Links[i].ToId,out var entry) && entry.DoorsLocked;
+                if(back!=null)back.SetLocked(entryFight || (int)_stage>=i+2);
+                var altar=AltarView(_level.Links[i].FromId);if(altar!=null)altar.SetExitReady(_stage==source && AltarReady(source));
+            }
+        }
+        void UpdateStartClock()
+        {
+            // Menu pause keeps the hold folded (OpenMenuPause banked it); the clock
+            // re-arms by itself once the menu closes and the player is still here.
+            bool hold = IsInStartRoom && !MenuPaused;
+            if (hold && _startPauseAt < 0f) _startPauseAt = Time.timeSinceLevelLoad;
+            else if (!hold && _startPauseAt >= 0f)
+            {
+                _startPausedSeconds += Time.timeSinceLevelLoad-_startPauseAt;
+                _startPauseAt = -1f;
+            }
+        }
+        void UpdateAltarClock()
+        {
+            bool hold=false;
+            if(_player!=null && !PlayerDown() && !_connSettle)
+            {
+                var room=RoomAt(_player.position.x,_player.position.y,Stage1Maze.WalkInset);
+                hold=room!=null && room.Kind==MazeNodeKind.Altar && _altars.TryGetValue(room.Id,out var altar) && altar.IsLit;
+            }
+            hold = hold && !MenuPaused;
+            if(hold && _altarPauseAt<0f)_altarPauseAt=Time.timeSinceLevelLoad;
+            else if(!hold && _altarPauseAt>=0f){_altarPausedSeconds+=Time.timeSinceLevelLoad-_altarPauseAt;_altarPauseAt=-1f;}
+        }
+        bool NearAltar(MazeNode room)
+        {
+            var altar=AltarView(room.Id);return altar!=null && Vector2.Distance(_player.position,altar.transform.position)<=StageAltarView.InteractRadius;
+        }
+        void IgniteAltar(MazeNode room)
+        {
+            var altar=AltarView(room.Id);if(altar==null || altar.IsIgniting)return;
+            altar.BeginIgnition(()=>
+            {
+                _player.GetComponent<HeroTorchRitual>()?.Finish();
+                UpdateAltarClock();
+                if(!PlayerDown() && RoomAt(_player.position.x,_player.position.y,.15f)==room && NearAltar(room) && !RewardOpen())OpenReward(room);
+                Flash("祭坛已点燃 · 房内计时暂停");
+                Debug.Log("[StageAltar] lit "+room.Id+" size="+SizeForStage(StageForRoom(room.Id)));
+            });
+            var ritual=_player.GetComponent<HeroTorchRitual>();if(ritual==null)ritual=_player.gameObject.AddComponent<HeroTorchRitual>();ritual.Begin(altar);
+        }
+        public string InteractionHint
+        {
+            get
+            {
+                if (_player == null || _maze == null || PlayerDown() || _connSettle || RewardOpen()) return "";
+                var room=RoomAt(_player.position.x,_player.position.y,.2f);if(room==null)return "";
+                if(room.Kind==MazeNodeKind.Connector)return "E 完成第一阶段试玩";
+                if(room.Kind==MazeNodeKind.Safe && ReadyForFinalShop)return _shop!=null&&_shop.Near?"E 补给":"";
+                if(RoomPhase(room.Id)!=CombatRoomPhase.Cleared)return "";
+                if(room.Kind==MazeNodeKind.Altar)
+                {
+                    var view=AltarView(room.Id);var size=AltarRewardRoll.SizeLabel(SizeForStage(StageForRoom(room.Id)));
+                    if(view!=null && view.IsIgniting)return "";
+                    if(view==null || !view.IsLit)return NearAltar(room)?"按 E 点燃祭坛":"靠近祭坛，按 E 点燃";
+                    if(!_takenRewards.Contains(room.Id))return NearAltar(room)?"E 强化":"";
+                    return "";
+                }
+                if((room.Kind==MazeNodeKind.Chest || room.Kind==MazeNodeKind.LargeChest) && !_takenRewards.Contains(room.Id))return "E 开启宝箱";
+                return "";
+            }
+        }
+
+        public void OpenConnectorSettle()
+        {
+            if (_connSettle || RunPause.RunSettled)
+                return;
+            _settleSeconds = RunSeconds;
+            _connSettle = true;
+            _runWon = true;
+            RogueShooter.Audio.JianHaiAudio.Settle("jh_trial_complete");
+            RunPause.EnterSettled();
+            ClearShots();
+            EnsureBuild();
+            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
+            int keep = EconomyGold.DeathInherit(_build.Gold);
+            Debug.Log("[Stage1] conn settle gold=" + _build.Gold
+                      + " keep=" + keep
+                      + " build=" + _build.BuildCount
+                      + " rewards=" + rewards
+                      + " t=" + RunSeconds.ToString("0.0")
+                      + " scale=" + Time.timeScale.ToString("0"));
+        }
+
         void TryInteract()
         {
+            if (_connSettle || RunPause.RunSettled)
+                return;
             if (_player == null || PlayerDown())
                 return;
             MazeNode n = RoomAt(_player.position.x, _player.position.y, 0.2f);
@@ -949,16 +1429,11 @@ namespace RogueShooter.Demo
 
             if (n.Kind == MazeNodeKind.Connector)
             {
-                _connSettle = true;
-                EnsureBuild();
-                int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
-                Debug.Log("[Stage1] conn settle gold=" + _build.Gold
-                          + " build=" + _build.BuildCount
-                          + " rewards=" + rewards
-                          + " t=" + RunSeconds.ToString("0.0"));
+                ArriveConnector();
                 return;
             }
 
+            if(n.Kind==MazeNodeKind.Safe){if(_shop!=null&&_shop.CanOpen)_shop.Open();else Flash("请靠近补给台");return;}
             if (n.Kind != MazeNodeKind.Chest && n.Kind != MazeNodeKind.LargeChest && n.Kind != MazeNodeKind.Altar)
             {
                 Debug.Log("[S1Maze] interact room=" + n.Id + " kind=" + MazeRules.Label(n.Kind));
@@ -966,8 +1441,21 @@ namespace RogueShooter.Demo
                 return;
             }
 
+            if (n.Kind == MazeNodeKind.Altar)
+            {
+                if (!NearAltar(n)) { Flash("请靠近祭坛"); return; }
+                var altar = AltarView(n.Id);
+                if (altar == null || altar.IsIgniting) return;
+                if (!altar.IsLit) { IgniteAltar(n); return; }
+            }
+
             if (_takenRewards.Contains(n.Id))
             {
+                if (n.Kind == MazeNodeKind.Altar && (StageForRoom(n.Id) == StageId.S3 || RunFlow.IsStage1Trial))
+                {
+                    ArriveConnector();
+                    return;
+                }
                 Flash("已经拿过了");
                 return;
             }
@@ -989,6 +1477,7 @@ namespace RogueShooter.Demo
             EnsureBuild();
             if (_offerRng == null)
                 _offerRng = new System.Random(seed);
+            RewardCatalog.BindPoolContext(StageForRoom(room.Id),_build.OwnedRewardIds);
             _offerRoom = room.Id;
             _offerIsAltar = room.Kind == MazeNodeKind.Altar;
             RewardScreenView view = RewardView();
@@ -997,12 +1486,12 @@ namespace RogueShooter.Demo
                 AltarPick[] saved;
                 if (!_altarRolls.TryGetValue(room.Id, out saved))
                 {
-                    saved = AltarRewardRoll.RollThree(AltarSize.Small, _offerRng);
+                    saved = AltarRewardRoll.RollThree(SizeForStage(StageForRoom(room.Id)), _offerRng,_build.Regression);
                     _altarRolls[room.Id] = saved;
                 }
 
                 _altarOffers = saved;
-                _chestOffers = System.Array.Empty<RewardOption>();
+                _chestOffers = System.Array.Empty<AltarPick>();
                 view.ShowAltar(CardsFromAltar(_altarOffers));
             }
             else
@@ -1010,16 +1499,18 @@ namespace RogueShooter.Demo
                 GameObject chest;
                 if (_chests.TryGetValue(room.Id, out chest))
                     Stage1IsoArt.OpenChest(chest);
-                RewardOption[] saved;
+                AltarPick[] saved;
                 if (!_chestRolls.TryGetValue(room.Id, out saved))
                 {
-                    saved = RewardOffer.RollUnique(_lock, "chest", _offerRng);
+                    RogueShooter.Audio.JianHaiAudio.Emit("jh_chest_open",this);
+                    bool large = room.Kind == MazeNodeKind.LargeChest;
+                    saved = AltarRewardRoll.RollThreeChest(large, _offerRng,_build.Regression);
                     _chestRolls[room.Id] = saved;
                 }
 
                 _chestOffers = saved;
                 _altarOffers = System.Array.Empty<AltarPick>();
-                view.ShowChest(CardsFrom(_chestOffers));
+                view.ShowChest(CardsFromAltar(_chestOffers));
             }
 
             Debug.Log("[S1Maze] offer " + room.Id + " altar=" + (_offerIsAltar ? 1 : 0));
@@ -1046,8 +1537,12 @@ namespace RogueShooter.Demo
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) pick = 0;
             if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) pick = 1;
             if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) pick = 2;
-            if (pick < 0)
-                return;
+            if(_offerIsShop){
+                if(Input.GetKeyDown(KeyCode.Alpha4)||Input.GetKeyDown(KeyCode.Keypad4))pick=3;
+                if(Input.GetKeyDown(KeyCode.Alpha5)||Input.GetKeyDown(KeyCode.Keypad5))pick=4;
+                if(Input.GetKeyDown(KeyCode.Alpha6)||Input.GetKeyDown(KeyCode.Keypad6))pick=5;
+            }
+            if (pick < 0) return;
             ConfirmReward(pick);
         }
 
@@ -1055,28 +1550,53 @@ namespace RogueShooter.Demo
         {
             if (!RewardOpen() || _rewardScreen == null || !_rewardScreen.ChoicesVisible)
                 return;
+            if(_offerIsShop){_shop?.TryBuy(pick);return;}
             EnsureBuild();
+            AltarPick[] offers = _offerIsAltar ? _altarOffers : _chestOffers;
+            if (offers == null || pick < 0 || pick >= offers.Length)
+                return;
+            AltarPick chosen = offers[pick];
+            if(!_build.CanReceive(chosen.Id)){Flash("该强化已拥有或达到上限，请选其他强化");return;}
+            if (!RewardCatalog.TryGet(chosen.Id, out RewardRow row))
+                return;
             if (_offerIsAltar)
-            {
-                if (_altarOffers == null || pick < 0 || pick >= _altarOffers.Length)
-                    return;
-                _build.ConfirmAltarPick(AltarSize.Small, _altarOffers[pick].Id);
-            }
+                _build.ConfirmAltarPick(SizeForStage(StageForRoom(_offerRoom)), chosen.Id);
             else
             {
-                if (_chestOffers == null || pick < 0 || pick >= _chestOffers.Length)
-                    return;
-                RewardOption opt = _chestOffers[pick];
-                _build.GrantBuildPick(opt.Id, opt.Rarity, opt.Score, RunBuildState.ChestBuildDelta(false));
-                _build.AddGold(EconomyGold.ChestGold(false, Time.timeSinceLevelLoad / 60f));
+                string rarity = row.Tier == RewardTier.High ? "高" : row.Tier == RewardTier.Mid ? "中" : "低";
+                _build.GrantBuildPick(chosen.Id, rarity, 0, RunBuildState.ChestBuildDelta(_maze.Find(_offerRoom).Kind == MazeNodeKind.LargeChest));
+                _build.AddGold(EconomyGold.ChestGold(_maze.Find(_offerRoom).Kind == MazeNodeKind.LargeChest, RunSeconds / 60f));
             }
 
+            ApplyOwnedStats(row);
             if (!string.IsNullOrEmpty(_offerRoom))
                 _takenRewards.Add(_offerRoom);
             var charge = _player != null ? _player.GetComponent<PlayerCharge>() : null;
             if (charge != null)
                 charge.BindOwnedRewards(_build.OwnedRewardIds);
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_reward_commit",this);
+            var confirmedAltar = _offerIsAltar ? AltarView(_offerRoom) : null;
             CloseReward();
+            UpdateProgressionGates();
+            if (confirmedAltar != null) confirmedAltar.SetExitReady(true);
+        }
+
+        void ApplyOwnedStats(RewardRow picked)
+        {
+            if (_player == null || _build == null)
+                return;
+            var ids = _build.OwnedRewardIds;
+            var vitals = _player.GetComponent<PlayerVitals>();
+            if (vitals != null)
+            {
+                vitals.ApplyRewardMax(RewardStatHooks.ProductMul(ids, "max_hp"));
+                if (picked.Stat == "heal" && picked.Value > 0f)
+                    vitals.Heal(vitals.MaxHp * picked.Value);
+            }
+
+            var motor = _player.GetComponent<PlayerMotor2D>();
+            if (motor != null)
+                motor.ApplyRewardSpeed(RewardStatHooks.ProductMul(ids, "move_speed"));
         }
 
         void CancelReward()
@@ -1089,8 +1609,10 @@ namespace RogueShooter.Demo
             if (_rewardScreen != null)
                 _rewardScreen.Hide();
             RunPause.InteractOpen = false;
-            Time.timeScale = 1f;
+            if (!RunPause.RunSettled)
+                Time.timeScale = 1f;
             _offerRoom = null;
+            _offerIsShop=false;
         }
 
         RewardScreenView RewardView()
@@ -1106,25 +1628,6 @@ namespace RogueShooter.Demo
             return _rewardScreen;
         }
 
-        static RewardCardData[] CardsFrom(RewardOption[] offers)
-        {
-            if (offers == null)
-                return System.Array.Empty<RewardCardData>();
-            var cards = new RewardCardData[offers.Length];
-            for (int i = 0; i < offers.Length; i++)
-            {
-                RewardTier tier = RewardTier.Low;
-                string rarity = offers[i].Rarity ?? "";
-                if (rarity.IndexOf("高", StringComparison.Ordinal) >= 0)
-                    tier = RewardTier.High;
-                else if (rarity.IndexOf("中", StringComparison.Ordinal) >= 0)
-                    tier = RewardTier.Mid;
-                cards[i] = RewardPresent.ToCard(offers[i].Id, tier, "", "", i, false);
-            }
-
-            return cards;
-        }
-
         static RewardCardData[] CardsFromAltar(AltarPick[] picks)
         {
             if (picks == null)
@@ -1137,27 +1640,17 @@ namespace RogueShooter.Demo
 
         void SetDoors(string roomId, bool locked)
         {
+            // Room session owns the lock; the selected door view follows its transitions.
             for (int i = 0; i < _doors.Count; i++)
             {
                 GameObject d = _doors[i];
                 if (d == null)
                     continue;
-                if (d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
-                    d.SetActive(locked);
-            }
-
-            GameObject floor;
-            if (_roomFloors.TryGetValue(roomId, out floor) && floor != null)
-            {
-                var sr = floor.GetComponent<SpriteRenderer>();
-                MazeNode room = _maze.Find(roomId);
-                if (sr != null && room != null)
-                {
-                    Color baseC = FloorColor(room.Kind);
-                    sr.color = locked
-                        ? new Color(baseC.r * 0.55f, baseC.g * 0.35f, baseC.b * 0.35f, 1f)
-                        : baseC;
-                }
+                if (!d.name.StartsWith("Door_" + roomId + "_", StringComparison.Ordinal))
+                    continue;
+                var gate = d.GetComponent<Stage1DoorGate>();
+                if (gate != null)
+                    gate.SetLocked(locked);
             }
         }
 
@@ -1166,6 +1659,18 @@ namespace RogueShooter.Demo
             if (_player == null || _maze == null)
                 return;
             Vector3 p = _player.position;
+            if (_tutorial != null && _tutorial.Active)
+            {
+                MazeNode start = _maze.Find("START");
+                if (start != null && !start.Contains(p.x,p.y,LockEdge))
+                {
+                    p.x = Mathf.Clamp(p.x,start.Center.X-start.Width*.5f+LockEdge,start.Center.X+start.Width*.5f-LockEdge);
+                    p.y = Mathf.Clamp(p.y,start.Center.Y-start.Height*.5f+LockEdge,start.Center.Y+start.Height*.5f-LockEdge);
+                    _player.position = p; _lastGood = p; return;
+                }
+            }
+            if(_finalBoss!=null && _finalBoss.FightStarted && !_finalBoss.FightSettled)
+            {var room=_level.BossRoom; p.x=Mathf.Clamp(p.x,room.Center.X-room.Width*.5f+LockEdge,room.Center.X+room.Width*.5f-LockEdge);p.y=Mathf.Clamp(p.y,room.Center.Y-room.Height*.5f+LockEdge,room.Center.Y+room.Height*.5f-LockEdge);_player.position=p;_lastGood=p;return;}
             if (_active != null && _active.DoorsLocked)
             {
                 MazeNode room = _maze.Find(_active.RoomId);
@@ -1180,6 +1685,18 @@ namespace RogueShooter.Demo
 
                 _lastGood = _player.position;
                 return;
+            }
+
+            // Transform-driven movement does not resolve Collider2D contacts. Keep
+            // the sliding band solid until the room has unlocked and it is fully clear.
+            for (int i = 0; i < _doors.Count; i++)
+            {
+                var gate = _doors[i] != null ? _doors[i].GetComponent<Stage1DoorGate>() : null;
+                if (gate != null && MazeCollision.FirstBlockT(null, new[] { _doors[i] }, _lastGood, p, Stage1Coin.BodyRadius) <= 1f)
+                {
+                    _player.position = _lastGood;
+                    return;
+                }
             }
 
             if (IsWalkable(p.x, p.y))
@@ -1220,7 +1737,7 @@ namespace RogueShooter.Demo
         {
             if (_active != null && _active.DoorsLocked)
             {
-                Flash("doors locked");
+                Flash("战斗中，请先清理房间");
                 return;
             }
 
@@ -1314,7 +1831,7 @@ namespace RogueShooter.Demo
                 for (int i = 0; i < parked.Count; i++)
                 {
                     if (parked[i] != null)
-                        Destroy(parked[i]);
+                        { parked[i].SetActive(false); Destroy(parked[i]); }
                 }
             }
 
@@ -1327,14 +1844,17 @@ namespace RogueShooter.Demo
             for (int i = 0; i < arrows.Length; i++)
             {
                 if (arrows[i] != null)
-                    Destroy(arrows[i].gameObject);
+                    arrows[i].CancelFlight();
             }
 
             MageOrbProjectile[] orbs = UnityEngine.Object.FindObjectsOfType<MageOrbProjectile>();
             for (int i = 0; i < orbs.Length; i++)
             {
                 if (orbs[i] != null)
+                {
+                    orbs[i].gameObject.SetActive(false);
                     Destroy(orbs[i].gameObject);
+                }
             }
         }
 
@@ -1343,13 +1863,13 @@ namespace RogueShooter.Demo
             for (int i = 0; i < _live.Count; i++)
             {
                 if (_live[i] != null)
-                    Destroy(_live[i]);
+                    { _live[i].SetActive(false); Destroy(_live[i]); }
             }
 
             _live.Clear();
         }
 
-        void ClearWorld()
+        void ClearWorld(bool keepPlayer = false)
         {
             if (_cadence != null)
             {
@@ -1358,11 +1878,13 @@ namespace RogueShooter.Demo
             }
             _portalWaiting = false;
             _skipPortalWait = false;
+            RewardStatHooks.ResetRoomEnter();
             ClearPrespawn();
             ClearShots();
             ClearPortals();
             ClearLive();
             _sessions.Clear();
+            _altars.Clear(); _forwardGates.Clear(); _returnGates.Clear();
             _roomFloors.Clear();
             _chests.Clear();
             _doors.Clear();
@@ -1370,18 +1892,28 @@ namespace RogueShooter.Demo
             _chestRolls.Clear();
             _altarRolls.Clear();
             _connSettle = false;
+            _runWon=false; _shop=null; _finalBoss=null; _finalExit=null; RunPause.BossTransition=false; RunPause.RitualActing=false;
+            _menuPausedSeconds = 0f; _menuPauseAt = -1f; RunPause.MenuOpen = false;
+            _settleSeconds = -1f;
+            _deathFrozen = false;
+            RunPause.RunSettled = false;
+            RunPause.ClearCombatEnd();
             CloseReward();
-            _active = null;
-            if (_player != null)
+            _active = null; _tutorial = null;
+            if (_player != null && !keepPlayer)
             {
+                _player.gameObject.SetActive(false);
                 Destroy(_player.gameObject);
                 _player = null;
             }
 
             for (int i = 0; i < _world.Count; i++)
             {
-                if (_world[i] != null)
+                if (_world[i] != null && (!keepPlayer || _player == null || _world[i] != _player.gameObject))
+                {
+                    _world[i].SetActive(false);
                     Destroy(_world[i]);
+                }
             }
 
             _world.Clear();
@@ -1411,25 +1943,9 @@ namespace RogueShooter.Demo
             }
         }
 
-        void AddWorldLabel(Transform root, string text, Vector3 world)
-        {
-            var label = new GameObject("Label_" + text);
-            label.transform.SetParent(root, false);
-            label.transform.position = world;
-            var tm = label.AddComponent<TextMesh>();
-            tm.text = text;
-            tm.anchor = TextAnchor.MiddleCenter;
-            tm.alignment = TextAlignment.Center;
-            tm.characterSize = 0.18f;
-            tm.fontSize = 22;
-            tm.color = Color.white;
-            BuiltinUiFont.Apply(tm);
-            _world.Add(label);
-        }
-
         void OnGUI()
         {
-            if (!string.IsNullOrEmpty(_flash) && Time.unscaledTime <= _flashUntil)
+            if (_connSettle && !string.IsNullOrEmpty(_flash) && Time.unscaledTime <= _flashUntil)
             {
                 var prompt = new GUIStyle(GUI.skin.label)
                 {
@@ -1439,21 +1955,10 @@ namespace RogueShooter.Demo
                 GUI.Label(new Rect(0f, Screen.height * 0.72f, Screen.width, 40f), _flash, prompt);
             }
 
-            if (!_connSettle)
+            var hud=GetComponent<Stage1PlayHud>();
+            if (!_connSettle || (hud!=null&&hud.isActiveAndEnabled))
                 return;
-            int w = 360;
-            int h = 160;
-            float x = (Screen.width - w) * 0.5f;
-            float y = (Screen.height - h) * 0.5f;
-            GUI.Box(new Rect(x, y, w, h), "");
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
-            var line = new GUIStyle(GUI.skin.label) { fontSize = 16 };
-            EnsureBuild();
-            int rewards = _build.OwnedRewardIds != null ? _build.OwnedRewardIds.Count : 0;
-            GUI.Label(new Rect(x + 16f, y + 16f, w - 32f, 28f), "连接口结算", title);
-            GUI.Label(new Rect(x + 16f, y + 52f, w - 32f, 24f), "金币 " + _build.Gold, line);
-            GUI.Label(new Rect(x + 16f, y + 80f, w - 32f, 24f), "强化 " + rewards, line);
-            GUI.Label(new Rect(x + 16f, y + 108f, w - 32f, 24f), "用时 " + Mathf.FloorToInt(RunSeconds) + " 秒", line);
+            Stage1PlayHud.DrawSettlementPanel(this);
         }
     }
 }

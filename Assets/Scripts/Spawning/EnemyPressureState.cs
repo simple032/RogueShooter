@@ -1,4 +1,5 @@
 using UnityEngine;
+using RogueShooter.Ai;
 using RogueShooter.Balance;
 using RogueShooter.Demo;
 
@@ -14,6 +15,8 @@ namespace RogueShooter.Spawning
         float _segmentHpMul = 1f;
         float _baselineHpMul = 1f;
         float _attrMul = 1f;
+        float _damageMul = 1f;
+        public float DamageMul => _damageMul;
         bool _locked;
         StubEnemy _stub;
 
@@ -50,20 +53,33 @@ namespace RogueShooter.Spawning
             if (_clock != null)
                 ApplyMinutes(_clock.WallMinutes, log: false);
             _locked = true;
+            SettleCombat();
             float t = _clock != null ? _clock.WallMinutes : 0f;
-            Debug.Log($"[TimePressure] {name} LOCK attr={_attrMul:0.000} phase={TimePressure.PhaseId(t)} t={t:0.00}′");
+            RogueShooter.Demo.GameTrace.Log($"[TimePressure] {name} LOCK attr={_attrMul:0.000} phase={TimePressure.PhaseId(t)} t={t:0.00}′");
+        }
+
+        void SettleCombat()
+        {
+            if (_stub == null)
+                _stub = GetComponent<StubEnemy>();
+            if (_stub != null)
+                _stub.SettlePressure(_attrMul);
+            MobFourStateAi ai = GetComponent<MobFourStateAi>();
+            if (ai != null)
+                ai.SettlePressure(_damageMul);
         }
 
         void ApplyMinutes(float minutes, bool log)
         {
             _attrMul = TimePressure.AttrMul(minutes);
+            _damageMul = TimePressure.DamageMul(minutes);
             float hp = _segmentHpMul * _attrMul;
             float visual = Mathf.Clamp(hp / _baselineHpMul, 0.85f, 1.6f);
             if (_stub != null)
                 _stub.SetPressureScale(visual);
             if (log)
             {
-                Debug.Log($"[TimePressure] {name} APPLY attr={_attrMul:0.000} int={TimePressure.IntervalMul(minutes):0.000} " +
+                RogueShooter.Demo.GameTrace.Log($"[TimePressure] {name} APPLY attr={_attrMul:0.000} int={TimePressure.IntervalMul(minutes):0.000} " +
                           $"phase={TimePressure.PhaseId(minutes)} t={minutes:0.00}′");
             }
         }

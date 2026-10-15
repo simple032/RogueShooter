@@ -3,15 +3,15 @@ using UnityEngine;
 namespace RogueShooter.Balance
 {
     /// <summary>
-    /// N34+N31 continuous wall-clock pressure from balance_time_scale_箭骸.csv.
+    /// Effective run-clock pressure. DamageMul is the v0.61 runtime authority.
     /// Attr knots same as N31; interval knots 1.10/1.00/0.85/0.72, floor 0.45.
     /// P1–P4 labels are HUD / gold-band tags only.
     /// </summary>
     public static class TimePressure
     {
         public const float Band2Min = 4f;
-        public const float Band3Min = 7f;
-        public const float LateMin = 10f;
+        public const float Band3Min = 8f;
+        public const float LateMin = 12f;
         public const float Knot0Attr = 1.00f;
         public const float Knot4Attr = 1.15f;
         public const float Knot7Attr = 1.35f;
@@ -43,44 +43,46 @@ namespace RogueShooter.Balance
         {
             switch (PhaseId(minutes))
             {
-                case "P1": return "时间一";
-                case "P2": return "时间二";
-                case "P3": return "时间三";
-                default: return "时间四";
+                case "P1": return "简单";
+                case "P2": return "普通";
+                case "P3": return "困难";
+                default: return "极难";
             }
         }
 
         public static float AttrMul(float minutes)
         {
-            if (minutes < 0f)
-                minutes = 0f;
-            if (minutes <= Band2Min)
-                return Knot0Attr + AttrSlope0To4 * minutes;
-            if (minutes <= Band3Min)
-                return Knot4Attr + AttrSlope4To7 * (minutes - Band2Min);
-            if (minutes <= LateMin)
-                return Knot7Attr + AttrSlope7To10 * (minutes - Band3Min);
-            return Knot10Attr + LateAttrSlope * (minutes - LateMin);
+            float t = Mathf.Max(0f, minutes);
+            if (t <= 4f) return 1f + .0375f*t;
+            if (t <= 7f) return 1.15f + (.20f/3f)*(t-4f);
+            if (t <= 10f) return 1.35f + (.20f/3f)*(t-7f);
+            if (t <= 15f) return 1.55f + .03f*(t-10f);
+            return Mathf.Min(1.75f, 1.70f + .015f*(t-15f));
+        }
+
+        public static float DamageMul(float minutes)
+        {
+            float t = Mathf.Max(0f, minutes);
+            if (t <= 4f) return 1f + .025f*t;
+            if (t <= 8f) return 1.10f + .05f*(t-4f);
+            if (t <= 12f) return 1.30f + .0625f*(t-8f);
+            if (t <= 15f) return 1.55f + (.20f/3f)*(t-12f);
+            return Mathf.Min(2f, 1.75f + .05f*(t-15f));
         }
 
         public static float IntervalMul(float minutes)
         {
-            if (minutes < 0f)
-                minutes = 0f;
-            if (minutes <= Band2Min)
-                return Knot0Int - IntSlope0To4 * minutes;
-            if (minutes <= Band3Min)
-                return Knot4Int - IntSlope4To7 * (minutes - Band2Min);
-            if (minutes <= LateMin)
-                return Knot7Int - IntSlope7To10 * (minutes - Band3Min);
-            float m = Knot10Int * (1f - LateIntSlope * (minutes - LateMin));
-            return Mathf.Max(IntervalFloor, m);
+            float t = Mathf.Max(0f, minutes);
+            if(t<=4f) return 1.10f-.025f*t;
+            if(t<=7f) return 1f-.05f*(t-4f);
+            if(t<=10f) return .85f-(.13f/3f)*(t-7f);
+            return Mathf.Max(IntervalFloor,.72f*(1f-.05f*(t-10f)));
         }
 
         /// <summary>Null on pass. Checks t=4/7/10 left/right continuity (Δ≈0).</summary>
         public static string ContinuityCheck(float eps = 0.001f)
         {
-            float[] knots = { Band2Min, Band3Min, LateMin };
+            float[] knots = { 4f, 7f, 8f, 10f, 12f, 15f, 20f };
             for (int i = 0; i < knots.Length; i++)
             {
                 float t = knots[i];

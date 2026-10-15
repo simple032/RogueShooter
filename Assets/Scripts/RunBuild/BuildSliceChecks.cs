@@ -23,28 +23,28 @@ namespace RogueShooter.Build
                 || ShopStock.BuildEquivFor(ShopSlotRole.Heal) != 1)
                 return "shop BuildEquiv expected +1 per buy (not tiered)";
 
-            var st = new RunBuildState(data.powerBuildCoef, data.powerRarityCoef, 80);
-            if (!st.TryShopBuy(20, ShopStock.BuildEquivFor(ShopSlotRole.Low), "R1L"))
+            var st = new RunBuildState(data.powerBuildCoef, data.powerRarityCoef, 160);
+            if (!st.TryShopBuy(40, ShopStock.BuildEquivFor(ShopSlotRole.Low), "R1L"))
                 return "shop buy should succeed with start gold";
             if (st.BuildCount != 1)
                 return "shop buy must add Build +1";
             if (st.OwnedRewardIds.Count < 1)
                 return "shop buy must apply reward";
-            if (!st.TryShopBuy(40, ShopStock.BuildEquivFor(ShopSlotRole.High), "R7H") || st.BuildCount != 2)
+            if (!st.TryShopBuy(120, ShopStock.BuildEquivFor(ShopSlotRole.High), "R7H") || st.BuildCount != 2)
                 return "second shop buy must add +1 (high is not +4)";
 
             if (ShopStock.ShelfCount != 6)
                 return "shop must have 6 shelves";
-            if (ShopStock.PriceBaseLow != 20
-                || ShopStock.PriceBaseMid != 40
-                || ShopStock.PriceBaseHigh != 60
-                || ShopStock.PriceBaseHeal != 40)
-                return "shop price bases expected 20/40/60/40";
-            if (ShopStock.HighPriceMin != 54 || ShopStock.HighPriceMax != 66)
-                return "shop high band expected 54-66";
+            if (ShopStock.PriceBaseLow != 40
+                || ShopStock.PriceBaseMid != 80
+                || ShopStock.PriceBaseHigh != 120
+                || ShopStock.PriceBaseHeal != 60)
+                return "shop price bases expected 40/80/120/60 (v0.57)";
+            if (ShopStock.HighPriceMin != 120 || ShopStock.HighPriceMax != 120)
+                return "shop high price fixed at 120";
             if (ShopStock.PriceBaseHigh < ShopStock.HighPriceMin
                 || ShopStock.PriceBaseHigh > ShopStock.HighPriceMax)
-                return "shop high mid must sit in 54-66";
+                return "shop high mid must equal the fixed 120";
             if (ShopStock.ElasticWLow != 56 || ShopStock.ElasticWMid != 32
                 || ShopStock.ElasticWHigh != 12 || ShopStock.ElasticWHeal != 0)
                 return "elastic weights expected 56/32/12/0";
@@ -58,15 +58,15 @@ namespace RogueShooter.Build
                 return "fixed heal shelf must be heal";
             int low = shelves[0].Price;
             if (low != ShopStock.PriceBaseLow)
-                return "low price must be locked 20";
+                return "low price must be locked 40";
             if (shelves[1].Price != ShopStock.PriceBaseMid
                 || shelves[2].Price != ShopStock.PriceBaseHigh
                 || shelves[3].Price != ShopStock.PriceBaseHeal)
-                return "locked prices must be 20/40/60/40";
-            if (shelves[1].Price != low * 2 || shelves[2].Price != low * 3 || shelves[3].Price != low * 2)
-                return "price ratio must be 1:2:3 and heal=mid";
+                return "locked prices must be 40/80/120/60";
+            if (shelves[1].Price != low * 2 || shelves[2].Price != low * 3 || shelves[3].Price != low * 3 / 2)
+                return "price ratio must be 1:2:3 and heal=low*1.5";
             if (shelves[2].Price < ShopStock.HighPriceMin || shelves[2].Price > ShopStock.HighPriceMax)
-                return "rolled high price must sit in 54-66";
+                return "high price must be fixed 120";
             if (RewardCatalog.IsDeletedHighId(shelves[2].Id) || !RewardCatalog.IsHighPoolId(shelves[2].Id))
                 return "high shelf must be R3/R7H/R8H/R9H got " + shelves[2].Id;
             for (int i = 0; i < shelves.Length; i++)

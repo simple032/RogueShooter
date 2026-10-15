@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using RogueShooter.Balance;
 using RogueShooter.Boss;
@@ -35,9 +34,16 @@ namespace RogueShooter.Demo
             { "攻击吸血", "jh_ui_icon_lifesteal" },
             { "穿透后排", "jh_ui_icon_pierce_backline" },
             { "震矢", "jh_ui_icon_shock_arrow" },
+            { "回身箭", "jh_ui_icon_return_arrow" },
+            { "守势蓄发", "jh_ui_icon_guarded_charge" },
+            { "凝神余响", "jh_ui_icon_focus_echo" },
         };
 
         readonly HashSet<string> _visited = new HashSet<string>();
+        sealed class CorridorPart { public MazeEdge Edge; public bool Seen; }
+        readonly List<CorridorPart> _corridors = new List<CorridorPart>();
+        Stage1Maze _trailMaze;
+        public int ExploredCorridorCount { get { int n=0; foreach(var p in _corridors) if(p.Seen) n++; return n; } }
         readonly List<string> _iconNames = new List<string>();
         readonly Dictionary<string, Sprite> _icons = new Dictionary<string, Sprite>();
         int _loggedOwned = -1;
@@ -46,15 +52,24 @@ namespace RogueShooter.Demo
         PlayerVitals _vitals;
         PlayerCharge _charge;
         GuaranteedCritActive _focus;
+        Sprite _focusIcon;
+        GUIStyle _focusKeyStyle;
+        GUIStyle _hudTextStyle;
+        GUIStyle _hintTextStyle;
+        GUIStyle _iconBadgeStyle;
+        GUIStyle _iconTooltipStyle;
+        Texture2D _focusCooldownRing;
+        Color32[] _focusRingPixels;
+        float[] _focusRingAngles;
+        byte[] _focusRingAlpha;
+        int _focusRingStep = -1;
         float _prevHp = -1f;
         float _flash;
         float _peakFlash;
         bool _dead;
+        public bool MapOverview { get; set; }
         int _inherit;
-        GUIStyle _hpStyle;
         GUIStyle _clockStyle;
-        GUIStyle _goldStyle;
-        GUIStyle _phaseStyle;
 
         public string PhaseText { get; private set; }
         public string CritText { get; private set; }
@@ -65,6 +80,10 @@ namespace RogueShooter.Demo
         public float Flash01 { get { return _flash; } }
         public float PeakFlash { get { return _peakFlash; } }
         public bool DeathOpen { get { return _dead; } }
+        public bool SettlementOpen => _demo != null && (_dead || _demo.ConnSettle);
+        public bool BossBarVisible => BossFightDriver.Live != null && BossFightDriver.Live.FightStarted
+            && BossFightDriver.Live.Brain.HpLocked && !BossFightDriver.Live.FightSettled
+            && BossFightDriver.Live.Brain.Phase != BossPhase.Defeated && !RunPause.RunSettled;
         public int InheritGold { get { return _inherit; } }
         public int IconCount { get { return _iconNames.Count; } }
         public int VisitedCount { get { return _visited.Count; } }
@@ -95,7 +114,7 @@ namespace RogueShooter.Demo
             _prevHp = -1f;
             _flash = 0f;
             _peakFlash = 0f;
-            _visited.Clear();
+            _visited.Clear(); _corridors.Clear(); _trailMaze=null; MapOverview = false;
             _iconNames.Clear();
         }
 
@@ -114,12 +133,14 @@ namespace RogueShooter.Demo
             _vitals = _demo.PlayerBody.GetComponent<PlayerVitals>();
             _charge = _demo.PlayerBody.GetComponent<PlayerCharge>();
             _focus = _demo.PlayerBody.GetComponent<GuaranteedCritActive>();
+            if (Input.GetKeyDown(KeyCode.M)) MapOverview = !MapOverview;
             NoteRoom();
+            NoteCorridor();
             NoteHit();
             NoteIcons();
 
             float minutes = _demo.RunSeconds / 60f;
-            PhaseText = TimePressure.PhaseLabel(minutes);
+            PhaseText = "第" + (int)_demo.CurrentStage + "阶段 · " + TimePressure.PhaseLabel(minutes);
             CritText = _focus != null ? _focus.HudLine : GuaranteedCritActive.HudText(0f, 0f);
 
             float hp = _vitals != null ? _vitals.Hp : 0f;
@@ -145,7 +166,7 @@ namespace RogueShooter.Demo
                           + " window=" + read.GreenEnter.ToString("0.000")
                           + "-" + read.GreenExit.ToString("0.000"));
             }
-            Vignette01 = Mathf.Clamp01(1f - hp / max);
+            Vignette01 = VignetteFor(hp / max);
             if (_flash > 0f)
                 _flash = Mathf.MoveTowards(_flash, 0f, Time.deltaTime * 2.5f);
 
@@ -169,6 +190,22 @@ namespace RogueShooter.Demo
                 if (n.Contains(p.x, p.y, 0.2f))
                     _visited.Add(n.Id);
             }
+        }
+
+        void NoteCorridor()
+        {
+            var maze = _demo.BuiltMaze;
+            if (maze == null || maze.Edges == null) return;
+            if (_trailMaze != maze)
+            {
+                _corridors.Clear(); _trailMaze=maze;
+                foreach (var edge in maze.Edges) _corridors.Add(new CorridorPart{Edge=edge});
+            }
+            // One visited end reveals the whole hall: every passage leading out of
+            // an explored room shows on the map, without walking it first.
+            foreach(var part in _corridors)
+                if(!part.Seen && (_visited.Contains(part.Edge.FromId) || _visited.Contains(part.Edge.ToId)))
+                    part.Seen=true;
         }
 
         void NoteHit()
@@ -197,65 +234,292 @@ namespace RogueShooter.Demo
             var seen = new HashSet<string>();
             for (int i = 0; i < build.OwnedRewardIds.Count; i++)
             {
+                string id = build.OwnedRewardIds[i];
                 RewardRow row;
-                if (!RewardCatalog.TryGet(build.OwnedRewardIds[i], out row))
+                string name;
+                if (RewardCatalog.TryGet(id, out row))
+                {
+                    name = row.Name;
+                    if (!IconByName.ContainsKey(name) || !seen.Add(name))
+                        continue;
+                }
+                else if (RogueShooter.Build.RewardPresent.IsBalanceStatId(id))
+                {
+                    name = id;
+                    if (!seen.Add(name))
+                        continue;
+                }
+                else
+                {
                     continue;
-                if (!seen.Add(row.Name))
-                    continue;
-                if (!IconByName.ContainsKey(row.Name))
-                    continue;
-                _iconNames.Add(row.Name);
+                }
+                _iconNames.Add(name);
             }
         }
 
         void OnGUI()
         {
-            if (_demo == null)
-                return;
-            DrawStatus();
+            if (_demo == null) return;
+            if (SettlementOpen) { DrawSettlementPanel(_demo); return; }
+            if (RunPause.InteractOpen) return;
             DrawVignette();
             DrawFlash();
+            DrawStatus();
+            DrawSkillCooldown();
             DrawMinimap();
             DrawIcons();
-            if (_dead)
-                DrawDeath();
+            DrawStageBanner();
         }
 
         void DrawStatus()
         {
+            Matrix4x4 previousMatrix = GUI.matrix;
+            Color previousColor = GUI.color;
+            float scale = JianHaiUiTheme.Scale;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale,scale,1f));
+            float width = Screen.width / scale;
+            GUI.color = Color.white;
             // Same slot as the pressure timeline. Boss HP replaces it; it is not drawn on top.
-            var center = new Rect(Screen.width * 0.5f - 150f, 20f, 300f, 24f);
+            var center = new Rect(width*.5f-150f,20f,300f,24f);
             float bossHp;
             float bossMax;
             if (TryCenterBossHp(out bossHp, out bossMax))
                 DrawBossHpBar(center, bossHp, bossMax);
             else
                 DrawTimeLine(center);
-
             float hp = _vitals != null ? _vitals.Hp : 0f;
-            float max = _vitals != null && _vitals.MaxHp > 0.01f ? _vitals.MaxHp : 1f;
-            var hpRect = new Rect(30f, 28f, 232f, 24f);
-            DrawBar("jh_ui_bar_hp_back", "jh_ui_bar_hp_fill", hpRect, hp / max);
-            DrawCenteredReadout(hpRect, Mathf.CeilToInt(hp) + " / " + Mathf.CeilToInt(max));
-            // Charge bar used to sit here. The run clock takes that corner and stays readable.
-            DrawRunClock(new Rect(30f, 54f, 168f, 24f));
+            float max = _vitals != null && _vitals.MaxHp>.01f ? _vitals.MaxHp : 1f;
+            // The hp sheet's visible art starts 15/128 into the texture, so the rect is
+            // offset left to put the bar flush with the coin art (visible at x≈30.5).
+            var hpRect = new Rect(3.375f,28f,232f,24f);
+            DrawBar("jh_ui_bar_hp_back","jh_ui_bar_hp_fill",hpRect,hp/max);
+            DrawCenteredReadout(hpRect,Mathf.CeilToInt(hp)+" / "+Mathf.CeilToInt(max));
+            DrawExperience();
+            DrawRunClock(new Rect(30f,76f,168f,24f));
+            Sprite coin = Stage1IsoArt.PickupCoin();
+            if(coin!=null && coin.texture!=null) GUI.DrawTexture(new Rect(30f,104f,18f,18f),coin.texture,ScaleMode.ScaleToFit);
+            _hudTextStyle.alignment=TextAnchor.MiddleLeft;
+            GUI.Label(new Rect(52f,102f,120f,22f),(_demo.RunBuild!=null?_demo.RunBuild.Gold:0).ToString(),_hudTextStyle);
+            _hudTextStyle.alignment=TextAnchor.MiddleCenter;
+            string hint = _demo.InteractionHint;
+            if(!string.IsNullOrEmpty(hint)) {
+                if(_hintTextStyle==null) _hintTextStyle=new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter,fontSize=15,normal={textColor=JianHaiUiTheme.Bone}};
+                float hintWidth=Mathf.Min(440f,_hintTextStyle.CalcSize(new GUIContent(hint)).x+32f);
+                float height=Screen.height/scale;
+                GUI.color=Color.white;JianHaiUiTheme.ShadowLabel(new Rect((width-hintWidth)*.5f,height-92f,hintWidth,32f),hint,_hintTextStyle);
+            }
+            GUI.color=previousColor;GUI.matrix=previousMatrix;
+        }
 
-            int gold = _demo.RunBuild != null ? _demo.RunBuild.Gold : 0;
-            if (_goldStyle == null)
+        void DrawExperience()
+        {
+            var xp = _demo.Experience; if (xp == null) return;
+            Color before = GUI.color;
+            var bar = new Rect(31f,58f,174f,7f);
+            GUI.color = new Color(.12f,.17f,.22f,.48f);
+            GUI.DrawTexture(bar,Texture2D.whiteTexture);
+            GUI.color = new Color(.39f,.63f,.73f,.95f);
+            if (xp.Progress01 > 0) GUI.DrawTexture(new Rect(bar.x,bar.y,bar.width*xp.Progress01,bar.height),Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            var label = new GUIStyle(GUI.skin.label){fontSize=12,alignment=TextAnchor.MiddleLeft,normal={textColor=xp.LevelFlash ? JianHaiUiTheme.Bone : new Color(.62f,.78f,.83f)}};
+            JianHaiUiTheme.ShadowLabel(new Rect(211f,51f,70f,22f),xp.NextCost==0 ? "Lv."+xp.Level+" MAX" : "Lv."+xp.Level,label);
+            if (!string.IsNullOrEmpty(xp.Hint))
             {
-                _goldStyle = new GUIStyle(GUI.skin.label)
+                var hint=new GUIStyle(label){fontSize=13,wordWrap=true,normal={textColor=JianHaiUiTheme.Bone}};
+                JianHaiUiTheme.ShadowLabel(new Rect(30f,130f,320f,48f),xp.Hint,hint);
+            }
+            GUI.color=before;
+        }
+
+        void DrawSkillCooldown()
+        {
+            if (_focus == null) return;
+            if (_focusIcon == null)
+                _focusIcon = Resources.Load<Sprite>("JianHaiReward/jh_ui_skill_focus_v01");
+            if (_focusIcon == null) return;
+            float scale = JianHaiUiTheme.Scale;
+            float size = 96f * scale;
+            float inset = 5f * scale;
+            float margin = 20f * scale;
+            var frame = new Rect(Screen.width - margin - size - inset * 2f,
+                Screen.height - margin - size - inset * 2f, size + inset * 2f, size + inset * 2f);
+            var icon = new Rect(frame.x + inset, frame.y + inset, size, size);
+            Texture2D texture = _focusIcon.texture;
+            Rect pixels = _focusIcon.textureRect;
+            var uv = new Rect(pixels.x / texture.width, pixels.y / texture.height,
+                pixels.width / texture.width, pixels.height / texture.height);
+            float remaining = Mathf.Clamp01(_focus.CooldownLeft / GuaranteedCritActive.CooldownSeconds);
+            Color old = GUI.color;
+            // The circular asset supplies its own frame; no rectangular skill panel.
+            GUI.color = remaining > 0f ? new Color(.32f, .32f, .32f, 1f) : Color.white;
+            GUI.DrawTextureWithTexCoords(icon, texture, uv, true);
+            if (remaining > 0f)
+            {
+                UpdateFocusCooldownRing(remaining);
+                GUI.color = Color.white;
+                GUI.DrawTexture(frame, _focusCooldownRing, ScaleMode.StretchToFill, true);
+            }
+            float badgeSize = 22f * scale;
+            var badge = new Rect(frame.xMax - badgeSize, frame.yMax - badgeSize, badgeSize, badgeSize);
+
+            if (_focusKeyStyle == null)
+                _focusKeyStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter,
+                    fontStyle = FontStyle.Bold, normal = { textColor = new Color(.94f, .88f, .72f) } };
+            _focusKeyStyle.fontSize = Mathf.RoundToInt(15f * scale);
+            GUI.color = Color.white;
+            JianHaiUiTheme.ShadowLabel(badge, "Q", _focusKeyStyle);
+            GUI.color = old;
+        }
+
+        void UpdateFocusCooldownRing(float remaining)
+        {
+            const int resolution = 256;
+            if (_focusCooldownRing == null)
+            {
+                _focusCooldownRing = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
+                _focusCooldownRing.name = "Focus remaining cooldown ring";
+                _focusCooldownRing.hideFlags = HideFlags.HideAndDontSave;
+                _focusCooldownRing.filterMode = FilterMode.Bilinear;
+                _focusCooldownRing.wrapMode = TextureWrapMode.Clamp;
+                _focusRingPixels = new Color32[resolution * resolution];
+                _focusRingAngles = new float[_focusRingPixels.Length];
+                _focusRingAlpha = new byte[_focusRingPixels.Length];
+                for (int y = 0; y < resolution; y++)
+                for (int x = 0; x < resolution; x++)
                 {
-                    fontSize = 14,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleLeft,
-                    normal = { textColor = new Color(0.91f, 0.88f, 0.82f) }
-                };
+                    int i = y * resolution + x;
+                    float dx = x + .5f - resolution * .5f;
+                    float dy = y + .5f - resolution * .5f;
+                    float radius = Mathf.Sqrt(dx * dx + dy * dy);
+                    // 1px feathered edges keep the thin ring readable at HUD scale.
+                    _focusRingAlpha[i] = (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(Mathf.Min(radius - 120f, 126f - radius)));
+                    float angle = Mathf.Atan2(dx, dy);
+                    _focusRingAngles[i] = angle < 0f ? angle + Mathf.PI * 2f : angle;
+                }
+                _focusRingStep = -1;
+            }
+            int step = Mathf.CeilToInt(Mathf.Clamp01(remaining) * 360f);
+            if (step == _focusRingStep) return;
+            _focusRingStep = step;
+            float end = step * Mathf.Deg2Rad;
+            for (int i = 0; i < _focusRingPixels.Length; i++)
+            {
+                byte alpha = _focusRingAlpha[i];
+                _focusRingPixels[i] = _focusRingAngles[i] <= end
+                    ? new Color32(238, 194, 105, alpha)
+                    : new Color32(30, 47, 60, alpha);
+            }
+            _focusCooldownRing.SetPixels32(_focusRingPixels);
+            _focusCooldownRing.Apply(false, false);
+        }
+
+        void OnDestroy()
+        {
+            if (_focusCooldownRing != null) Destroy(_focusCooldownRing);
+        }
+
+        public static Color PressureColor(float minutes)
+        {
+            return minutes<4f?new Color(1f,.84f,.45f):minutes<8f?new Color(.86f,.50f,.20f):minutes<12f?new Color(.65f,.26f,.16f):new Color(.40f,.09f,.09f);
+        }
+
+        // Band fills use the committed pressure colours; the words ride the bar in
+        // brightened variants of the same hues so all four stay readable on the
+        // dark tray while still reading as gold / orange / red / crimson.
+        static readonly Color[] PhaseWordColors =
+        {
+            new Color(1.00f, .86f, .46f),   // 简单
+            new Color(.98f, .60f, .26f),    // 普通
+            new Color(.95f, .40f, .26f),    // 困难
+            new Color(.88f, .30f, .33f),    // 极难
+        };
+
+        /// <summary>Horizontal wall-clock timeline: the needle stays fixed and the
+        /// four pressure bands scroll right-to-left past it as the run clock
+        /// advances, so each difficulty word rides the bar in its own colour.</summary>
+        void DrawTimeLine(Rect rect)
+        {
+            if (_demo == null)
+                return;
+            float minutes = Mathf.Max(0f, _demo.RunSeconds) / 60f;
+            const float pxPerMin = 12f;
+            float needleX = rect.x + rect.width * 0.3f;
+            // X of a run minute on the bar: future minutes sit right of the
+            // needle, past minutes left, so growing time slides every mark left.
+            float MinuteX(float m) { return needleX + (m - minutes) * pxPerMin; }
+
+            Color prev = GUI.color;
+            // Dark tray the bands scroll across.
+            // No opaque backing; coloured time bands remain the pressure indicator.
+
+            float[] bandStart = { 0f, TimePressure.Band2Min, TimePressure.Band3Min, TimePressure.LateMin };
+            float farRightMin = minutes + (rect.xMax - needleX) / pxPerMin;
+            for (int i = 0; i < 4; i++)
+            {
+                float m0 = bandStart[i];
+                float m1 = i < 3 ? bandStart[i + 1] : farRightMin;
+                float xa = Mathf.Max(rect.x, MinuteX(m0));
+                float xb = Mathf.Min(rect.xMax, MinuteX(m1));
+                if (xb - xa < 0.5f)
+                    continue;
+                Color fill = PressureColor((m0 + m1) * 0.5f);
+                fill.a = .42f;
+                GUI.color = fill;
+                GUI.DrawTexture(new Rect(xa, rect.y, xb - xa, rect.height), Texture2D.whiteTexture, ScaleMode.StretchToFill);
             }
 
-            Sprite coin = Stage1IsoArt.PickupCoin();
-            if (coin != null && coin.texture != null)
-                GUI.DrawTexture(new Rect(30f, 82f, 18f, 18f), coin.texture, ScaleMode.ScaleToFit);
-            GUI.Label(new Rect(52f, 80f, 120f, 22f), gold.ToString(), _goldStyle);
+            // Minute ticks scroll with the bands and make the motion read.
+            for (int m = Mathf.CeilToInt(minutes - (needleX - rect.x) / pxPerMin); m <= Mathf.FloorToInt(farRightMin); m++)
+            {
+                float x = MinuteX(m);
+                if (x < rect.x + 1f || x > rect.xMax - 1f)
+                    continue;
+                GUI.color = new Color(1f, 1f, 1f, m % 5 == 0 ? .38f : .16f);
+                float h = m % 5 == 0 ? 7f : 4f;
+                GUI.DrawTexture(new Rect(x - .5f, rect.yMax - h - 2f, 1f, h), Texture2D.whiteTexture);
+            }
+
+            // Knot lines between the bands (4 / 7 / 10 minutes).
+            for (int i = 1; i < 4; i++)
+            {
+                float x = MinuteX(bandStart[i]);
+                if (x < rect.x || x > rect.xMax)
+                    continue;
+                GUI.color = new Color(.95f, .93f, .88f, .55f);
+                GUI.DrawTexture(new Rect(x - .5f, rect.y, 1f, rect.height), Texture2D.whiteTexture);
+            }
+
+            // Everything left of the needle is the past: dim it under a veil.
+            GUI.color = new Color(0f, 0f, 0f, .45f);
+            GUI.DrawTexture(new Rect(rect.x, rect.y, needleX - rect.x, rect.height), Texture2D.whiteTexture);
+
+            // Difficulty words on their bands; a band already past the needle fades.
+            var word = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            for (int i = 0; i < 4; i++)
+            {
+                float m0 = bandStart[i];
+                float m1 = i < 3 ? bandStart[i + 1] : farRightMin;
+                float xa = Mathf.Max(rect.x, MinuteX(m0));
+                float xb = Mathf.Min(rect.xMax, MinuteX(m1));
+                if (xb - xa < 34f)
+                    continue;
+                string label = TimePressure.PhaseLabel((m0 + m1) * 0.5f);
+                Color c = PhaseWordColors[i];
+                c.a = (xa + xb) * 0.5f < needleX ? .85f : 1f;
+                word.normal.textColor = c;
+                var wr = new Rect(xa, rect.y, xb - xa, rect.height);
+                GUI.color = new Color(0f, 0f, 0f, .6f);
+                GUI.Label(new Rect(wr.x + 1f, wr.y + 1f, wr.width, wr.height), label, word);
+                GUI.color = Color.white;
+                GUI.Label(wr, label, word);
+            }
+
+            // Caps above/below the tray mark the minute without covering its word.
+            GUI.color = new Color(1f, 1f, 1f, .95f);
+            GUI.DrawTexture(new Rect(needleX - 1.5f, rect.yMax - 3f, 3f, 5f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(needleX - 5f, rect.y - 5f, 10f, 3f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(needleX - 1.5f, rect.y - 2f, 3f, 3f), Texture2D.whiteTexture);
+            GUI.color = prev;
         }
 
         /// <summary>MM:SS.s of <see cref="Stage1MazeDemo.RunSeconds"/>, the pressure wall clock.</summary>
@@ -276,6 +540,7 @@ namespace RogueShooter.Demo
             return minutes.ToString("00") + ":" + secs.ToString("00") + "." + tenth.ToString();
         }
 
+        /// <summary>Top-left run clock (replaces the charge bar slot and the old centre MM:SS clock).</summary>
         void DrawRunClock(Rect rect)
         {
             if (_demo == null)
@@ -302,41 +567,34 @@ namespace RogueShooter.Demo
 
         void DrawCenteredReadout(Rect rect, string text)
         {
-            if (_hpStyle == null)
-            {
-                _hpStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 13,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = new Color(0.91f, 0.88f, 0.82f) }
-                };
-            }
-
+            if (_hudTextStyle == null)
+                _hudTextStyle = new GUIStyle(GUI.skin.label){fontSize=13,fontStyle=FontStyle.Bold,alignment=TextAnchor.MiddleCenter,normal={textColor=JianHaiUiTheme.Bone}};
+            _hudTextStyle.alignment = TextAnchor.MiddleCenter;
             Color prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.8f);
-            GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), text, _hpStyle);
+            GUI.color = new Color(0f, 0f, 0f, .8f);
+            GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), text, _hudTextStyle);
             GUI.color = Color.white;
-            GUI.Label(rect, text, _hpStyle);
+            GUI.Label(rect, text, _hudTextStyle);
             GUI.color = prev;
         }
 
         /// <summary>
         /// Boss HP owns the top-center slot only in the boss room or while that fight is running.
-        /// One stack: <see cref="BossBrain.Hp"/> / <see cref="BossBrain.MaxHp"/> (P1 and P2 share it;
-        /// <see cref="FinalBossCombat"/> reads the same fields). This HUD is the only top bar.
+        /// One stack: <see cref="BossBrain.Hp"/> / <see cref="BossBrain.MaxHp"/> (P1 and P2 share it).
+        /// This HUD is the only top bar.
         /// </summary>
         bool TryCenterBossHp(out float hp, out float max)
         {
             hp = 0f;
             max = 1f;
             BossFightDriver fight = BossFightDriver.Live;
-            bool fighting = fight != null && fight.FightStarted && !fight.FightSettled;
-            if (!fighting && !PlayerInBossRoom(fight))
+            if (!BossBarVisible)
                 return false;
             return TryReadBossHp(fight, out hp, out max);
         }
 
+        // Local adaptation of PR #34: the local FinalBossCombat (MonoBehaviour) has no Hp/MaxHp,
+        // so only BossBrain is read. BossBrain is the single HP stack on this branch.
         static bool TryReadBossHp(BossFightDriver fight, out float hp, out float max)
         {
             hp = 0f;
@@ -347,13 +605,6 @@ namespace RogueShooter.Demo
             {
                 hp = Mathf.Max(0f, fight.Brain.Hp);
                 max = fight.Brain.MaxHp;
-                return true;
-            }
-
-            if (fight.Combat != null && fight.Combat.MaxHp > 0.01f)
-            {
-                hp = Mathf.Max(0f, fight.Combat.Hp);
-                max = fight.Combat.MaxHp;
                 return true;
             }
 
@@ -409,11 +660,11 @@ namespace RogueShooter.Demo
         {
             if (string.IsNullOrEmpty(id))
                 return false;
-            if (id.Equals("BOSS", StringComparison.OrdinalIgnoreCase))
+            if (id.Equals("BOSS", System.StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (id.StartsWith("BOSS", StringComparison.OrdinalIgnoreCase))
+            if (id.StartsWith("BOSS", System.StringComparison.OrdinalIgnoreCase))
                 return true;
-            return id.EndsWith("_BOSS", StringComparison.OrdinalIgnoreCase);
+            return id.EndsWith("_BOSS", System.StringComparison.OrdinalIgnoreCase);
         }
 
         static bool InHooksBossHall(float x, float y)
@@ -443,120 +694,7 @@ namespace RogueShooter.Demo
             }
 
             GUI.color = prev;
-            DrawCenteredReadout(rect, Mathf.CeilToInt(Mathf.Max(0f, hp)) + " / " + Mathf.CeilToInt(max));
-        }
-
-        static readonly Color[] PhaseWordColors =
-        {
-            new Color(1.00f, 0.86f, 0.46f),
-            new Color(0.98f, 0.60f, 0.26f),
-            new Color(0.95f, 0.40f, 0.26f),
-            new Color(0.88f, 0.30f, 0.33f),
-        };
-
-        static Color PressureColor(float minutes)
-        {
-            if (minutes < TimePressure.Band2Min)
-                return new Color(1f, 0.84f, 0.45f);
-            if (minutes < TimePressure.Band3Min)
-                return new Color(0.86f, 0.50f, 0.20f);
-            if (minutes < TimePressure.LateMin)
-                return new Color(0.65f, 0.26f, 0.16f);
-            return new Color(0.40f, 0.09f, 0.09f);
-        }
-
-        /// <summary>
-        /// Horizontal wall-clock timeline. The needle stays fixed and the four pressure
-        /// bands scroll right-to-left as <see cref="Stage1MazeDemo.RunSeconds"/> advances.
-        /// </summary>
-        void DrawTimeLine(Rect rect)
-        {
-            if (_demo == null)
-                return;
-            float minutes = Mathf.Max(0f, _demo.RunSeconds) / 60f;
-            const float pxPerMin = 12f;
-            float needleX = rect.x + rect.width * 0.3f;
-            float farRightMin = minutes + (rect.xMax - needleX) / pxPerMin;
-            float[] bandStart = { 0f, TimePressure.Band2Min, TimePressure.Band3Min, TimePressure.LateMin };
-
-            Color prev = GUI.color;
-            for (int i = 0; i < 4; i++)
-            {
-                float m0 = bandStart[i];
-                float m1 = i < 3 ? bandStart[i + 1] : farRightMin;
-                float xa = Mathf.Max(rect.x, MinuteX(m0, minutes, needleX, pxPerMin));
-                float xb = Mathf.Min(rect.xMax, MinuteX(m1, minutes, needleX, pxPerMin));
-                if (xb - xa < 0.5f)
-                    continue;
-                Color fill = PressureColor((m0 + m1) * 0.5f);
-                fill.a = 0.42f;
-                GUI.color = fill;
-                GUI.DrawTexture(new Rect(xa, rect.y, xb - xa, rect.height), Texture2D.whiteTexture, ScaleMode.StretchToFill);
-            }
-
-            int firstTick = Mathf.CeilToInt(minutes - (needleX - rect.x) / pxPerMin);
-            int lastTick = Mathf.FloorToInt(farRightMin);
-            for (int m = firstTick; m <= lastTick; m++)
-            {
-                float x = MinuteX(m, minutes, needleX, pxPerMin);
-                if (x < rect.x + 1f || x > rect.xMax - 1f)
-                    continue;
-                GUI.color = new Color(1f, 1f, 1f, m % 5 == 0 ? 0.38f : 0.16f);
-                float h = m % 5 == 0 ? 7f : 4f;
-                GUI.DrawTexture(new Rect(x - 0.5f, rect.yMax - h - 2f, 1f, h), Texture2D.whiteTexture);
-            }
-
-            for (int i = 1; i < 4; i++)
-            {
-                float x = MinuteX(bandStart[i], minutes, needleX, pxPerMin);
-                if (x < rect.x || x > rect.xMax)
-                    continue;
-                GUI.color = new Color(0.95f, 0.93f, 0.88f, 0.55f);
-                GUI.DrawTexture(new Rect(x - 0.5f, rect.y, 1f, rect.height), Texture2D.whiteTexture);
-            }
-
-            GUI.color = new Color(0f, 0f, 0f, 0.45f);
-            GUI.DrawTexture(new Rect(rect.x, rect.y, needleX - rect.x, rect.height), Texture2D.whiteTexture);
-
-            if (_phaseStyle == null)
-            {
-                _phaseStyle = new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = 16,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleCenter
-                };
-            }
-
-            for (int i = 0; i < 4; i++)
-            {
-                float m0 = bandStart[i];
-                float m1 = i < 3 ? bandStart[i + 1] : farRightMin;
-                float xa = Mathf.Max(rect.x, MinuteX(m0, minutes, needleX, pxPerMin));
-                float xb = Mathf.Min(rect.xMax, MinuteX(m1, minutes, needleX, pxPerMin));
-                if (xb - xa < 34f)
-                    continue;
-                string label = TimePressure.PhaseLabel((m0 + m1) * 0.5f);
-                Color c = PhaseWordColors[i];
-                c.a = (xa + xb) * 0.5f < needleX ? 0.85f : 1f;
-                _phaseStyle.normal.textColor = c;
-                var word = new Rect(xa, rect.y, xb - xa, rect.height);
-                GUI.color = new Color(0f, 0f, 0f, 0.6f);
-                GUI.Label(new Rect(word.x + 1f, word.y + 1f, word.width, word.height), label, _phaseStyle);
-                GUI.color = Color.white;
-                GUI.Label(word, label, _phaseStyle);
-            }
-
-            GUI.color = new Color(1f, 1f, 1f, 0.95f);
-            GUI.DrawTexture(new Rect(needleX - 1.5f, rect.yMax - 3f, 3f, 5f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(needleX - 5f, rect.y - 5f, 10f, 3f), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(needleX - 1.5f, rect.y - 2f, 3f, 3f), Texture2D.whiteTexture);
-            GUI.color = prev;
-        }
-
-        static float MinuteX(float minute, float nowMinutes, float needleX, float pxPerMin)
-        {
-            return needleX + (minute - nowMinutes) * pxPerMin;
+            // No numeric readout on the boss bar: the fill ratio is the whole signal.
         }
 
         void DrawBar(string backId, string fillId, Rect rect, float amount)
@@ -572,9 +710,58 @@ namespace RogueShooter.Demo
             GUI.DrawTextureWithTexCoords(cut, fill.texture, new Rect(0f, 0f, shown, 1f));
         }
 
+        void DrawChargeBar(Rect rect, ShotRead read, float held)
+        {
+            Color previous = GUI.color;
+            GUI.color = new Color(.64f, .67f, .72f);
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            var inner = new Rect(rect.x + 1f, rect.y + 1f, rect.width - 2f, rect.height - 2f);
+            GUI.color = new Color(.10f, .12f, .16f);
+            GUI.DrawTexture(inner, Texture2D.whiteTexture);
+            float fill = Mathf.Clamp01(read.Progress(held));
+            GUI.color = held >= read.GreenEnter && held <= read.GreenExit
+                ? new Color(.35f, 1f, .58f) : new Color(.90f, .69f, .36f);
+            if (fill > 0f) GUI.DrawTexture(new Rect(inner.x, inner.y, inner.width * fill, inner.height), Texture2D.whiteTexture);
+            GUI.color = previous;
+        }
+
         Sprite Ui(string file)
         {
             return Stage1IsoArt.LoadSprite("Assets/Art/JianHai/UI/" + file + ".png");
+        }
+
+        /// <summary>Red edges stay hidden above 30% hp, then ease in as hp drops.</summary>
+        static float VignetteFor(float hpRatio)
+        {
+            return Mathf.Clamp01((0.3f - hpRatio) / 0.3f);
+        }
+
+        static Texture2D _vignetteTex;
+
+        /// <summary>Soft radial falloff: clear centre, dark red only at the corners.</summary>
+        static Texture2D VignetteTexture()
+        {
+            if (_vignetteTex != null)
+                return _vignetteTex;
+            const int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float u = (x + 0.5f) / size * 2f - 1f;
+                    float v = (y + 0.5f) / size * 2f - 1f;
+                    float d = Mathf.Sqrt(u * u + v * v) / 1.4142f;
+                    float a = Mathf.Clamp01((d - 0.45f) / 0.55f);
+                    a = a * a * (3f - 2f * a);
+                    pixels[y * size + x] = new Color32(72, 6, 6, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(pixels);
+            tex.Apply();
+            _vignetteTex = tex;
+            return tex;
         }
 
         void DrawVignette()
@@ -582,12 +769,8 @@ namespace RogueShooter.Demo
             if (Vignette01 <= 0.001f)
                 return;
             Color prev = GUI.color;
-            GUI.color = new Color(0.45f, 0.02f, 0.02f, Vignette01);
-            const float band = 72f;
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, band), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(0, Screen.height - band, Screen.width, band), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(0, 0, band, Screen.height), Texture2D.whiteTexture);
-            GUI.DrawTexture(new Rect(Screen.width - band, 0, band, Screen.height), Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 1f, 1f, Vignette01 * 0.85f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), VignetteTexture(), ScaleMode.StretchToFill);
             GUI.color = prev;
         }
 
@@ -601,51 +784,190 @@ namespace RogueShooter.Demo
             GUI.color = prev;
         }
 
+        public const float MinimapSize = 190f;
+        /// <summary>Rooms at 1.5 px per unit (was 3.2) so the window spans most of the
+        /// maze: corridors draw short and the 28×22 room blocks read as small chips.</summary>
+        public const float MinimapScale = 1.5f;
+
+        /// <summary>Player world position lands on the middle of the map.</summary>
+        public static Vector2 MinimapLocal(float wx, float wy, float playerX, float playerY)
+        {
+            return new Vector2(
+                MinimapSize * 0.5f + (wx - playerX) * MinimapScale,
+                MinimapSize * 0.5f - (wy - playerY) * MinimapScale);
+        }
+
         void DrawMinimap()
         {
             Stage1Maze maze = _demo.BuiltMaze;
             if (maze == null || maze.Nodes == null)
                 return;
-            const float map = 168f;
-            var box = new Rect(Screen.width - map - 8f, 8f, map, map);
-            GUI.Box(box, "");
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter };
-            int shown = 0;
+            Matrix4x4 mapMatrix = GUI.matrix;
+            float uiScale = MapOverview ? 1f : JianHaiUiTheme.Scale;
+            if(!MapOverview) GUI.matrix=Matrix4x4.Scale(new Vector3(uiScale,uiScale,1f));
+            float map = MapOverview ? Mathf.Min(Screen.height-100f,Screen.width-100f) : MinimapSize;
+            var box = MapOverview ? new Rect((Screen.width-map)*.5f,(Screen.height-map)*.5f,map,map) : new Rect(Screen.width/uiScale-map-20f,20f,map,map);
+            GUI.color=Color.white;
+            Vector2 playerPos = _demo.PlayerBody != null ? _demo.PlayerBody.position : Vector3.zero;
+            float loX=float.MaxValue,hiX=float.MinValue,loY=float.MaxValue,hiY=float.MinValue;
+            foreach(var n in maze.Nodes){if(!_visited.Contains(n.Id))continue;loX=Mathf.Min(loX,n.Center.X-n.Width*.5f);hiX=Mathf.Max(hiX,n.Center.X+n.Width*.5f);loY=Mathf.Min(loY,n.Center.Y-n.Height*.5f);hiY=Mathf.Max(hiY,n.Center.Y+n.Height*.5f);}
+            foreach(var part in _corridors){if(!part.Seen)continue;var poly=Polyline(part.Edge);for(int i=0;i<poly.Length;i++){loX=Mathf.Min(loX,poly[i].X);hiX=Mathf.Max(hiX,poly[i].X);loY=Mathf.Min(loY,poly[i].Y);hiY=Mathf.Max(hiY,poly[i].Y);}}
+            if(loX==float.MaxValue){GUI.matrix=mapMatrix;return;}
+            float scale=MapOverview?Mathf.Min((map-48f)/(hiX-loX),(map-64f)/(hiY-loY)):MinimapScale;
+            Vector2 centre=MapOverview?new Vector2((loX+hiX)*.5f,(loY+hiY)*.5f):playerPos;
+            GUI.BeginGroup(box);
+
+            Vector2 MapPos(float wx, float wy)
+            {
+                return new Vector2(map*.5f+(wx-centre.x)*scale,map*.5f-(wy-centre.y)*scale);
+            }
+
+            var line = Texture2D.whiteTexture;
+            // One stroke per hall segment: 0.5u sub-parts rasterize to nothing at
+            // minimap scale once rotated, so only horizontal halls ever drew.
+            foreach(var part in _corridors)
+            {
+                if(!part.Seen) continue;
+                var poly=Polyline(part.Edge);
+                for(int i=0;i<poly.Length-1;i++)
+                    DrawMapLine(MapPos(poly[i].X,poly[i].Y),MapPos(poly[i+1].X,poly[i+1].Y),2f,new Color(.55f,.50f,.40f,.85f),line);
+            }
+
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
                 MazeNode n = maze.Nodes[i];
                 if (!_visited.Contains(n.Id))
                     continue;
-                float x = box.x + 8f;
-                float y = box.y + 8f + shown * 22f;
-                GUI.Label(new Rect(x, y, map - 16f, 20f), n.Id + " " + MazeRules.Label(n.Kind), style);
-                shown++;
+                Vector2 c = MapPos(n.Center.X, n.Center.Y);
+                float w = n.Width * scale;
+                float h = n.Height * scale;
+                bool here = _demo.PlayerBody != null && n.Contains(playerPos.x, playerPos.y, 0.2f);
+                GUI.color = RoomColor(n.Kind, here);
+                if (MapOverview && !_visited.Contains(n.Id)) GUI.color *= new Color(.65f,.65f,.65f,1f);
+                GUI.DrawTexture(new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h), Texture2D.whiteTexture, ScaleMode.StretchToFill);
+                GUI.color = Color.white;
+                if (MapOverview && n.Kind == MazeNodeKind.Altar) GUI.Label(new Rect(c.x+8f,c.y-10f,110f,22f),"第"+(int)_demo.StageForRoom(n.Id)+"阶段祭坛");
+                if (MapOverview && (n.Kind == MazeNodeKind.Boss || n.Kind == MazeNodeKind.Safe))
+                    GUI.Label(new Rect(Mathf.Clamp(c.x+8f,6f,map-120f),Mathf.Clamp(c.y-10f,34f,map-22f),114f,22f),n.Kind==MazeNodeKind.Boss?"骸冠典狱长":"终局安全段");
             }
+            if (MapOverview) GUI.Label(new Rect(12f,8f,map-24f,26f),"已探索（M 收起）");
+
+            Vector2 pp = MapPos(playerPos.x, playerPos.y);
+            GUI.color = new Color(.03f, .04f, .06f);
+            GUI.DrawTexture(new Rect(pp.x - 6f, pp.y - 6f, 12f, 12f), Texture2D.whiteTexture);
+            GUI.color = new Color(1f, .90f, .52f);
+            GUI.DrawTexture(new Rect(pp.x - 4f, pp.y - 4f, 8f, 8f), Texture2D.whiteTexture, ScaleMode.StretchToFill);
+            GUI.color = Color.white;
+            GUI.EndGroup();
+            GUI.matrix=mapMatrix;
+        }
+
+        static MazeVec2[] Polyline(MazeEdge edge)
+        {
+            var pts = edge.Points;
+            return pts != null && pts.Length >= 2 ? pts : new[] { edge.From, edge.To };
+        }
+
+        static void DrawMapLine(Vector2 a, Vector2 b, float width, Color color, Texture tex)
+        {
+            Vector2 d = b - a;
+            if (d.sqrMagnitude < 0.01f)
+                return;
+            Color prev = GUI.color;
+            Matrix4x4 prevMat = GUI.matrix;
+            GUI.color = color;
+            if (Mathf.Abs(d.x) < 0.01f || Mathf.Abs(d.y) < 0.01f)
+            {
+                // Halls are H/V segments and draw as plain rects: RotateAroundPivot
+                // drops thin quads under the scaled minimap matrix, so rotated
+                // (N/S) halls vanished from the minimap while E-W halls drew.
+                GUI.DrawTexture(Mathf.Abs(d.x) >= Mathf.Abs(d.y)
+                    ? new Rect(Mathf.Min(a.x, b.x), a.y - width * 0.5f, Mathf.Abs(d.x), width)
+                    : new Rect(a.x - width * 0.5f, Mathf.Min(a.y, b.y), width, Mathf.Abs(d.y)),
+                    tex, ScaleMode.StretchToFill);
+            }
+            else
+            {
+                GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, a);
+                GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, d.magnitude, width), tex, ScaleMode.StretchToFill);
+            }
+            GUI.matrix = prevMat;
+            GUI.color = prev;
+        }
+
+        static Color RoomColor(MazeNodeKind kind, bool current)
+        {
+            Color c;
+            switch (kind)
+            {
+                case MazeNodeKind.Start: c = new Color(0.36f, 0.55f, 0.32f); break;
+                case MazeNodeKind.Heal: c = new Color(.76f,.22f,.29f); break;
+                case MazeNodeKind.Altar: c = new Color(0.5f, 0.34f, 0.6f); break;
+                case MazeNodeKind.Chest:
+                case MazeNodeKind.LargeChest: c = new Color(0.72f, 0.58f, 0.26f); break;
+                case MazeNodeKind.Connector: c = new Color(0.3f, 0.55f, 0.55f); break;
+                case MazeNodeKind.Boss: c = new Color(0.64f, 0.25f, 0.19f); break;
+                case MazeNodeKind.Safe: c = new Color(0.30f, 0.48f, 0.44f); break;
+                default: c = new Color(0.42f, 0.45f, 0.52f); break;
+            }
+            return current ? Color.Lerp(c, Color.white, 0.45f) : c;
         }
 
         void DrawIcons()
         {
-            float x = 12f;
-            float y = Screen.height - 52f;
-            for (int i = 0; i < _iconNames.Count; i++)
-            {
-                Sprite sprite = Icon(_iconNames[i]);
-                var rect = new Rect(x, y, 36f, 36f);
-                if (sprite != null && sprite.texture != null)
-                    GUI.DrawTexture(rect, sprite.texture);
-                x += 42f;
+            float scale=JianHaiUiTheme.Scale;
+            Matrix4x4 previous=GUI.matrix;GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1f));
+            float width=Screen.width/scale,height=Screen.height/scale;
+            int columns=Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(width-170f,width*.34f)/52f),1,8);
+            if(_iconBadgeStyle==null) _iconBadgeStyle=new GUIStyle(GUI.skin.label){fontSize=12,fontStyle=FontStyle.Bold,alignment=TextAnchor.MiddleCenter,normal={textColor=JianHaiUiTheme.Bone}};
+            if(_iconTooltipStyle==null) _iconTooltipStyle=new GUIStyle(GUI.skin.label){fontSize=14,wordWrap=true,padding=new RectOffset(10,10,8,8),normal={textColor=JianHaiUiTheme.Bone}};
+            for(int i=0;i<_iconNames.Count;i++) {
+                var rect=new Rect(20f+(i%columns)*52f,height-64f-(i/columns)*52f,44f,44f);
+                Sprite sprite=Icon(_iconNames[i]);
+                GUI.color=Color.white;
+                if(sprite!=null)GUI.DrawTexture(new Rect(rect.x+3f,rect.y+3f,38f,38f),sprite.texture,ScaleMode.ScaleToFit);
+                int count=0;foreach(string id in _demo.RunBuild.OwnedRewardIds)if(RewardCatalog.FamilyKey(id)==_iconNames[i] || id==_iconNames[i])count++;
+                if(count>1){var badge=new Rect(rect.xMax-17f,rect.yMax-16f,17f,16f);GUI.color=Color.white;JianHaiUiTheme.ShadowLabel(badge,count.ToString(),_iconBadgeStyle);}
+                if(rect.Contains(Event.current.mousePosition)){
+                    string desc=RewardPresent.TryForId(_iconNames[i],out RewardPresent.Copy copy)||RewardPresent.TryForCatalogName(_iconNames[i],out copy)?copy.Sentence:"";
+                    var tip=new Rect(Mathf.Min(rect.x,width-270f),rect.y-84f,250f,76f);
+                    GUI.color=Color.white;
+                    JianHaiUiTheme.ShadowLabel(tip,_iconNames[i]+(count>1?" ×"+count:"")+"\n"+desc,_iconTooltipStyle);
+                }
             }
+            GUI.color=Color.white;GUI.matrix=previous;
         }
 
-        void DrawDeath()
+        void DrawStageBanner()
         {
-            var box = new Rect(Screen.width * 0.5f - 180f, Screen.height * 0.5f - 60f, 360f, 120f);
-            GUI.Box(box, "");
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-            GUI.Label(new Rect(box.x, box.y + 16f, box.width, 28f), "本局结束", style);
-            int pct = Mathf.RoundToInt(EconomyGold.DeathInheritRate * 100f);
-            GUI.Label(new Rect(box.x, box.y + 52f, box.width, 28f),
-                "继承金币 " + _inherit + "（" + pct + "%，上限 " + EconomyGold.DeathInheritCap + "）", style);
+            string banner=_demo.StageBanner;if(string.IsNullOrEmpty(banner))return;
+            float scale=JianHaiUiTheme.Scale;var matrix=GUI.matrix;var color=GUI.color;
+            GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
+            var style=new GUIStyle(GUI.skin.label){fontSize=26,fontStyle=FontStyle.Bold,alignment=TextAnchor.MiddleCenter,normal={textColor=JianHaiUiTheme.Bone}};
+            JianHaiUiTheme.ShadowLabel(new Rect(Screen.width/scale*.5f-250,78,500,48),banner,style);
+            GUI.color=color;GUI.matrix=matrix;
+        }
+
+        // One actionable end panel for win, boss loss, ordinary death and trial completion.
+        public static void DrawSettlementPanel(Stage1MazeDemo demo)
+        {
+            if(demo==null)return;
+            var matrix=GUI.matrix;var color=GUI.color;int depth=GUI.depth;GUI.depth=-100;
+            GUI.color=new Color(0,0,0,.62f);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);GUI.color=Color.white;
+            float scale=JianHaiUiTheme.Scale;GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
+            var box=new Rect((Screen.width/scale-420)*.5f,(Screen.height/scale-368)*.5f,420,368);
+            var frame=Resources.Load<Sprite>("JianHaiReward/jh_ui_panel_bone");
+            if(frame!=null)GUI.DrawTexture(box,frame.texture,ScaleMode.StretchToFill);else GUI.Box(box,"");
+            var title=new GUIStyle(GUI.skin.label){fontSize=24,fontStyle=FontStyle.Bold,alignment=TextAnchor.MiddleCenter,normal={textColor=JianHaiUiTheme.Bone}};
+            var text=new GUIStyle(title){fontSize=16,fontStyle=FontStyle.Normal};var end=demo.EndInfo();
+            GUI.Label(new Rect(box.x+20,box.y+20,380,34),demo.ConnSettle?demo.EndTitle:"失败 · 结算",title);
+            GUI.Label(new Rect(box.x+20,box.y+62,380,70),"用时 "+end.Seconds+" 秒 · 强化 "+end.Rewards+"\n留下 "+end.Keep+" 金\nLv."+(demo.Experience!=null?demo.Experience.Level:1)+" · 本局总经验 "+(demo.Experience!=null?demo.Experience.TotalXp:0),text);
+            var button=JianHaiUiTheme.MenuButton(17);
+            if(GUI.Button(new Rect(box.x+60,box.y+146,300,46),Stage1MazeDemo.RestartLabel,button))demo.RestartRun();
+            if(GUI.Button(new Rect(box.x+60,box.y+208,300,46),"返回开始界面",button))demo.ReturnToStartMenu();
+            if(GUI.Button(new Rect(box.x+60,box.y+270,300,46),"退出游戏",button))demo.QuitGame();
+            var hint=new GUIStyle(text){fontSize=13};GUI.Label(new Rect(box.x+20,box.y+328,380,24),"ESC 返回开始界面",hint);
+            GUI.matrix=matrix;GUI.color=color;GUI.depth=depth;
         }
 
         Sprite Icon(string rewardName)
@@ -655,6 +977,12 @@ namespace RogueShooter.Demo
                 return sprite;
             string file;
             if (!IconByName.TryGetValue(rewardName, out file))
+            {
+                // crit2 属性档（VIT_C/…）：按家族复用已有图标。
+                if (RogueShooter.Build.RewardPresent.TryForId(rewardName, out RogueShooter.Build.RewardPresent.Copy copy) || RogueShooter.Build.RewardPresent.TryForCatalogName(rewardName,out copy))
+                    file = copy.Icon;
+            }
+            if (string.IsNullOrEmpty(file))
                 return null;
             sprite = Resources.Load<Sprite>("JianHaiReward/" + file);
             if (sprite == null)

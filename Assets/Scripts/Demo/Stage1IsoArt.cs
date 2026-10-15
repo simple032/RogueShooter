@@ -7,38 +7,87 @@ using RogueShooter.Maze;
 namespace RogueShooter.Demo
 {
     /// <summary>
-    /// Dresses the generated stage-1 maze with the accepted iso sprites.
+    /// Dresses the generated stage-1 maze with the accepted sample-room look.
     /// Grid is Isometric with cell size (1, 0.5); one tile = one full 2:1
     /// diamond, so neighbouring cells share edges with no seams.
     /// Cell math (verified against IsoSampleRoom): cell (u,v) center =
     /// ((u-v)*0.5, (u+v)*0.25 + 0.25). p = u-v = 2*wx, q = u+v = 4*wy - 1.
-    /// Walls chain along exposed diamond edges: far rims (S, E) get tall
-    /// wall_l/wall_r, near rims (N, W) get low walls plus platform edges.
+    /// Rooms 28鑴?2 carry the sample vocabulary: continuous masonry faces with
+    /// cornice, foot, piers and cutaway side strips; near rims get low plinths.
+    /// Every door is the delivered DoorClose frame sheet: a double swinging door
+    /// in two depth layers (back/front at actor order, iso axis sorted), locked =
+    /// the close clip plays red, cleared = the open clip parks the leaves. Lintels,
+    /// sills and cutaway patches seam the doorway into the wall. Corridors between
+    /// rooms get their own masonry shell.
     /// </summary>
     public static class Stage1IsoArt
     {
         const string FloorRoot = "Assets/Art/JianHai/Iso/Tiles/S1/Floor/jh_iso_floor_s1_";
         const string WallRoot = "Assets/Art/JianHai/Iso/Tiles/S1/Wall/jh_iso_wall_s1_";
-        const string EdgeRoot = "Assets/Art/JianHai/Iso/Tiles/S1/Edge/jh_iso_edge_s1_";
         const string DecalRoot = "Assets/Art/JianHai/Iso/Tiles/S1/Decal/jh_iso_decal_s1_";
         const string PropRoot = "Assets/Art/JianHai/Iso/Props/jh_iso_prop_";
         const string ActorRoot = "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_";
         const string EnemyRoot = "Assets/Art/JianHai/Iso/Enemies/";
+        const string FxRoot = "Assets/Art/JianHai/Iso/FX/jh_iso_fx_";
 
         const float MarginX = 0.501f;
         const float MarginY = 0.251f;
-        const int WallOrder = 0;
-        const int DecalOrder = -5;
-        const int FloorOrder = -10;
+        // Wall orders follow the sample room scheme shifted below the actors (order 0).
+        // The door layers also sit at order 0: the camera's iso axis sort puts actors
+        // between the door's back and front layers instead of clipping through them.
+        const int FloorOrder = -1000;
+        const int WashOrder = -800;
+        const int ShadowOrder = -750;
+        const int RubbleOrder = -700;
+        const int CutawayOrder = -30;
+        const int HighlightOrder = -29;
+        const int JointOrder = -28;
+        const int BayOrder = -16;
+        const int CorniceOrder = -14;
+        const int CorniceShadowOrder = -13;
+        const int FootOrder = -12;
+        const int PlinthOrder = -11;
+        const int PlinthTopOrder = -10;
+        const int PierOrder = -8;
+        const int PierCapOrder = -7;
+        const int PropOrder = -6;
+        const int FlameOrder = -4;
+        /// <summary>Door opening width, locked to the corridor width so the
+        /// doorway and its corridor match exactly.</summary>
+        public const float DoorGap = MazeRules.CorridorWidth;
+
+        static readonly Color CutawayColor = new Color(.20f, .24f, .28f);
+        static readonly Color HighlightColor = new Color(.30f, .34f, .37f);
+        static readonly Color JointColor = new Color(.10f, .13f, .16f);
+        static readonly Color CorniceColor = new Color(.27f, .31f, .35f);
+        static readonly Color FootColor = new Color(.11f, .14f, .17f);
+        static readonly Color PierColor = new Color(.24f, .28f, .32f);
+        static readonly Color PierCapColor = new Color(.31f, .34f, .37f);
+        static readonly Color PlinthColor = new Color(.16f, .20f, .24f);
+        static readonly Color PlinthTopColor = new Color(.29f, .33f, .36f);
+        static readonly Color RouteColor = new Color(.90f, .88f, .83f);
+        static readonly Color CourtColor = new Color(.90f, .87f, .79f);
+        static readonly Color ChestInlayColor = new Color(.83f, .79f, .67f);
+        static readonly Color AltarInlayColor = new Color(.69f, .70f, .71f);
+        static readonly Color RubbleTint = new Color(.63f, .68f, .72f, .85f);
+        static readonly Color WashColor = new Color(.9f, .47f, .16f, .095f);
+        static readonly Color ShadowColor = new Color(0f, 0f, 0f, .30f);
 
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
+        static readonly Dictionary<Color, Material> BandMaterials = new Dictionary<Color, Material>();
+        static readonly Dictionary<string, Sprite[]> FireFrames = new Dictionary<string, Sprite[]>();
+        static readonly Dictionary<string, int> FloorRolls = new Dictionary<string, int>();
+        public static int FloorStyle(string id) { return FloorRolls.TryGetValue(id, out var roll) ? roll : -1; }
+        public static int DecorStyle(string id) { return DecorRolls.TryGetValue(id, out var roll) ? roll : -1; }
+        static readonly Dictionary<string, int> DecorRolls = new Dictionary<string, int>();
+        static Mesh _quad, _masonryFace, _softDisc;
 
-        struct CellRect
+        public struct CellRect
         {
             public int PMin, PMax, QMin, QMax;
         }
 
-        struct DoorMark
+        public struct DoorMark
         {
             public Vector2 Point;
             public char Rim;
@@ -82,8 +131,10 @@ namespace RogueShooter.Demo
                 || name == "Player" || name.StartsWith("FX_Portal");
         }
 
-        /// <summary>Floors the whole maze: room tiles by room kind, corridor tiles elsewhere.</summary>
-        public static GameObject BuildFloors(Stage1Maze maze, Transform parent)
+        /// <summary>Floors the whole maze: quiet stone with sparse wear, edge cracks,
+        /// light walking routes and local chest/altar/entry inlays 閳?the sample room
+        /// treatment. Rooms paint first; corridors fill the door-to-door tubes.</summary>
+        public static GameObject BuildFloors(Stage1Maze maze, Transform parent, Stage1Maze doorMaze = null, bool resetRolls = true)
         {
             var root = new GameObject("IsoFloor");
             root.transform.SetParent(parent, false);
@@ -99,35 +150,61 @@ namespace RogueShooter.Demo
             var owned = new HashSet<long>();
             var positions = new List<Vector3Int>();
             var tiles = new List<TileBase>();
+            var colors = new List<Color>();
 
-            Tile[] roomTiles = FloorTiles(MazeNodeKind.Connector);
-            Tile[] chestTiles = FloorTiles(MazeNodeKind.Chest);
-            Tile[] altarTiles = FloorTiles(MazeNodeKind.Altar);
+            Tile clean = MakeTile(FloorRoot + "room_00.png");
+            Tile worn = MakeTile(FloorRoot + "room_01.png");
+            Tile crack = MakeTile(FloorRoot + "room_02.png");
+            int prevStyle = -1;
+            int prevDecor = -1;
+            if (resetRolls) { DecorRolls.Clear(); FloorRolls.Clear(); }
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
                 MazeNode n = maze.Nodes[i];
                 CellRect rc = RectCells(n);
+                List<DoorMark> doors = CollectDoors(n, doorMaze ?? maze);
+                Vector3 chestPad = n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.LargeChest
+                    ? NearestRoomCellCenter(n) : Vector3.zero;
+                Vector3 altarPad = n.Kind == MazeNodeKind.Altar ? AltarPivot(n) : Vector3.zero;
+                // Each room rolls ONE floor style for the run; a repeat of the
+                // previous room's style steps aside so rooms read differently.
+                int style = Hash(maze.Seed, n.Id.GetHashCode(), 101) % FloorStyleCount;
+                if (style == prevStyle)
+                    style = (style + 1) % FloorStyleCount;
+                prevStyle = style;
+                FloorRolls[n.Id] = style;
+                // Decoration layouts are precomputed with the same step-aside rule
+                // so consecutive rooms never share a layout; BuildRoomShell reads
+                // them back when it dresses each room.
+                int decor = DecorHash(maze.Seed, n.Id.GetHashCode(), 307) % DecorStyleCount;
+                if (decor == prevDecor)
+                    decor = (decor + 1) % DecorStyleCount;
+                prevDecor = decor;
+                DecorRolls[n.Id] = decor;
+                // S1 altar rooms tile wall-to-wall like any room; S2/S3 altar rooms
+                // share the combat rooms' corner-cut walk shape, so HasFloor alone
+                // now decides where tiles stop (at the air-wall cut corners).
                 for (int p = rc.PMin; p <= rc.PMax; p++)
                 {
                     for (int q = rc.QMin; q <= rc.QMax; q++)
                     {
                         if (((p + q) & 1) != 0)
                             continue;
+                        Vector3 sample = CellCenter((p + q) / 2, (q - p) / 2);
+                        if (!n.HasFloor(sample.x,sample.y)) continue;
                         long id = Pack(p, q);
                         if (!owned.Add(id))
                             continue;
+                        Vector3 world = CellCenter((p + q) / 2, (q - p) / 2);
+                        Color color;
+                        Tile tile = RoomFloor(n, world, style, doors, chestPad, altarPad, out color, clean, worn, crack);
                         positions.Add(new Vector3Int((p + q) / 2, (q - p) / 2, 0));
-                        tiles.Add(FloorForCell(n, p, q, rc, roomTiles, chestTiles, altarTiles));
+                        tiles.Add(tile);
+                        colors.Add(color);
                     }
                 }
             }
 
-            Tile[] corridorTiles = new[]
-            {
-                MakeTile(FloorRoot + "corridor_00.png"),
-                MakeTile(FloorRoot + "corridor_01.png"),
-                MakeTile(FloorRoot + "corridor_02.png"),
-            };
             for (int e = 0; e < maze.Edges.Length; e++)
             {
                 MazeEdge edge = maze.Edges[e];
@@ -138,73 +215,485 @@ namespace RogueShooter.Demo
                     CoverCorridorSegment(
                         new Vector2(pts[s].X, pts[s].Y),
                         new Vector2(pts[s + 1].X, pts[s + 1].Y),
-                        maze, owned, positions, tiles, corridorTiles);
+                        maze, owned, positions, tiles, colors, clean, worn, crack);
             }
 
             if (positions.Count > 0)
             {
                 map.SetTiles(positions.ToArray(), tiles.ToArray());
+                for (int i = 0; i < positions.Count; i++)
+                    map.SetColor(positions[i], colors[i]);
                 map.RefreshAllTiles();
             }
             FloorCount = positions.Count;
             return root;
         }
 
-        /// <summary>Walls, low walls, platform edges, doors and corners for one room.</summary>
-        public static void BuildRoomShell(MazeNode node, Stage1Maze maze, Transform parent, List<GameObject> into, int seed)
+        public static int Hash(int a, int b, int salt)
         {
-            CellRect rc = RectCells(node);
-            var doors = CollectDoors(node, maze);
-            var holes = new HashSet<long>();
-            var caps = new Dictionary<long, int>();
-            foreach (DoorMark door in doors)
-                MarkHole(rc, door, holes, caps);
-
-            int pCorner = rc.PMax - 1;
-            int qCorner = rc.QMin;
-            long cornerCell = ((pCorner + qCorner) & 1) == 0 ? Pack(pCorner, qCorner) : -1;
-
-            for (int p = rc.PMin; p <= rc.PMax; p++)
+            unchecked
             {
-                for (int q = rc.QMin; q <= rc.QMax; q++)
-                {
-                    if (((p + q) & 1) != 0)
-                        continue;
-                    int u = (p + q) / 2;
-                    int v = (q - p) / 2;
-                    int capMask;
-                    caps.TryGetValue(Pack(p, q), out capMask);
-                    bool hole = holes.Contains(Pack(p, q)) || Pack(p, q) == cornerCell;
-                    PlaceRimEdges(rc, u, v, p, q, hole, capMask, parent, into);
-                }
+                int h = a * 73856093 ^ b * 19349663 ^ salt * 83492791;
+                return h & 0x7fffffff;
             }
-
-            PlaceDoorArches(node, rc, doors, parent, into);
-            PlaceCornerIn(rc, parent, into);
-            PlaceEdgeRow(rc, 'N', parent, into);
-            PlaceEdgeRow(rc, 'W', parent, into);
-            PlaceRubble(node, rc, seed, parent, into);
         }
 
-        /// <summary>Chest / altar / gate props with feet on the tiles. Returns the prop object.</summary>
+        /// <summary>Independently mixed roll for the decoration layout. The plain
+        /// XOR hash exposes its low bits as fixed XORs of the input low bits, so
+        /// any two rolls over the same inputs share hard bit relations; the
+        /// murmur-style avalanche breaks them so every style x decor pair can
+        /// occur and all buckets stay reachable.</summary>
+        static int DecorHash(int a, int b, int salt)
+        {
+            unchecked
+            {
+                int h = a * 73856093 ^ b * 19349663 ^ salt * 83492791;
+                h ^= h >> 16;
+                h *= -2048144789;
+                h ^= h >> 13;
+                h *= -1028477387;
+                h ^= h >> 16;
+                return h & 0x7fffffff;
+            }
+        }
+
+        /// <summary>Number of distinct floor-laying styles a room can roll.</summary>
+        public const int FloorStyleCount = 10;
+
+        /// <summary>One floor style per room, rolled from the run seed and stepped
+        /// aside from the previous room's pick so neighbours read differently:
+        /// quiet court, two-unit checker, framed border, diagonal stripes, large
+        /// patches, worn rim, centre medallion, broad stone columns, concentric
+        /// rings or a diagonal two-tone split. Routes through door axes and the
+        /// chest/altar pads stay on top of every style for readability.</summary>
+        static Tile RoomFloor(MazeNode n, Vector3 world, int style, List<DoorMark> doors,
+            Vector3 chestPad, Vector3 altarPad, out Color color, Tile clean, Tile worn, Tile crack)
+        {
+            float lx = world.x - n.Center.X;
+            float ly = world.y - n.Center.Y;
+            int h = Hash(Mathf.RoundToInt(world.x * 2f), Mathf.RoundToInt(world.y * 4f), n.Id.GetHashCode()) % 100;
+            float value = .80f + .10f * Mathf.PerlinNoise(world.x * .17f + 17f, world.y * .17f + 29f);
+            color = new Color(value * .96f, value * .99f, value);
+            Tile tile = h < 92 ? clean : worn;
+            switch (style)
+            {
+                case 0: // Quiet court: sparse wear, cracks only along the wall feet.
+                    if ((Mathf.Abs(lx) > 12.8f || ly > 10f) && h > 93)
+                        tile = crack;
+                    break;
+                case 1: // Two-unit checker of light and worn stone.
+                    {
+                        int cellA = Mathf.FloorToInt(lx * 0.5f + 100f);
+                        int cellB = Mathf.FloorToInt(ly * 0.5f + 100f);
+                        tile = ((cellA + cellB) & 1) == 0 ? clean : worn;
+                        float shift = ((cellA + cellB) & 1) == 0 ? .04f : -.02f;
+                        color = new Color((value + shift) * .96f, (value + shift) * .99f, value + shift);
+                        if ((Mathf.Abs(lx) > 12.8f || ly > 10f) && h > 93)
+                            tile = crack;
+                        break;
+                    }
+                case 2: // Worn court border framing a quiet centre.
+                    {
+                        bool border = (Mathf.Abs(Mathf.Abs(lx) - 6f) < .30f && Mathf.Abs(ly) < 4.5f)
+                            || (Mathf.Abs(Mathf.Abs(ly) - 4.5f) < .23f && Mathf.Abs(lx) < 6f);
+                        if (border)
+                        {
+                            tile = worn;
+                            color = CourtColor;
+                        }
+                        else if (h > 94 && (Mathf.Abs(lx) > 12.8f || ly > 10f))
+                            tile = crack;
+                        break;
+                    }
+                case 3: // Diagonal worn stripes sweeping the room.
+                    {
+                        int band = Mathf.FloorToInt((lx + ly) * 0.5f + 100f);
+                        if ((band % 4) == 0)
+                        {
+                            tile = worn;
+                            color = new Color(value * .93f, value * .95f, value * .9f);
+                        }
+                        break;
+                    }
+                case 4: // Large five-unit patches of two tones.
+                    {
+                        int patch = Hash(Mathf.FloorToInt(lx / 5f) + 50, Mathf.FloorToInt(ly / 5f) + 50, n.Id.GetHashCode()) % 100;
+                        if (patch < 45)
+                            tile = worn;
+                        float spread = patch < 45 ? -.04f : .05f;
+                        color = new Color((value + spread) * .96f, (value + spread) * .99f, value + spread);
+                        if ((Mathf.Abs(lx) > 12.8f || ly > 10f) && h > 95)
+                            tile = crack;
+                        break;
+                    }
+                case 5:
+                default: // Heavy worn rim around a clean centre.
+                    {
+                        float rim = Mathf.Max(Mathf.Abs(lx) - 9.5f, Mathf.Abs(ly) - 7f);
+                        if (rim > 0f)
+                            tile = rim > 1.5f ? (h > 85 ? crack : worn) : worn;
+                        break;
+                    }
+                case 6: // Central diamond medallion: cool court, worn frame ring.
+                    {
+                        // Sized past the route bands (|l|<3) so the cool core stays
+                        // visible around the light route cross instead of under it.
+                        float d = Mathf.Abs(lx) / 13f + Mathf.Abs(ly) / 10f;
+                        if (d < .8f)
+                        {
+                            tile = clean;
+                            color = AltarInlayColor;
+                        }
+                        else if (d < 1.05f)
+                        {
+                            tile = worn;
+                            color = new Color(value * .90f, value * .92f, value * .87f);
+                        }
+                        else if (h > 94 && (Mathf.Abs(lx) > 12.8f || ly > 10f))
+                            tile = crack;
+                        break;
+                    }
+                case 7: // Broad two-unit stone columns, every third one worn.
+                    {
+                        int col = Mathf.FloorToInt(lx * 0.5f + 100f);
+                        if ((col % 3) == 0)
+                        {
+                            tile = worn;
+                            color = new Color(value * .93f, value * .95f, value * .90f);
+                        }
+                        if ((Mathf.Abs(lx) > 12.8f || ly > 10f) && h > 93)
+                            tile = crack;
+                        break;
+                    }
+                case 8: // Concentric elliptical wear rings around a clean centre.
+                    {
+                        float rr = Mathf.Sqrt(lx * lx / 121f + ly * ly / 72.25f);
+                        if ((Mathf.FloorToInt(rr * 3f) & 1) == 1)
+                        {
+                            tile = worn;
+                            color = new Color(value * .93f, value * .95f, value * .90f);
+                        }
+                        break;
+                    }
+                case 9: // Diagonal two-tone split with a cracked fault seam.
+                    {
+                        float s = lx + ly;
+                        if (s > 0f)
+                            color = new Color(value * 1.04f * .96f, value * 1.04f * .99f, value * 1.04f);
+                        else
+                        {
+                            tile = worn;
+                            color = new Color(value * .90f * .96f, value * .92f * .99f, value * .88f);
+                        }
+                        if (Mathf.Abs(s) < .35f && h > 80)
+                            tile = crack;
+                        break;
+                    }
+            }
+            bool routed = false;
+            for (int i = 0; i < doors.Count; i++)
+            {
+                if (doors[i].Rim == 'E' || doors[i].Rim == 'W')
+                {
+                    if (Mathf.Abs(ly) < 3f)
+                        routed = true;
+                    if ((doors[i].Rim == 'E' ? lx > 10.8f : lx < -10.8f) && Mathf.Abs(ly) < 3f)
+                        routed = true;
+                }
+                else
+                {
+                    if (Mathf.Abs(lx) < 3f)
+                        routed = true;
+                    if ((doors[i].Rim == 'N' ? ly > 7.8f : ly < -7.8f) && Mathf.Abs(lx) < 3f)
+                        routed = true;
+                }
+            }
+            if (routed)
+            {
+                tile = clean;
+                color = RouteColor;
+            }
+            if (chestPad != Vector3.zero && Mathf.Abs(world.x - chestPad.x) < 1.7f && Mathf.Abs(world.y - chestPad.y) < 1.3f)
+            {
+                tile = clean;
+                color = ChestInlayColor;
+            }
+            // The sanctum slab and causeway in StageAltarView carry the altar floor;
+            // the tile pad stays a tight consecrated glow under the dais so its
+            // rectangle never pokes past the mesh geometry.
+            if (altarPad != Vector3.zero && Mathf.Abs(world.x - altarPad.x) < .85f && Mathf.Abs(world.y - altarPad.y) < .60f)
+            {
+                tile = clean;
+                color = AltarInlayColor;
+            }
+            return tile;
+        }
+
+        /// <summary>Sample-room shell for one node: continuous masonry north wall with
+        /// cornice, shadow, foot and piers; cutaway side strips with joints; low south
+        /// plinth; every door a 3-unit opening with jambs, threshold and a closed-arch
+        /// gate; braziers and grouped rubble along the walls.</summary>
+        public static void BuildRoomShell(MazeNode node, Stage1Maze maze, Transform parent, List<GameObject> into, int seed, List<GameObject> doorArches, bool braziers = true, bool doorFurniture = true)
+        {
+            float x0 = node.Center.X - node.Width * 0.5f;
+            float x1 = node.Center.X + node.Width * 0.5f;
+            float y0 = node.Center.Y - node.Height * 0.5f;
+            float y1 = node.Center.Y + node.Height * 0.5f;
+            float cx = node.Center.X;
+            float cy = node.Center.Y;
+            var doors = CollectDoors(node, maze);
+            bool nDoor = HasRim(doors, 'N');
+            bool sDoor = HasRim(doors, 'S');
+            bool eDoor = HasRim(doors, 'E');
+            bool wDoor = HasRim(doors, 'W');
+            float half = DoorGap * 0.5f;
+
+            // North wall: masonry face above the floor edge, cornice on top, foot below.
+            if (nDoor)
+            {
+                MasonryBays("Masonry north " + node.Id, x0, y1, cx - half - x0, parent, into);
+                MasonryBays("Masonry north " + node.Id, cx + half, y1, x1 - cx - half, parent, into);
+                Band("North foot " + node.Id, new Vector3(x0, y1 - .17f, 0), new Vector2(cx - half - x0, .18f), FootColor, FootOrder, parent, into);
+                Band("North foot " + node.Id, new Vector3(cx + half, y1 - .17f, 0), new Vector2(x1 - cx - half, .18f), FootColor, FootOrder, parent, into);
+            }
+            else
+            {
+                MasonryBays("Masonry north " + node.Id, x0, y1, x1 - x0, parent, into);
+                Band("North foot " + node.Id, new Vector3(x0, y1 - .17f, 0), new Vector2(x1 - x0, .18f), FootColor, FootOrder, parent, into);
+            }
+            if (nDoor)
+            {
+                Band("North cornice " + node.Id, new Vector3(x0 - .15f, y1 + 1.45f, 0), new Vector2(cx - half - .65f - x0 + .15f, .19f), CorniceColor, CorniceOrder, parent, into);
+                Band("North cornice " + node.Id, new Vector3(cx + half + .65f, y1 + 1.45f, 0), new Vector2(x1 - cx - half - .65f + .15f, .19f), CorniceColor, CorniceOrder, parent, into);
+                Band("North cornice shadow " + node.Id, new Vector3(x0, y1 + 1.35f, 0), new Vector2(cx - half - .65f - x0, .09f), JointColor, CorniceShadowOrder, parent, into);
+                Band("North cornice shadow " + node.Id, new Vector3(cx + half + .65f, y1 + 1.35f, 0), new Vector2(x1 - cx - half - .65f, .09f), JointColor, CorniceShadowOrder, parent, into);
+            }
+            else
+            {
+                Band("North cornice " + node.Id, new Vector3(x0 - .15f, y1 + 1.45f, 0), new Vector2(node.Width + .3f, .19f), CorniceColor, CorniceOrder, parent, into);
+                Band("North cornice shadow " + node.Id, new Vector3(x0, y1 + 1.35f, 0), new Vector2(node.Width, .09f), JointColor, CorniceShadowOrder, parent, into);
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                float px = x0 + 2f + 6f * i;
+                if (nDoor && px > cx - half - .9f && px < cx + half + .9f)
+                    continue;
+                Band("North pier " + node.Id, new Vector3(px - .15f, y1, 0), new Vector2(.3f, 1.45f), PierColor, PierOrder, parent, into);
+                Band("North pier cap " + node.Id, new Vector3(px - .21f, y1 + 1.33f, 0), new Vector2(.42f, .13f), PierCapColor, PierCapOrder, parent, into);
+            }
+
+            // South edge: low plinth so the near silhouette stays readable.
+            if (sDoor)
+            {
+                Band("South plinth " + node.Id, new Vector3(x0, y0 - .45f, 0), new Vector2(cx - half - x0, .45f), PlinthColor, PlinthOrder, parent, into);
+                Band("South plinth " + node.Id, new Vector3(cx + half, y0 - .45f, 0), new Vector2(x1 - cx - half, .45f), PlinthColor, PlinthOrder, parent, into);
+                Band("South plinth top " + node.Id, new Vector3(x0, y0 - .08f, 0), new Vector2(cx - half - x0, .10f), PlinthTopColor, PlinthTopOrder, parent, into);
+                Band("South plinth top " + node.Id, new Vector3(cx + half, y0 - .08f, 0), new Vector2(x1 - cx - half, .10f), PlinthTopColor, PlinthTopOrder, parent, into);
+            }
+            else
+            {
+                Band("South plinth " + node.Id, new Vector3(x0, y0 - .45f, 0), new Vector2(node.Width, .45f), PlinthColor, PlinthOrder, parent, into);
+                Band("South plinth top " + node.Id, new Vector3(x0, y0 - .08f, 0), new Vector2(node.Width, .10f), PlinthTopColor, PlinthTopOrder, parent, into);
+            }
+
+            SideWall(node, 'W', x0, y0, wDoor, parent, into);
+            SideWall(node, 'E', x1, y0, eDoor, parent, into);
+
+            if(doorFurniture) PlaceDoorFurniture(node, doors, parent, into, doorArches);
+            // Each room rolls one decoration layout per run seed: fewer braziers,
+            // more floor dressing, and no two rooms read the same.
+            // Decoration layout: the precomputed step-aside roll when the maze
+            // floors were built, otherwise a fresh avalanche roll here. The plain
+            // XOR hash locked style/decor bit patterns together; DecorHash breaks
+            // that coupling so all layout numbers stay reachable.
+            int decor;
+            if (!DecorRolls.TryGetValue(node.Id, out decor))
+                decor = DecorHash(seed, node.Id.GetHashCode(), 307) % DecorStyleCount;
+            if (braziers)
+                if (node.Kind != MazeNodeKind.Altar) PlaceBraziers(node, decor, doors, parent, into);
+            if (node.Kind != MazeNodeKind.Altar) PlaceRubble(node, decor, doors, parent, into);
+        }
+
+        /// <summary>Number of distinct decoration layouts a room can roll.</summary>
+        public const int DecorStyleCount = 8;
+
+        static bool HasRim(List<DoorMark> doors, char rim)
+        {
+            for (int i = 0; i < doors.Count; i++)
+                if (doors[i].Rim == rim)
+                    return true;
+            return false;
+        }
+
+        /// <summary>True when the spot (with a small footprint pad) stands on kept
+        /// floor: outside every cut-corner rect of the room's walk shape. Only
+        /// S2/S3 combat rooms carry FloorVoids; everywhere else this is a no-op.</summary>
+        public static bool OnKeptFloor(MazeNode node, Vector2 world, float pad)
+        {
+            if (node == null || node.FloorVoids == null)
+                return true;
+            for (int i = 0; i < node.FloorVoids.Length; i++)
+            {
+                Rect r = node.FloorVoids[i];
+                if (world.x >= r.xMin - pad && world.x <= r.xMax + pad
+                    && world.y >= r.yMin - pad && world.y <= r.yMax + pad)
+                    return false;
+            }
+            return true;
+        }
+
+        /// <summary>Slides a decoration spot toward the room centre until it stands
+        /// on kept floor. Rooms that delete their corner tiles must not park
+        /// braziers, rubble or collapse piles on the missing floor.</summary>
+        public static Vector3 KeepOnFloor(MazeNode node, Vector3 spot, float pad)
+        {
+            if (OnKeptFloor(node, spot, pad))
+                return spot;
+            Vector2 c = new Vector2(node.Center.X, node.Center.Y);
+            Vector2 p = spot;
+            for (int i = 0; i < 32 && !OnKeptFloor(node, p, pad); i++)
+                p = Vector2.Lerp(p, c, .12f);
+            return p;
+        }
+
+        /// <summary>Narrow stone cutaway just outside the floor edge, from the south
+        /// rim up to the north cornice line; a door gap splits the strip in two.</summary>
+        static void SideWall(MazeNode node, char rim, float xEdge, float y0, bool door, Transform parent, List<GameObject> into)
+        {
+            float cx = node.Center.X;
+            float cy = node.Center.Y;
+            float half = DoorGap * 0.5f;
+            float top = node.Height + 1.45f;
+            float bx = rim == 'W' ? xEdge - .55f : xEdge;
+            float hx = rim == 'W' ? xEdge - .55f : xEdge;
+            string id = "" + rim + " " + node.Id;
+            if (door)
+            {
+                float lower = cy - half - y0;
+                float upper = top - lower - DoorGap;
+                Band(rim + " cutaway " + id, new Vector3(bx, y0, 0), new Vector2(.55f, lower), CutawayColor, CutawayOrder, parent, into);
+                Band(rim + " cutaway " + id, new Vector3(bx, cy + half, 0), new Vector2(.55f, upper), CutawayColor, CutawayOrder, parent, into);
+                Band(rim + " highlight " + id, new Vector3(hx, y0, 0), new Vector2(.10f, lower), HighlightColor, HighlightOrder, parent, into);
+                Band(rim + " highlight " + id, new Vector3(hx, cy + half, 0), new Vector2(.10f, upper), HighlightColor, HighlightOrder, parent, into);
+                Joints(rim + " joint " + id, bx, y0, Mathf.FloorToInt(lower), parent, into);
+                Joints(rim + " joint " + id, bx, cy + half, Mathf.FloorToInt(upper), parent, into);
+            }
+            else
+            {
+                Band(rim + " cutaway " + id, new Vector3(bx, y0, 0), new Vector2(.55f, top), CutawayColor, CutawayOrder, parent, into);
+                Band(rim + " highlight " + id, new Vector3(hx, y0, 0), new Vector2(.10f, top), HighlightColor, HighlightOrder, parent, into);
+                Joints(rim + " joint " + id, bx, y0, Mathf.FloorToInt(top), parent, into);
+            }
+        }
+
+        public static void Joints(string name, float x, float y0, int count, Transform parent, List<GameObject> into)
+        {
+            for (int j = 0; j < count; j++)
+                Band(name, new Vector3(x, y0 + j, 0), new Vector2(.55f, .03f), JointColor, JointOrder, parent, into);
+        }
+
+        /// <summary>Stone-framed oak doors, with stationary ground-space hinges
+        /// and independent projections for all four room rims.</summary>
+        static void PlaceDoorFurniture(MazeNode node, List<DoorMark> doors, Transform parent, List<GameObject> into, List<GameObject> doorArches)
+        {
+            for (int i = 0; i < doors.Count; i++)
+            {
+                DoorMark door = doors[i];
+                float cx = node.Center.X;
+                float cy = node.Center.Y;
+                float x0 = node.Center.X - node.Width * 0.5f;
+                float x1 = node.Center.X + node.Width * 0.5f;
+                float y0 = node.Center.Y - node.Height * 0.5f;
+                float y1 = node.Center.Y + node.Height * 0.5f;
+                Vector3 gatePos;
+                switch (door.Rim)
+                {
+                    case 'N': gatePos = new Vector3(cx, y1, 0); break;
+                    case 'S': gatePos = new Vector3(cx, y0, 0); break;
+                    case 'E': gatePos = new Vector3(x1, cy, 0); break;
+                    default: gatePos = new Vector3(x0, cy, 0); break;
+                }
+
+                var gateGo = new GameObject("Door_" + node.Id + "_" + door.Rim);
+                gateGo.transform.SetParent(parent, false);
+                gateGo.transform.position = gatePos;
+                var gate = gateGo.AddComponent<Stage1DoorGate>();
+                bool side = door.Rim == 'E' || door.Rim == 'W';
+                if (side || DoorGap <= 6f)
+                {
+                    var view = gateGo.AddComponent<Stage1SlidingDoorView>();
+                    view.Initialize(door.Rim, DoorGap, !side && DoorGap < 3f,
+                        Resources.Load<Texture2D>(Stage1HingedDoorView.TextureResource));
+                    view.SetPoseImmediate(1f);
+                    gate.SlidingView = view;
+                }
+                else
+                {
+                    var view = gateGo.AddComponent<Stage1HingedDoorView>();
+                    view.Initialize(door.Rim, DoorGap);
+                    gate.HingedView = view;
+                }
+                into.Add(gateGo);
+                if (doorArches != null)
+                    doorArches.Add(gateGo);
+            }
+        }
+
+        /// <summary>Door sheet canvas width: 551 px at PPU 128 spans 4.30 world units.</summary>
+        public const float SheetWidth = 4.30f;
+        /// <summary>The sheet scales so the leaf band (leaves plus the outer pocket
+        /// tabs) spans the corridor width exactly.</summary>
+        public const float DoorScale = MazeRules.CorridorWidth / SheetWidth;
+        /// <summary>Door anchor offset from the rim line: the back leaf rides 0.22
+        /// units above its pivot at scale 1, so this keeps the closed band along the
+        /// floor line and the parked leaves planted on it.</summary>
+        public const float DoorPivotY = 0.22f * DoorScale;
+
+        static readonly Dictionary<string, Sprite[]> DoorClips = new Dictionary<string, Sprite[]>();
+
+        static Sprite[] DoorClip(string clip)
+        {
+            Sprite[] frames;
+            if (DoorClips.TryGetValue(clip, out frames) && frames != null && frames.Length > 0)
+                return frames;
+            frames = new Sprite[4];
+            for (int i = 0; i < 4; i++)
+                frames[i] = Load("Assets/Art/JianHai/Iso/Props/DoorClose/jh_iso_prop_door_" + clip + "_" + i.ToString("00") + ".png");
+            DoorClips[clip] = frames;
+            return frames;
+        }
+
+        /// <summary>Chest / altar / gate props with feet on the tiles, each with its
+        /// sample-style contact shadow parented to the prop. Returns the prop object.</summary>
         public static GameObject BuildProp(MazeNode node, Transform parent)
         {
             if (node.Kind == MazeNodeKind.Chest || node.Kind == MazeNodeKind.LargeChest)
             {
                 Vector3 anchor = NearestRoomCellCenter(node);
-                return Place("Chest_" + node.Id, anchor, Load(PropRoot + "chest_closed_00.png"), WallOrder, false, parent);
+                var chest = Place("Chest_" + node.Id, anchor, Load(PropRoot + (node.Kind==MazeNodeKind.LargeChest?"chest_large_closed_00.png":"chest_closed_00.png")), PropOrder, false, parent);
+                ParentShadow(chest, anchor + Vector3.down * .1f, .9f, .3f, "Chest shadow " + node.Id);
+                return chest;
             }
             if (node.Kind == MazeNodeKind.Altar)
             {
                 Vector3 pivot = AltarPivot(node);
-                return Place("Altar_" + node.Id, pivot, Load(PropRoot + "altar_00.png"), WallOrder, false, parent);
+                var altar = Place("Altar_" + node.Id, pivot, Load(PropRoot + "altar_00.png"), PropOrder, false, parent);
+                ParentShadow(altar, pivot + Vector3.down * .15f, 1.5f, .5f, "Altar shadow " + node.Id);
+                return altar;
             }
             if (node.Kind == MazeNodeKind.Connector)
             {
                 Vector3 center = new Vector3(node.Center.X, node.Center.Y, 0f);
-                return Place("GateHub_" + node.Id, center, Load(PropRoot + "gate_hub_00.png"), WallOrder, false, parent);
+                return Place("GateHub_" + node.Id, center, Load(PropRoot + "gate_hub_00.png"), PropOrder, false, parent);
             }
             return null;
+        }
+
+        /// <summary>A contact shadow that dies with its prop across run rebuilds.</summary>
+        static void ParentShadow(GameObject prop, Vector3 worldPos, float sx, float sy, string name)
+        {
+            GameObject shadow = PlaceMesh(name, worldPos, new Vector3(sx, sy, 1), SoftDiscMesh(), BandMaterial(ShadowColor), ShadowOrder, prop.transform.parent);
+            shadow.transform.SetParent(prop.transform, true);
         }
 
         public static void OpenChest(GameObject chest)
@@ -212,7 +701,8 @@ namespace RogueShooter.Demo
             if (chest == null)
                 return;
             var sr = chest.GetComponent<SpriteRenderer>();
-            Sprite open = Load(PropRoot + "chest_open_00.png");
+            bool large=sr!=null && sr.sprite!=null && sr.sprite.name.Contains("chest_large");
+            Sprite open = Load(PropRoot + (large?"chest_large_open_00.png":"chest_open_00.png"));
             if (sr != null && open != null)
                 sr.sprite = open;
         }
@@ -220,13 +710,28 @@ namespace RogueShooter.Demo
         public static Sprite ActorSprite(string family, bool moving, string facing, int frame, out bool flip)
         {
             string action = "idle";
-            int span = 3;
-            if (moving && (family == "archer" || family == "dog"))
+            int span = 4;
+            if (moving)
             {
                 action = "walk";
                 span = 6;
             }
             return ActorAction(family, action, facing, frame, span, out flip);
+        }
+
+        static readonly Dictionary<string, bool> CompleteActorClips = new Dictionary<string, bool>();
+        public static void InvalidateActorCache() { Cache.Clear(); CompleteActorClips.Clear(); Stage1PackedSprites.Invalidate(); }
+        public static bool HasActorClip(string family, string action, string facing, int span)
+        {
+            bool flip; string source = facing;
+            if (family != "archer" && !IsoFacing.TrySkeleton(facing, out source, out flip)) source = "s";
+            string key = family+":"+action+":"+source+":"+span;
+            if (CompleteActorClips.TryGetValue(key, out bool complete)) return complete;
+            complete = true;
+            for (int i = 0; i < span; i++)
+                if (LoadActor(family, action, source, i) == null) { complete = false; break; }
+            CompleteActorClips[key] = complete;
+            return complete;
         }
 
         public static Sprite ActorAction(string family, string action, string facing, int frame, int span, out bool flip)
@@ -241,11 +746,12 @@ namespace RogueShooter.Demo
                 span = 1;
             int f = frame < 0 ? 0 : frame;
             Sprite sprite = LoadActor(family, action, src, f % span);
-            if (sprite == null && action != "idle")
-                sprite = LoadActor(family, "idle", src, f % 3);
-            if (sprite == null)
-                sprite = LoadActor(family, "idle", src, 0);
-            return sprite;
+            if (sprite != null)
+                return sprite;
+            // A missing walk or attack frame must not flash idle in the middle of the clip.
+            if (action == "walk" || action == "atk" || action == "cast" || action.StartsWith("unshielded_"))
+                return null;
+            return LoadActor(family, "idle", src, 0);
         }
 
         public static Sprite RollSprite(string facing, int frame)
@@ -261,7 +767,7 @@ namespace RogueShooter.Demo
         public static Sprite ArrowFlySprite(int frame)
         {
             int index = frame < 0 ? 0 : frame % 2;
-            return Load("Assets/Art/JianHai/Iso/Projectiles/jh_iso_proj_arrow_fly_" + index.ToString("00") + ".png");
+            return Load("Assets/Art/JianHai/Iso/Projectiles/jh_iso_proj_arrow_slim_" + index.ToString("00") + ".png");
         }
 
         public static Sprite MageOrbSprite(int frame)
@@ -282,7 +788,7 @@ namespace RogueShooter.Demo
 
         // ---- cell math ----
 
-        static CellRect RectCells(MazeNode n)
+        public static CellRect RectCells(MazeNode n)
         {
             float x0 = n.Center.X - n.Width * 0.5f - MarginX;
             float x1 = n.Center.X + n.Width * 0.5f + MarginX;
@@ -297,7 +803,7 @@ namespace RogueShooter.Demo
             };
         }
 
-        static Vector3 CellCenter(int u, int v)
+        public static Vector3 CellCenter(int u, int v)
         {
             return new Vector3((u - v) * 0.5f, (u + v) * 0.25f + 0.25f, 0f);
         }
@@ -307,87 +813,12 @@ namespace RogueShooter.Demo
             return ((long)p << 32) | (uint)q;
         }
 
-        static int WrapIndex(int value, int mod)
-        {
-            int r = value % mod;
-            return r < 0 ? r + mod : r;
-        }
-
         // ---- floors ----
 
-        /// <summary>
-        /// Field is room stone. Chest and altar keep a pad of their own tiles
-        /// so the room reads. Not one repeating set across every cell.
-        /// </summary>
-        static Tile FloorForCell(MazeNode n, int p, int q, CellRect rc, Tile[] room, Tile[] chest, Tile[] altar)
-        {
-            Vector3 world = CellCenter((p + q) / 2, (q - p) / 2);
-            if ((n.Kind == MazeNodeKind.Chest || n.Kind == MazeNodeKind.LargeChest) && chest != null && chest.Length > 0)
-            {
-                Vector3 anchor = NearestRoomCellCenter(n);
-                if ((world - anchor).sqrMagnitude <= 2.6f * 2.6f)
-                    return chest[CellHash(p, q, 1) % chest.Length];
-            }
-            if (n.Kind == MazeNodeKind.Altar && altar != null && altar.Length > 0)
-            {
-                Vector3 pivot = AltarPivot(n);
-                if ((world - pivot).sqrMagnitude <= 2.8f * 2.8f)
-                    return altar[CellHash(p, q, 2) % altar.Length];
-            }
-
-            if (room == null || room.Length == 0)
-                return null;
-            bool rim = p - rc.PMin <= 2 || rc.PMax - p <= 2 || q - rc.QMin <= 2 || rc.QMax - q <= 2;
-            int patch = CellHash(p / 5, q / 5, n.Id.GetHashCode());
-            if (rim)
-                return room[patch % 2];
-            int speck = CellHash(p, q, n.Id.GetHashCode());
-            if (room.Length >= 4 && (speck % 5) == 0)
-                return room[2 + (speck % 2)];
-            return room[patch % room.Length];
-        }
-
-        static int CellHash(int a, int b, int salt)
-        {
-            unchecked
-            {
-                int h = a * 73856093 ^ b * 19349663 ^ salt * 83492791;
-                return h & 0x7fffffff;
-            }
-        }
-
-        static Tile[] FloorTiles(MazeNodeKind kind)
-        {
-            switch (kind)
-            {
-                case MazeNodeKind.Chest:
-                case MazeNodeKind.LargeChest:
-                    return new[]
-                    {
-                        MakeTile(FloorRoot + "chest_00.png"),
-                        MakeTile(FloorRoot + "chest_01.png"),
-                        MakeTile(FloorRoot + "chest_02.png"),
-                    };
-                case MazeNodeKind.Altar:
-                    return new[]
-                    {
-                        MakeTile(FloorRoot + "altar_00.png"),
-                        MakeTile(FloorRoot + "altar_01.png"),
-                        MakeTile(FloorRoot + "altar_02.png"),
-                    };
-                default:
-                    return new[]
-                    {
-                        MakeTile(FloorRoot + "room_00.png"),
-                        MakeTile(FloorRoot + "room_01.png"),
-                        MakeTile(FloorRoot + "room_02.png"),
-                        MakeTile(FloorRoot + "room_03.png"),
-                    };
-            }
-        }
-
+        /// <summary>Corridor floor: same quiet stone, light route strip along the
+        /// centre line, cracks only near the side walls.</summary>
         static void CoverCorridorSegment(Vector2 a, Vector2 b, Stage1Maze maze, HashSet<long> owned,
-            List<Vector3Int> positions, List<TileBase> tiles, Tile[] corridorTiles)
+            List<Vector3Int> positions, List<TileBase> tiles, List<Color> colors, Tile clean, Tile worn, Tile crack)
         {
             float reach = 4.15f + 0.56f;
             Vector2 min = Vector2.Min(a, b);
@@ -406,18 +837,31 @@ namespace RogueShooter.Demo
                     if (owned.Contains(id))
                         continue;
                     Vector2 c = new Vector2(p * 0.5f, (q + 1) * 0.25f);
-                    if (DistToSegment(c, a, b) > reach)
+                    float perp = DistToSegment(c, a, b);
+                    if (perp > reach)
                         continue;
                     if (InsideAnyRoom(maze, c))
                         continue;
                     owned.Add(id);
+                    int h = Hash(p, q, 3) % 100;
+                    Tile tile = h < 92 ? clean : worn;
+                    if (perp > 2.55f && h > 93)
+                        tile = crack;
+                    float value = .80f + .10f * Mathf.PerlinNoise(c.x * .17f + 17f, c.y * .17f + 29f);
+                    Color color = new Color(value * .96f, value * .99f, value);
+                    if (perp < 1.5f)
+                    {
+                        tile = clean;
+                        color = RouteColor;
+                    }
                     positions.Add(new Vector3Int((p + q) / 2, (q - p) / 2, 0));
-                    tiles.Add(corridorTiles[CellHash(p, q, 3) % corridorTiles.Length]);
+                    tiles.Add(tile);
+                    colors.Add(color);
                 }
             }
         }
 
-        static bool InsideAnyRoom(Stage1Maze maze, Vector2 c)
+        public static bool InsideAnyRoom(Stage1Maze maze, Vector2 c)
         {
             for (int i = 0; i < maze.Nodes.Length; i++)
             {
@@ -441,16 +885,28 @@ namespace RogueShooter.Demo
 
         // ---- walls ----
 
-        static List<DoorMark> CollectDoors(MazeNode node, Stage1Maze maze)
+        public static List<DoorMark> CollectDoors(MazeNode node, Stage1Maze maze)
         {
             var doors = new List<DoorMark>();
             for (int i = 0; i < maze.Edges.Length; i++)
             {
                 MazeEdge e = maze.Edges[i];
-                if (e.FromId == node.Id)
-                    doors.Add(MakeDoor(node, e.From));
-                else if (e.ToId == node.Id)
-                    doors.Add(MakeDoor(node, e.To));
+                if (e.FromId != node.Id && e.ToId != node.Id)
+                    continue;
+                DoorMark mark = MakeDoor(node, e.FromId == node.Id ? e.From : e.To);
+                // Fork arms can share one doorway on the same rim; the rim gets
+                // one door, not a stack of identical gates drawn over each other.
+                bool rimSeen = false;
+                for (int d = 0; d < doors.Count; d++)
+                {
+                    if (doors[d].Rim == mark.Rim)
+                    {
+                        rimSeen = true;
+                        break;
+                    }
+                }
+                if (!rimSeen)
+                    doors.Add(mark);
             }
             return doors;
         }
@@ -463,276 +919,407 @@ namespace RogueShooter.Demo
             return new DoorMark { Point = new Vector2(point.X, point.Y), Rim = rim };
         }
 
-        // Bit flags for the cap edge on a rim cell.
-        const int CapNE = 1;
-        const int CapSE = 2;
-        const int CapSW = 4;
-        const int CapNW = 8;
+        // ---- sample vocabulary pieces ----
 
-        /// <summary>The door hole spans two rim cells; the rim edge next to the
-        /// hole on each side is replaced by an end cap. Bit flags name the capped edge.</summary>
-        static void MarkHole(CellRect rc, DoorMark door, HashSet<long> holes, Dictionary<long, int> caps)
+        /// <summary>Corridor shells between rooms: the far side of a horizontal run
+        /// carries the masonry face with cornice and foot, the near side a low plinth;
+        /// vertical runs get cutaway strips on both sides. Ends butt against the room
+        /// walls. S1 templates only emit straight door-to-door runs; folded legs would
+        /// still paint per-leg without corner clipping.</summary>
+        public static void BuildCorridorShell(Stage1Maze maze, Transform parent, List<GameObject> into)
         {
-            if (door.Rim == 'E' || door.Rim == 'W')
+            if (maze == null || maze.Edges == null)
+                return;
+            for (int e = 0; e < maze.Edges.Length; e++)
             {
-                int p = door.Rim == 'E' ? rc.PMax : rc.PMin;
-                int qDoor = Mathf.RoundToInt(4f * door.Point.y - 1f);
-                int q0 = SnapToParity(qDoor, p);
-                int first, second, capBefore, capAfter;
-                if (door.Rim == 'E')
+                MazeEdge edge = maze.Edges[e];
+                MazeVec2[] pts = edge.Points;
+                if (pts == null || pts.Length < 2)
+                    pts = new[] { edge.From, edge.To };
+                for (int s = 0; s < pts.Length - 1; s++)
                 {
-                    first = q0; second = q0 + 2; capBefore = q0 - 2; capAfter = q0 + 4;
-                    AddHole(holes, p, first, rc);
-                    AddHole(holes, p, second, rc);
-                    AddCap(caps, p, capBefore, rc, CapNE);
-                    AddCap(caps, p, capAfter, rc, CapSE);
-                }
-                else
-                {
-                    first = q0 - 2; second = q0; capBefore = q0 - 4; capAfter = q0 + 2;
-                    AddHole(holes, p, first, rc);
-                    AddHole(holes, p, second, rc);
-                    AddCap(caps, p, capBefore, rc, CapNW);
-                    AddCap(caps, p, capAfter, rc, CapSW);
-                }
-            }
-            else
-            {
-                int q = door.Rim == 'S' ? rc.QMin : rc.QMax;
-                int pDoor = Mathf.RoundToInt(2f * door.Point.x);
-                int p0 = SnapToParity(pDoor, q);
-                int first, second, capBefore, capAfter;
-                if (door.Rim == 'S')
-                {
-                    first = p0; second = p0 + 2; capBefore = p0 - 2; capAfter = p0 + 4;
-                    AddHole(holes, first, q, rc);
-                    AddHole(holes, second, q, rc);
-                    AddCap(caps, capBefore, q, rc, CapSE);
-                    AddCap(caps, capAfter, q, rc, CapSW);
-                }
-                else
-                {
-                    first = p0 - 2; second = p0; capBefore = p0 - 4; capAfter = p0 + 2;
-                    AddHole(holes, first, q, rc);
-                    AddHole(holes, second, q, rc);
-                    AddCap(caps, capBefore, q, rc, CapNE);
-                    AddCap(caps, capAfter, q, rc, CapNW);
-                }
-            }
-        }
-
-        static void AddHole(HashSet<long> set, int p, int q, CellRect rc)
-        {
-            if (p < rc.PMin || p > rc.PMax || q < rc.QMin || q > rc.QMax)
-                return;
-            if (((p + q) & 1) != 0)
-                return;
-            set.Add(Pack(p, q));
-        }
-
-        static void AddCap(Dictionary<long, int> caps, int p, int q, CellRect rc, int flag)
-        {
-            if (p < rc.PMin || p > rc.PMax || q < rc.QMin || q > rc.QMax)
-                return;
-            if (((p + q) & 1) != 0)
-                return;
-            long id = Pack(p, q);
-            int mask;
-            caps.TryGetValue(id, out mask);
-            caps[id] = mask | flag;
-        }
-
-        /// <summary>Snaps a coordinate to the parity used by the given rim so it names a real cell.</summary>
-        static int SnapToParity(int value, int rimCoord)
-        {
-            return Mathf.Abs(value - rimCoord) % 2 == 0 ? value : value - 1;
-        }
-
-        // Piece anchors follow the accepted art: tall wall_l / end_l pivots sit on
-        // the lower-right end of their "\" edge (E or S vertex); wall_r / end_r on
-        // the left end of their "/" edge (S or W vertex); low pieces pivot on the
-        // cell centre whose own SW / SE edge is the boundary.
-        static void PlaceRimEdges(CellRect rc, int u, int v, int p, int q,
-            bool hole, int capMask, Transform parent, List<GameObject> into)
-        {
-            // NE edge: neighbour (u+1, v). E rim when p+1 exceeds, else N rim.
-            if (q + 1 > rc.QMax || p + 1 > rc.PMax)
-            {
-                if (p + 1 > rc.PMax)
-                {
-                    // Far (E) rim: tall wall_l anchored on the edge's E vertex.
-                    if (!hole)
+                    Vector2 a = new Vector2(pts[s].X, pts[s].Y);
+                    Vector2 b = new Vector2(pts[s + 1].X, pts[s + 1].Y);
+                    string id = edge.FromId + "--" + edge.ToId;
+                    if (Mathf.Abs(b.y - a.y) < 0.51f)
                     {
-                        if ((capMask & CapNE) != 0)
-                            PlaceTall(EndL, u, v, 0.5f, 0f, parent, into);
-                        else
-                            PlaceTall(WallL, u, v, 0.5f, 0f, parent, into);
+                        float y = a.y;
+                        float xa = Mathf.Min(a.x, b.x);
+                        float xb = Mathf.Max(a.x, b.x);
+                        MasonryBays("Corridor north " + id, xa, y + 4f, xb - xa, parent, into);
+                        Band("Corridor cornice " + id, new Vector3(xa - .15f, y + 5.45f, 0), new Vector2(xb - xa + .3f, .19f), CorniceColor, CorniceOrder, parent, into);
+                        Band("Corridor cornice shadow " + id, new Vector3(xa, y + 5.35f, 0), new Vector2(xb - xa, .09f), JointColor, CorniceShadowOrder, parent, into);
+                        Band("Corridor foot " + id, new Vector3(xa, y + 3.83f, 0), new Vector2(xb - xa, .18f), FootColor, FootOrder, parent, into);
+                        Band("Corridor plinth " + id, new Vector3(xa, y - 4.45f, 0), new Vector2(xb - xa, .45f), PlinthColor, PlinthOrder, parent, into);
+                        Band("Corridor plinth top " + id, new Vector3(xa, y - 4.08f, 0), new Vector2(xb - xa, .10f), PlinthTopColor, PlinthTopOrder, parent, into);
+                    }
+                    else
+                    {
+                        float x = a.x;
+                        float ya = Mathf.Min(a.y, b.y);
+                        float yb = Mathf.Max(a.y, b.y);
+                        float len = yb - ya;
+                        Band("Corridor west cutaway " + id, new Vector3(x - 4.55f, ya, 0), new Vector2(.55f, len), CutawayColor, CutawayOrder, parent, into);
+                        Band("Corridor west highlight " + id, new Vector3(x - 4.55f, ya, 0), new Vector2(.10f, len), HighlightColor, HighlightOrder, parent, into);
+                        Joints("Corridor west joint " + id, x - 4.55f, ya, Mathf.FloorToInt(len), parent, into);
+                        Band("Corridor east cutaway " + id, new Vector3(x + 4f, ya, 0), new Vector2(.55f, len), CutawayColor, CutawayOrder, parent, into);
+                        Band("Corridor east highlight " + id, new Vector3(x + 4f, ya, 0), new Vector2(.10f, len), HighlightColor, HighlightOrder, parent, into);
+                        Joints("Corridor east joint " + id, x + 4f, ya, Mathf.FloorToInt(len), parent, into);
                     }
                 }
-                else if (!hole)
-                {
-                    // Near (N) rim: low_l on the outside cell whose SW edge is the boundary.
-                    if ((capMask & CapNE) != 0)
-                        PlaceLow(LowEndL, u + 1, v, parent, into);
-                    else
-                        PlaceLow(LowL, u + 1, v, parent, into);
-                }
-            }
-
-            // SE edge: neighbour (u, v-1). S rim when q-1 undershoots, else E rim.
-            if (q - 1 < rc.QMin || p + 1 > rc.PMax)
-            {
-                if (!hole)
-                {
-                    // Tall wall_r / end_r anchored on the edge's S vertex.
-                    if ((capMask & CapSE) != 0)
-                        PlaceTall(EndR, u, v, 0f, -0.25f, parent, into);
-                    else
-                        PlaceTall(WallR, u, v, 0f, -0.25f, parent, into);
-                }
-            }
-
-            // SW edge: neighbour (u-1, v). W rim when p-1 undershoots, else S rim.
-            if (p - 1 < rc.PMin || q - 1 < rc.QMin)
-            {
-                if (p - 1 < rc.PMin)
-                {
-                    if (!hole)
-                    {
-                        // Near (W) rim: low_l on the floored cell's own centre.
-                        if ((capMask & CapSW) != 0)
-                            PlaceLow(LowEndL, u, v, parent, into);
-                        else
-                            PlaceLow(LowL, u, v, parent, into);
-                    }
-                }
-                else if (!hole)
-                {
-                    // Far (S) rim: tall wall_l anchored on the edge's S vertex.
-                    if ((capMask & CapSW) != 0)
-                        PlaceTall(EndL, u, v, 0f, -0.25f, parent, into);
-                    else
-                        PlaceTall(WallL, u, v, 0f, -0.25f, parent, into);
-                }
-            }
-
-            // NW edge: neighbour (u, v+1). N rim when q+1 exceeds, else W rim.
-            if (q + 1 > rc.QMax || p - 1 < rc.PMin)
-            {
-                if (!hole)
-                {
-                    // Near rims: low_r on the outside cell whose SE edge is the boundary.
-                    if ((capMask & CapNW) != 0)
-                        PlaceLow(LowEndR, u, v + 1, parent, into);
-                    else
-                        PlaceLow(LowR, u, v + 1, parent, into);
-                }
             }
         }
 
-        static void PlaceTall(string[] variants, int u, int v, float ox, float oy, Transform parent, List<GameObject> into)
+        public static void MasonryBays(string name, float x, float y, float w, Transform parent, List<GameObject> into)
         {
-            int idx = WrapIndex(u + v, variants.Length);
-            Vector3 pos = CellCenter(u, v) + new Vector3(ox, oy, 0f);
-            into.Add(Place("Wall", pos, Load(WallRoot + variants[idx] + ".png"), WallOrder, false, parent));
-        }
-
-        static void PlaceLow(string[] variants, int u, int v, Transform parent, List<GameObject> into)
-        {
-            int idx = WrapIndex(u + v, variants.Length);
-            Vector3 pos = CellCenter(u, v);
-            into.Add(Place("LowWall", pos, Load(WallRoot + variants[idx] + ".png"), WallOrder, false, parent));
-        }
-
-        static readonly string[] WallL = { "l_00", "l_01", "l_02" };
-        static readonly string[] WallR = { "r_00", "r_01", "r_02" };
-        static readonly string[] LowL = { "low_l_00" };
-        static readonly string[] LowR = { "low_r_00" };
-        static readonly string[] EndL = { "end_l_00" };
-        static readonly string[] EndR = { "end_r_00" };
-        static readonly string[] LowEndL = { "low_end_l_00" };
-        static readonly string[] LowEndR = { "low_end_r_00" };
-
-        /// <summary>Back-side doors get the tall arch (door_r on the S rim,
-        /// door_l on the E rim) anchored at the centre of the 2-cell hole span,
-        /// matching the wall-piece anchor convention. Near-side doors stay open.</summary>
-        static void PlaceDoorArches(MazeNode node, CellRect rc, List<DoorMark> doors, Transform parent, List<GameObject> into)
-        {
-            for (int i = 0; i < doors.Count; i++)
-            {
-                DoorMark door = doors[i];
-                if (door.Rim == 'S')
-                {
-                    int p0 = SnapToParity(Mathf.RoundToInt(2f * door.Point.x), rc.QMin);
-                    Vector3 pos = new Vector3(p0 * 0.5f + 0.5f, (rc.QMin + 1) * 0.25f, 0f);
-                    into.Add(Place("Door_" + node.Id + "_S", pos, Load(WallRoot + "door_r_00.png"), WallOrder, false, parent));
-                }
-                else if (door.Rim == 'E')
-                {
-                    int q0 = SnapToParity(Mathf.RoundToInt(4f * door.Point.y - 1f), rc.PMax);
-                    Vector3 pos = new Vector3(rc.PMax * 0.5f, (q0 + 2) * 0.25f, 0f);
-                    into.Add(Place("Door_" + node.Id + "_E", pos, Load(WallRoot + "door_l_00.png"), WallOrder, false, parent));
-                }
-            }
-        }
-
-        /// <summary>Inner corner at the far (S-E) corner: replaces the two wall
-        /// pieces on the corner cell's SW + SE edges.</summary>
-        static void PlaceCornerIn(CellRect rc, Transform parent, List<GameObject> into)
-        {
-            int pB = rc.PMax - 1;
-            int qB = rc.QMin;
-            if (((pB + qB) & 1) != 0)
+            if (w < 0.05f)
                 return;
-            Vector3 pos = CellCenter((pB + qB) / 2, (qB - pB) / 2) + new Vector3(0f, -0.25f, 0f);
-            into.Add(Place("CornerIn", pos, Load(WallRoot + "corner_in_00.png"), WallOrder, false, parent));
-        }
-
-        // Platform edges on the near rims (N and W): hang below the floor rim.
-        static void PlaceEdgeRow(CellRect rc, char rim, Transform parent, List<GameObject> into)
-        {
-            if (rim == 'N')
+            int count = Mathf.Max(1, Mathf.RoundToInt(w / 1.4f));
+            float bw = w / count;
+            for (int i = 0; i < count; i++)
             {
-                int q = rc.QMax + 1;
-                for (int p = rc.PMin + 1; p <= rc.PMax - 1; p++)
-                {
-                    if (((p + q) & 1) != 0)
-                        continue;
-                    Vector3 pos = CellCenter((p + q) / 2, (q - p) / 2);
-                    into.Add(Place("Edge", pos, Load(EdgeRoot + "r_00.png"), WallOrder, false, parent));
-                }
-            }
-            else
-            {
-                int p = rc.PMin - 1;
-                for (int q = rc.QMin + 1; q <= rc.QMax - 1; q++)
-                {
-                    if (((p + q) & 1) != 0)
-                        continue;
-                    Vector3 pos = CellCenter((p + q) / 2, (q - p) / 2);
-                    into.Add(Place("Edge", pos, Load(EdgeRoot + "l_00.png"), WallOrder, false, parent));
-                }
+                GameObject go = PlaceMesh(name + " " + i, new Vector3(x + bw * i, y, 0), new Vector3(bw, 1.45f, 1), MasonryFaceMesh(), ContinuousMasonry(), BayOrder, parent);
+                into.Add(go);
             }
         }
 
-        static void PlaceRubble(MazeNode node, CellRect rc, int seed, Transform parent, List<GameObject> into)
+        public static void Band(string name, Vector3 at, Vector2 size, Color color, int order, Transform parent, List<GameObject> into)
         {
-            var rng = new System.Random(seed * 31 + node.Id.GetHashCode());
-            string[] decals = { "rubble_00", "rubble_01" };
+            if (size.x < 0.05f || size.y < 0.05f)
+                return;
+            GameObject go = PlaceMesh(name, at, new Vector3(size.x, size.y, 1), QuadMesh(), BandMaterial(color), order, parent);
+            into.Add(go);
+        }
+
+        public static GameObject PlaceMesh(string name, Vector3 at, Vector3 scale, Mesh mesh, Material material, int order, Transform parent)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = at;
+            go.transform.localScale = scale;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = material;
+            mr.sortingOrder = order;
+            return go;
+        }
+
+        public static Mesh QuadMesh()
+        {
+            if (_quad != null)
+                return _quad;
+            _quad = new Mesh();
+            _quad.vertices = new[] { Vector3.zero, Vector3.right, new Vector3(1, 1), Vector3.up };
+            _quad.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            _quad.RecalculateBounds();
+            return _quad;
+        }
+
+        /// <summary>Opaque painted face inside the source wall tile, the same UV cut
+        /// the sample room uses, so the transparent silhouette never shows.</summary>
+        static Mesh MasonryFaceMesh()
+        {
+            if (_masonryFace != null)
+                return _masonryFace;
+            _masonryFace = new Mesh();
+            _masonryFace.vertices = new[] { Vector3.zero, Vector3.right, new Vector3(1, 1), Vector3.up };
+            _masonryFace.uv = new[]
+            {
+                new Vector2(4f / 128, 1 - 180f / 256), new Vector2(60f / 128, 1 - 208f / 256),
+                new Vector2(60f / 128, 1 - 56f / 256), new Vector2(4f / 128, 1 - 28f / 256)
+            };
+            var tint = new Color(.75f, .80f, .86f);
+            _masonryFace.colors = new[] { tint, tint, tint, tint };
+            _masonryFace.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            _masonryFace.RecalculateBounds();
+            return _masonryFace;
+        }
+
+        public static Material ContinuousMasonry()
+        {
+            Material mat;
+            if (!BandMaterials.TryGetValue(Color.white, out mat))
+            {
+                mat = new Material(Shader.Find("Sprites/Default"));
+                mat.mainTexture = Load(WallRoot + "l_01.png").texture;
+                BandMaterials[Color.white] = mat;
+            }
+            return mat;
+        }
+
+        public static Material BandMaterial(Color color)
+        {
+            Material mat;
+            if (!BandMaterials.TryGetValue(color, out mat))
+            {
+                mat = new Material(Shader.Find("Sprites/Default"));
+                mat.color = color;
+                BandMaterials[color] = mat;
+            }
+            return mat;
+        }
+
+        public static Mesh SoftDiscMesh()
+        {
+            if (_softDisc != null)
+                return _softDisc;
+            _softDisc = new Mesh();
+            var vertices = new List<Vector3> { Vector3.zero };
+            var colors = new List<Color> { Color.white };
+            var triangles = new List<int>();
+            for (int i = 0; i <= 32; i++)
+            {
+                float a = i * Mathf.PI * 2 / 32;
+                vertices.Add(new Vector3(Mathf.Cos(a), Mathf.Sin(a)));
+                colors.Add(new Color(1, 1, 1, 0));
+                if (i > 0)
+                {
+                    triangles.Add(0);
+                    triangles.Add(i);
+                    triangles.Add(i + 1);
+                }
+            }
+            _softDisc.SetVertices(vertices);
+            _softDisc.SetColors(colors);
+            _softDisc.SetTriangles(triangles, 0);
+            _softDisc.RecalculateBounds();
+            return _softDisc;
+        }
+
+        public static void Disc(string name, Vector3 at, float x, float y, Color tint, int order, Transform parent, List<GameObject> into)
+        {
+            GameObject go = PlaceMesh(name, at, new Vector3(x, y, 1), SoftDiscMesh(), BandMaterial(tint), order, parent);
+            into.Add(go);
+        }
+
+        /// <summary>Two braziers per room, placed from the room's decoration roll:
+        /// gate torches on the north, south, east or west rim, diagonal court
+        /// corners (NE+SW or NW+SE), a staggered side pair, or a south court
+        /// pair. Every layout keeps clear of the door axes and the spawn court.</summary>
+        static void PlaceBraziers(MazeNode node, int variant, List<DoorMark> doors, Transform parent, List<GameObject> into)
+        {
+            float cx = node.Center.X;
+            float cy = node.Center.Y;
+            // Mostly rolled as gate torches: the pair flanks one of the room's door
+            // mouths at its jamb line, complementing the stone-framed doors. Rooms
+            // without a door on the rolled rim fall back to the quiet court pair.
+            float half = DoorGap * 0.5f;
+            float cxEdge = node.Width * 0.5f, cyEdge = node.Height * 0.5f;
+            Vector3[] spots = null;
+            if (variant == 0 && HasRim(doors, 'N'))
+                spots = new[] { new Vector3(cx - half - 1.4f, cy + cyEdge - 1.0f, 0), new Vector3(cx + half + 1.4f, cy + cyEdge - 1.0f, 0) };
+            else if (variant == 1 && HasRim(doors, 'S'))
+                spots = new[] { new Vector3(cx - half - 1.4f, cy - cyEdge + 1.0f, 0), new Vector3(cx + half + 1.4f, cy - cyEdge + 1.0f, 0) };
+            else if ((variant == 2 || variant == 3) && (HasRim(doors, 'E') || HasRim(doors, 'W')))
+            {
+                // Variants 2 and 3 flank opposite side rims when both doors exist.
+                bool isE = variant == 2 ? HasRim(doors, 'E') : !HasRim(doors, 'E');
+                float x = isE ? cx + cxEdge - 1.0f : cx - cxEdge + 1.0f;
+                spots = new[] { new Vector3(x, cy - half - 1.4f, 0), new Vector3(x, cy + half + 1.4f, 0) };
+            }
+            else if (variant == 4)
+                spots = new[] { new Vector3(cx + 8.5f, cy + 5.5f, 0), new Vector3(cx - 8.5f, cy - 5.5f, 0) };
+            else if (variant == 5)
+                spots = new[] { new Vector3(cx - 8.5f, cy + 5.5f, 0), new Vector3(cx + 8.5f, cy - 5.5f, 0) };
+            else if (variant == 6)
+                spots = new[] { new Vector3(cx - 10.5f, cy - 3.2f, 0), new Vector3(cx + 10.5f, cy + 3.2f, 0) };
+            else if (variant == 7)
+                spots = new[] { new Vector3(cx - 3f, cy - 5.5f, 0), new Vector3(cx + 3f, cy - 5.5f, 0) };
+            if (spots == null)
+                spots = new[] { new Vector3(cx - 3f, cy + 7.1f, 0), new Vector3(cx + 3f, cy + 7.1f, 0) };
+            // Corner-cut rooms (S2/S3) delete their corner tiles; a brazier that
+            // rolled onto a cut rect slides inboard onto the kept floor.
+            for (int i = 0; i < spots.Length; i++)
+                spots[i] = KeepOnFloor(node, spots[i], .55f);
+            for (int i = 0; i < spots.Length; i++)
+                Brazier(spots[i], parent, into);
+        }
+
+        public static void Brazier(Vector3 at, Transform parent, List<GameObject> into)
+        {
+            GameObject bowl = Place("Brazier", at, Load(PropRoot + "brazier_00.png"), PropOrder, false, parent);
+            into.Add(bowl);
+            Disc("Brazier shadow", at, .45f, .18f, ShadowColor, ShadowOrder, parent, into);
+            GameObject flame = Place("Living flame", at + Vector3.up * .55f, Load(FxRoot + "brazier_fire_00.png"), FlameOrder, false, parent);
+            var anim = flame.AddComponent<IsoBrazierFire>();
+            anim.Frames = FireClip("brazier_fire");
+            anim.FramesPerSecond = 8;
+            into.Add(flame);
+            Disc("Warm wash", at, 2.1f, 1f, WashColor, WashOrder, parent, into);
+        }
+
+        static Sprite[] FireClip(string key)
+        {
+            Sprite[] frames;
+            if (FireFrames.TryGetValue(key, out frames) && frames != null && frames.Length > 0)
+                return frames;
+            frames = new Sprite[6];
+            for (int i = 0; i < 6; i++)
+                frames[i] = Load(FxRoot + key + "_0" + i + ".png");
+            FireFrames[key] = frames;
+            return frames;
+        }
+
+        /// <summary>Per-layout dressing palettes: each decoration roll also draws
+        /// from its own prop theme (indices into the dressing id table), so two
+        /// layouts never share the same floor dressing vocabulary.</summary>
+        static readonly int[][] DressPalettes =
+        {
+            new[] { 0, 3, 5 },          // wall ring: banners, plinths, cracks
+            new[] { 4, 1, 2 },          // corners: bones, scrap, stubs
+            new[] { 0, 5, 3 },          // north/south rows: banners, cracks, plinths
+            new[] { 0, 1, 2, 3, 4, 5 }, // mid-field scatter: everything
+            new[] { 2, 1, 5 },          // columns: stubs, scrap, cracks
+            new[] { 4, 5, 1 },          // diagonal: bones, cracks, scrap
+            new[] { 3, 0, 4 },          // annulus: plinths, banners, bones
+            new[] { 5, 1, 3 },          // checker: cracks, scrap, plinths
+        };
+
+        /// <summary>Grouped rubble plus the delivered decal set (banner/scrap/stub/
+        /// plinth/bones/crack). The room's decoration roll rotates the cluster set
+        /// and picks one of eight dressing placements with its own prop theme, so
+        /// rooms differ at a glance; every layout keeps the spawn court, door axes
+        /// and walking routes clear.</summary>
+        static void PlaceRubble(MazeNode node, int variant, List<DoorMark> doors, Transform parent, List<GameObject> into)
+        {
+            // Cluster spots stay inside the room under every Turn() transform:
+            // |x| <= 10.5 and |y| <= 8 keep swapped coordinates inside the
+            // half-extents (14, 11) so no rubble leaks past the walls.
+            Vector2[] baseClusters =
+            {
+                new Vector2(-10.5f, 8f),
+                new Vector2(10f, 8f),
+                new Vector2(-10.5f, -7f),
+                new Vector2(10f, -8f),
+                new Vector2(-9.5f, 3f)
+            };
+            for (int c = 0; c < baseClusters.Length; c++)
+            {
+                Vector2 spot = Turn(baseClusters[c], variant);
+                // Pull the cluster anchor inboard when it rolled onto a deleted
+                // corner tile, so the whole group stays on kept floor.
+                Vector3 anchor = KeepOnFloor(node, new Vector3(node.Center.X + spot.x, node.Center.Y + spot.y, 0f), 1f);
+                for (int j = 0; j < 3; j++)
+                {
+                    Vector3 pos = new Vector3(anchor.x + j * .48f, anchor.y + (j % 2) * .32f, 0);
+                    GameObject go = Place("Rubble cluster " + c + "/" + j, pos,
+                        Load(DecalRoot + "rubble_0" + (j % 2) + ".png"), RubbleOrder, false, parent);
+                    var sr = go.GetComponent<SpriteRenderer>();
+                    if (sr != null)
+                        sr.color = RubbleTint;
+                    into.Add(go);
+                }
+            }
+
+            string[] dressIds = { "banner_00", "scrap_00", "stub_00", "plinth_00", "bones_00", "crack_00" };
+            float lxEdge = node.Width * 0.5f;
+            float lyEdge = node.Height * 0.5f;
+            float half = DoorGap * 0.5f;
+            CellRect rc = RectCells(node);
             int placed = 0;
-            const int budget = 6;
-            for (int p = rc.PMin + 4; p <= rc.PMax - 4 && placed < budget; p += 2)
+            const int budget = 14;
+            int salt = node.Id.GetHashCode() + variant * 31;
+            for (int p = rc.PMin + 2; p <= rc.PMax - 2 && placed < budget; p++)
             {
-                for (int q = rc.QMin + 4; q <= rc.QMax - 4 && placed < budget; q += 2)
+                for (int q = rc.QMin + 2; q <= rc.QMax - 2 && placed < budget; q++)
                 {
                     if (((p + q) & 1) != 0)
                         continue;
-                    if (rng.Next(100) >= 7)
+                    int pick = Hash(p, q, salt) % 100;
+                    if (pick >= 13)
                         continue;
-                    Vector3 pos = CellCenter((p + q) / 2, (q - p) / 2);
-                    into.Add(Place("Rubble", pos, Load(DecalRoot + decals[rng.Next(2)] + ".png"), DecalOrder, false, parent));
-                    placed++;
+                    Vector3 world = CellCenter((p + q) / 2, (q - p) / 2);
+                    // Deleted corner tiles never receive floor dressing.
+                    if (!OnKeptFloor(node, world, .6f))
+                        continue;
+                    float lx = world.x - node.Center.X;
+                    float ly = world.y - node.Center.Y;
+                    // Keep the spawn court, the door mouths with their swing/slide
+                    // clearance, and the walking routes clear of floor dressing.
+                    if (Mathf.Abs(lx) < 3f && Mathf.Abs(ly) < 3f)
+                        continue;
+                    if (Mathf.Abs(ly) < 2.2f || Mathf.Abs(lx) < 2.2f)
+                        continue;
+                    if (HasRim(doors, 'N') && Mathf.Abs(lx) < half + 1.4f && ly > lyEdge - 4.6f)
+                        continue;
+                    if (HasRim(doors, 'S') && Mathf.Abs(lx) < half + 1.4f && ly < -lyEdge + 4.6f)
+                        continue;
+                    if (HasRim(doors, 'E') && Mathf.Abs(ly) < half + 1.4f && lx > lxEdge - 4.6f)
+                        continue;
+                    if (HasRim(doors, 'W') && Mathf.Abs(ly) < half + 1.4f && lx < -lxEdge + 4.6f)
+                        continue;
+                    switch (variant)
+                    {
+                        case 0: // Ring near the walls.
+                            if (Mathf.Abs(lx) < 9f && Mathf.Abs(ly) < 6.5f)
+                                continue;
+                            break;
+                        case 1: // Corner-heavy.
+                            if (Mathf.Abs(lx) < 7f || Mathf.Abs(ly) < 5f)
+                                continue;
+                            break;
+                        case 2: // North and south rows.
+                            if (Mathf.Abs(ly) < 6f)
+                                continue;
+                            break;
+                        case 3: // Scattered mid-field.
+                            if (Mathf.Abs(lx) > 11.5f || Mathf.Abs(ly) > 9f)
+                                continue;
+                            break;
+                        case 4: // East and west columns.
+                            if (Mathf.Abs(lx) < 6.5f)
+                                continue;
+                            break;
+                        case 5: // Diagonal swath from south-west to north-east.
+                            if (Mathf.Abs(lx - ly) > 5f)
+                                continue;
+                            break;
+                        case 6: // Mid-radius annulus between court and walls.
+                            {
+                                float rr = Mathf.Max(Mathf.Abs(lx) / 12f, Mathf.Abs(ly) / 9.5f);
+                                if (rr < .45f || rr > .8f)
+                                    continue;
+                                break;
+                            }
+                        default: // Coarse checkerboard scatter.
+                            {
+                                int cellA = Mathf.FloorToInt(lx * 0.34f + 100f);
+                                int cellB = Mathf.FloorToInt(ly * 0.34f + 100f);
+                                if (((cellA + cellB) & 1) != 0)
+                                    continue;
+                                break;
+                            }
+                    }
+                    int[] picks = DressPalettes[variant % DressPalettes.Length];
+                    int idx = picks[Hash(p, q, salt + 7) % picks.Length];
+                    GameObject go = Place("Dressing " + dressIds[idx], world,
+                        Load(DecalRoot + dressIds[idx] + ".png"), RubbleOrder, false, parent);
+                    if (go.GetComponent<SpriteRenderer>().sprite != null)
+                    {
+                        into.Add(go);
+                        placed++;
+                    }
+                    else
+                        Object.Destroy(go);
                 }
+            }
+        }
+
+        /// <summary>Rotates or mirrors a room-local spot by the decoration layout so
+        /// the same cluster set lands in different places from room to room; the
+        /// eight cases cover every axis-aligned transform of the cluster set.</summary>
+        static Vector2 Turn(Vector2 spot, int variant)
+        {
+            switch (variant)
+            {
+                case 1: return new Vector2(spot.y, -spot.x);    // quarter turn
+                case 2: return new Vector2(-spot.x, -spot.y);   // half turn
+                case 3: return new Vector2(-spot.y, spot.x);    // three-quarter turn
+                case 4: return new Vector2(-spot.x, spot.y);    // mirror east-west
+                case 5: return new Vector2(spot.x, -spot.y);    // mirror north-south
+                case 6: return new Vector2(spot.y, spot.x);      // transpose
+                case 7: return new Vector2(-spot.y, -spot.x);    // anti-transpose
+                default: return spot;
             }
         }
 
@@ -797,7 +1384,11 @@ namespace RogueShooter.Demo
             else if (family == "dog")
                 path = EnemyRoot + "Dog/jh_dog_" + action + "_" + facing + "_" + file + ".png";
             else if (family == "mage")
-                path = EnemyRoot + "Mage/jh_mage_idle_" + facing + "_" + file + ".png";
+                path = EnemyRoot + "Mage/jh_mage_" + action + "_" + facing + "_" + file + ".png";
+            else if (family == "shield")
+            {
+                path = EnemyRoot + "Shield/jh_shield_" + action + "_" + facing + "_" + file + ".png";
+            }
             else
                 path = EnemyRoot + "Skel/jh_skel_" + action + "_" + facing + "_" + file + ".png";
             return Load(path);
@@ -810,10 +1401,14 @@ namespace RogueShooter.Demo
                 return null;
             var tile = ScriptableObject.CreateInstance<Tile>();
             tile.sprite = sprite;
+            // A runtime Tile defaults to TileFlags.LockColor, which makes
+            // Tilemap.SetColor a silent no-op; the whole floor tint vocabulary
+            // (noise base, routes, courts, inlays) depends on per-cell colors.
+            tile.flags = TileFlags.None;
             return tile;
         }
 
-        static GameObject Place(string name, Vector3 pos, Sprite sprite, int order, bool flip, Transform parent)
+        public static GameObject Place(string name, Vector3 pos, Sprite sprite, int order, bool flip, Transform parent)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);

@@ -1,4 +1,6 @@
 using UnityEngine;
+using RogueShooter.Ai;
+using RogueShooter.Player;
 
 namespace RogueShooter.Demo
 {
@@ -31,8 +33,12 @@ namespace RogueShooter.Demo
 
         bool _elite;
         int _maxHp = 1;
+        int _baseHp = 1;
+        bool _pressureSettled;
 
         public bool Elite => _elite;
+        /// <summary>Sprite scale actually applied this frame (pressure visual, elite). Hit volumes read it.</summary>
+        public float VisualScale => _pressureScale > 0.01f ? _pressureScale : 1f;
 
         public void ConfigureKind(string kindId, int hp = 1)
         {
@@ -44,8 +50,11 @@ namespace RogueShooter.Demo
             _kindId = string.IsNullOrEmpty(kindId) ? "E1" : kindId;
             hitPoints = hp < 1 ? 1 : hp;
             _maxHp = hitPoints;
+            _baseHp = hitPoints;
+            _pressureSettled = false;
             _elite = elite;
             _dead = false;
+            NoKillReward = false;
             if (elite)
                 _pressureScale = 1.18f;
         }
@@ -55,9 +64,31 @@ namespace RogueShooter.Demo
             _pressureScale = scale > 0.01f ? scale : 1f;
         }
 
+        /// <summary>Once, at engage. Uses the locked time-pressure mul on the spawned HP.</summary>
+        public void SettlePressure(float mul)
+        {
+            if (_pressureSettled || _dead)
+                return;
+            _pressureSettled = true;
+            float m = mul > 0.01f ? mul : 1f;
+            int next = Mathf.Max(1, Mathf.RoundToInt(_baseHp * m));
+            float ratio = _maxHp > 0 ? hitPoints / (float)_maxHp : 1f;
+            _maxHp = next;
+            hitPoints = Mathf.Max(0, Mathf.RoundToInt(next * ratio));
+            RefreshHpBar();
+        }
+
+        public bool NoKillReward {get;private set;}
+        public void TakeHazardDamage(int amount)
+        {
+            if (_dead || RunPause.IsPaused) return;
+            if (amount >= hitPoints) NoKillReward=true;
+            TakeDamage(amount);
+        }
+
         public void TakeDamage(int amount)
         {
-            if (_dead)
+            if (_dead || RunPause.RunSettled)
                 return;
             Damaged?.Invoke();
             hitPoints -= amount < 1 ? 1 : amount;
@@ -70,7 +101,12 @@ namespace RogueShooter.Demo
             }
 
             _dead = true;
+            RogueShooter.Audio.JianHaiAudio.StopOwner(GetComponent<MobFourStateAi>());
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_enemy_death",this);
             SetHpBar(false);
+            MobBangMarker bang = GetComponent<MobBangMarker>();
+            if (bang != null)
+                bang.SetVisible(false);
             ShatterCurrentFrame();
             Died?.Invoke(this);
         }
@@ -78,8 +114,14 @@ namespace RogueShooter.Demo
         void Update()
         {
             if (_dead)
+            {
+                MobBangMarker bang = GetComponent<MobBangMarker>();
+                if (bang != null && bang.Visible)
+                    bang.SetVisible(false);
                 return;
-            float s = 1f + 0.08f * Mathf.Sin(Time.time * pulse);
+            }
+            // Sprite clips already provide breathing; the old proxy pulse stretches attacks and planted feet.
+            float s = GetComponent<Stage1IsoActor>() != null ? 1f : 1f + 0.08f * Mathf.Sin(Time.time * pulse);
             transform.localScale = _baseScale * _pressureScale * s;
         }
 
@@ -104,12 +146,16 @@ namespace RogueShooter.Demo
                 root.transform.localPosition = new Vector3(0f, 1.15f, 0f);
                 SpriteRenderer trackRenderer = root.AddComponent<SpriteRenderer>();
                 trackRenderer.sprite = track;
-                trackRenderer.sortingOrder = 8;
+                // Mobs draw in the Entity layer; a default-layer bar would render
+                // beneath the floor and the body itself and never show the HP loss.
+                trackRenderer.sortingLayerName = RogueShooter.Art.JianHaiArtCatalog.LayerEntity;
+                trackRenderer.sortingOrder = 20;
                 var fillGo = new GameObject("Fill");
                 fillGo.transform.SetParent(root.transform, false);
                 SpriteRenderer fillRenderer = fillGo.AddComponent<SpriteRenderer>();
                 fillRenderer.sprite = fill;
-                fillRenderer.sortingOrder = 9;
+                fillRenderer.sortingLayerName = RogueShooter.Art.JianHaiArtCatalog.LayerEntity;
+                fillRenderer.sortingOrder = 21;
                 bar = root.transform;
             }
 
@@ -147,6 +193,7 @@ namespace RogueShooter.Demo
                 var shard = bit.AddComponent<SpriteRenderer>();
                 shard.sprite = frame;
                 shard.color = color;
+                shard.sortingLayerName = RogueShooter.Art.JianHaiArtCatalog.LayerEntity;
                 shard.sortingOrder = 8;
                 var kick = bit.AddComponent<MobShatterBit>();
                 kick.Kick(new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * 2.4f);

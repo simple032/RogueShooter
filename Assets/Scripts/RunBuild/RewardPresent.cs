@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// §9.2 display copy: one icon and one number-free sentence per upgrade name.
+    /// §9.2 display copy: one icon and one concise, unambiguous sentence per upgrade name.
     /// Does not change catalog values or shop prices.
     /// </summary>
     public static class RewardPresent
@@ -19,28 +19,65 @@ namespace RogueShooter.Build
         public static readonly Copy[] All =
         {
             Line("锋矢", "锋矢", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"),
-            Line("疾张", "疾张", "蓄满一箭更快", "jh_ui_icon_rapid_draw"),
+            Line("疾张", "疾张", "缩短满蓄所需时间，达到下限后不再出现", "jh_ui_icon_rapid_draw"),
             Line("鸿运", "鸿运", "命中弱点的时机更宽", "jh_ui_icon_luck"),
-            Line("骨甲", "骨甲", "能承受更多伤害", "jh_ui_icon_bone_armor"),
+            Line("骨甲", "骨甲", "提高最大生命上限", "jh_ui_icon_bone_armor"),
             Line("残影", "残影", "走得更快", "jh_ui_icon_afterimage"),
             Line("盗墓者", "盗墓者", "击杀掉落更多金币", "jh_ui_icon_grave_robber"),
-            Line("瞬击预感", "瞬击预感", "更容易打出暴击", "jh_ui_icon_instant_foresight"),
-            Line("破甲猛击", "破甲猛击", "暴击打得更疼", "jh_ui_icon_armor_break"),
-            Line("隙矢追猎", "隙矢追猎", "打中弱点时伤得更重", "jh_ui_icon_gap_hunter"),
-            Line("止血", "止血", "立刻回复一部分生命", "jh_ui_icon_hemostasis"),
+            Line("瞬击预感", "瞬击预感", "提高箭矢随机暴击率，与弱点独立判定", "jh_ui_icon_instant_foresight"),
+            Line("破甲猛击", "破甲猛击", "随机暴击伤害提高", "jh_ui_icon_armor_break"),
+            Line("隙矢追猎", "隙矢追猎", "弱点时机射出的箭伤害提高", "jh_ui_icon_gap_hunter"),
+            Line("止血", "止血", "立即恢复一部分最大生命", "jh_ui_icon_hemostasis"),
             Line("满血额外伤害", "满血额外伤害", "对满血的敌人伤得更重", "jh_ui_icon_full_health_strike"),
-            Line("进房间5s内加攻", "进房加攻", "刚进房间时攻击更强", "jh_ui_icon_room_attack"),
-            Line("攻击吸血", "攻击吸血", "造成伤害时回复生命", "jh_ui_icon_lifesteal"),
+            Line("进房间5s内加攻", "进房加攻", "刚进入战斗房时，箭矢伤害提高", "jh_ui_icon_room_attack"),
+            Line("攻击吸血", "攻击吸血", "箭矢命中造成伤害时，按伤害量回复生命", "jh_ui_icon_lifesteal"),
             Line("穿透后排", "穿透后排", "箭穿过前排后仍能伤到后面的敌人", "jh_ui_icon_pierce_backline"),
             Line("震矢", "震矢", "蓄满射出时把敌人推得更远", "jh_ui_icon_shock_arrow"),
+            Line("回身箭","回身箭","翻滚收招后短时间内，\n首支有效箭伤害提高","jh_ui_icon_return_arrow"),
+            Line("守势蓄发","守势蓄发","持续未受伤或翻滚后，\n下一支满蓄箭伤害提高","jh_ui_icon_guarded_charge"),
+            Line("凝神余响","凝神余响","凝神期间用弱点箭多次命中，\n可延长持续时间","jh_ui_icon_focus_echo"),
         };
 
         public static bool TryForId(string id, out Copy copy)
         {
             copy = default(Copy);
-            if (!RewardCatalog.TryGet(id, out RewardRow row))
+            if (string.IsNullOrEmpty(id))
                 return false;
-            return TryForCatalogName(row.Name, out copy);
+            if (RewardCatalog.TryGet(id, out RewardRow row))
+                return TryForCatalogName(row.Name, out copy);
+            return TryForBalanceStat(id, out copy);
+        }
+
+        /// <summary>crit2 属性档：&lt;家族&gt;_&lt;C|R|E&gt;，如 VIT_C / DMG_E。</summary>
+        public static bool IsBalanceStatId(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+                return false;
+            int cut = id.LastIndexOf('_');
+            if (cut <= 0 || cut != id.Length - 2)
+                return false;
+            string tier = id.Substring(cut + 1);
+            return tier == "C" || tier == "R" || tier == "E";
+        }
+
+        static bool TryForBalanceStat(string id, out Copy copy)
+        {
+            copy = default(Copy);
+            if (!IsBalanceStatId(id))
+                return false;
+            string family = id.Substring(0, id.Length - 2);
+            switch (family)
+            {
+                case "VIT": copy = Line(id, "坚韧", "提高最大生命上限", "jh_ui_icon_bone_armor"); return true;
+                case "ARM": copy = Line(id, "铁甲", "受到的伤害更轻", "jh_ui_icon_hemostasis"); return true;
+                case "DODGE": copy = Line(id, "灵步", "身法更难被命中", "jh_ui_icon_afterimage"); return true;
+                case "GOLD": copy = Line(id, "贪金", "击杀掉落更多金币", "jh_ui_icon_grave_robber"); return true;
+                case "HASTE": copy = Line(id, "急速", "出手与走位更快", "jh_ui_icon_rapid_draw"); return true;
+                case "DMG": copy = Line(id, "强攻", "射出的箭伤得更重", "jh_ui_icon_sharp_arrow"); return true;
+                case "CRIT": copy = Line(id, "暴烈", "提高箭矢随机暴击率，与弱点独立判定", "jh_ui_icon_instant_foresight"); return true;
+                case "FIRE": copy = Line(id, "燃矢", "箭矢带着灼痛", "jh_ui_icon_armor_break"); return true;
+                default: return false;
+            }
         }
 
         public static bool TryForCatalogName(string catalogName, out Copy copy)
@@ -72,7 +109,14 @@ namespace RogueShooter.Build
                     name = copy.DisplayName;
                     sentence = copy.Sentence;
                     icon = copy.Icon;
+
                 }
+            }
+            else if (TryForBalanceStat(id, out Copy stat))
+            {
+                name = stat.DisplayName;
+                sentence = stat.Sentence;
+                icon = stat.Icon;
             }
 
             if (sold)
@@ -91,7 +135,7 @@ namespace RogueShooter.Build
 
         public static string Check()
         {
-            if (All.Length != 15)
+            if (All.Length != 18)
                 return "copy count";
             var seen = new Dictionary<string, Copy>();
             for (int i = 0; i < RewardCatalog.All.Length; i++)
@@ -99,8 +143,8 @@ namespace RogueShooter.Build
                 RewardRow row = RewardCatalog.All[i];
                 if (!TryForCatalogName(row.Name, out Copy copy))
                     return "missing copy " + row.Name;
-                if (HasDigit(copy.Sentence) || copy.Sentence.IndexOf('%') >= 0)
-                    return "sentence has a number " + copy.DisplayName;
+                // v0.57: effect copy is qualitative; prices and input labels retain numbers.
+                if (HasDigit(copy.Sentence)) return "numeric effect copy " + row.Name;
                 if (string.IsNullOrEmpty(copy.Icon) || string.IsNullOrEmpty(copy.Sentence))
                     return "empty present " + row.Name;
                 if (seen.TryGetValue(row.Name, out Copy prev))
@@ -114,17 +158,16 @@ namespace RogueShooter.Build
                 RewardCardData low = ToCard(row.Id, row.Tier, "", "低", 0, false);
                 if (low.Desc != copy.Sentence || low.Icon != copy.Icon || low.Name != copy.DisplayName)
                     return "card mismatch " + row.Id;
-                if (HasDigit(low.Desc))
-                    return "card desc has a number " + row.Id;
+
             }
 
-            if (seen.Count != 15)
+            if (seen.Count != 18)
                 return "family count " + seen.Count;
             if (!RewardCatalog.TryGet("R1L", out RewardRow sharp) || sharp.Desc.IndexOf("10") < 0)
                 return "catalog number changed";
-            if (!RewardCatalog.TryGet("R1M", out RewardRow sharpMid) || sharpMid.Desc.IndexOf("20") < 0 || sharpMid.ShopPrice != 40)
+            if (!RewardCatalog.TryGet("R1M", out RewardRow sharpMid) || sharpMid.Desc.IndexOf("20") < 0 || sharpMid.ShopPrice != ShopStock.PriceBaseMid)
                 return "catalog price changed";
-            if (!TryForId("R12H", out Copy room) || room.DisplayName != "进房加攻" || room.Sentence != "刚进房间时攻击更强")
+            if (!TryForId("R12H", out Copy room) || room.DisplayName != "进房加攻" || room.Sentence != "刚进入战斗房时，箭矢伤害提高")
                 return "room attack copy";
             if (!TryForId("R1L", out Copy a) || !TryForId("R1M", out Copy b) || a.Icon != b.Icon || a.Sentence != b.Sentence)
                 return "sharp tiers must share icon and sentence";
@@ -138,7 +181,7 @@ namespace RogueShooter.Build
                 RewardCardData card = ToCard(shelf.Id, shelf.Tier, shelf.Price + "金", "", i, shelf.Sold);
                 if (card.Price != shelf.Price + "金" || !HasDigit(card.Price))
                     return "shop price hidden " + shelf.Id;
-                if (HasDigit(card.Desc) || string.IsNullOrEmpty(card.Icon))
+                if (string.IsNullOrEmpty(card.Desc) || string.IsNullOrEmpty(card.Icon))
                     return "shop line " + shelf.Id;
                 if (RewardCatalog.TryGet(shelf.Id, out RewardRow row) && shelf.Effect != row.Desc)
                     return "shelf effect changed " + shelf.Id;

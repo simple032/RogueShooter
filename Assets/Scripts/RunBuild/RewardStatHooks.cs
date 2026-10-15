@@ -82,11 +82,17 @@ namespace RogueShooter.Build
             return SumAdd(owned, PierceBack) + 1e-4f >= PierceBackCap;
         }
 
+        public static float CritChance(IList<string> owned) => UnityEngine.Mathf.Clamp01(SumAdd(owned, "crit_rate"));
+        public static float CritMultiplier(IList<string> owned) => 2f*ProductMul(owned,"crit_damage");
+        public static float ChargeSeconds(IList<string> owned) => UnityEngine.Mathf.Max(.4f,.7f*ProductMul(owned,"charge_time"));
+
         public static bool IsPoolExcluded(RewardRow row, IList<string> owned)
         {
             if (string.Equals(row.Stat, PierceBack, StringComparison.OrdinalIgnoreCase)
                 && PierceBackSaturated(owned))
                 return true;
+            if(row.Stat == "crit_rate" && CritChance(owned)>=1f) return true;
+            if(row.Stat == "charge_time" && ChargeSeconds(owned)<=.40001f) return true;
             return false;
         }
 
@@ -115,7 +121,7 @@ namespace RogueShooter.Build
 
         public static float PierceBackAdd(IList<string> owned)
         {
-            return SumAdd(owned, PierceBack);
+            return UnityEngine.Mathf.Clamp(SumAdd(owned, PierceBack),0f,PierceBackCap);
         }
 
         public static float ModifyOutgoing(IList<string> owned, float baseDamage, bool targetFullHp, float now)

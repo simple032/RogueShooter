@@ -1,69 +1,63 @@
 using UnityEngine;
-using RogueShooter.Iso;
 
 namespace RogueShooter.Vision
 {
     /// <summary>
-    /// Main orthographic camera view (GDD M1d Must). Play ortho comes from
-    /// <see cref="PlayOrthoSize"/>: 6 (orthographic) or 5.25 / aspect-locked (IsoConfig.Enabled).
-    /// <see cref="GetViewRect"/> is in camera (view) space; with iso on use
-    /// <see cref="ViewSpace.TryGetViewQuad"/> for the logic-space quad. Occupancy still uses JianHai stub scale.
+    /// Main orthographic camera view (GDD M1d Must). Play ortho is 8
+    /// (producer retune; supersedes 4 / 2.75). Occupancy still uses JianHai stub scale.
     /// Full fog-of-war is not implemented here.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Camera))]
     public class CameraViewService : MonoBehaviour, IWorldView
     {
-        /// <summary>Orthographic presentation size (producer retune).</summary>
-        public const float OrthoPlaySize = 6f;
+        public const float PlayOrthoSize = 8f;
 
-        /// <summary>
-        /// Single source for the play orthographic size. Iso off: 6. Iso on:
-        /// <see cref="IsoConfig.OrthoSizeForAspect"/> for the view camera's aspect
-        /// (no camera → <see cref="IsoConfig.IsoOrthoSize"/> 5.25).
-        /// </summary>
-        public static float PlayOrthoSize
+        /// <summary>PlayerPrefs key for the saved zoom preference (float, 1 = tuned play size).</summary>
+        public const string ZoomPrefKey = "StartMenu.Zoom";
+        const float MinZoom = .75f, MaxZoom = 1.5f, ZoomStep = .1f;
+
+        static float _zoomScale = 1f;
+        static bool _zoomRead;
+        float _zoomApplied = 1f;
+
+        /// <summary>Saved zoom, read lazily on first use. A static initializer calling
+        /// PlayerPrefs would run inside MonoBehaviour construction during scene load,
+        /// which Unity forbids and leaves the type poisoned with TypeInitializationException.</summary>
+        public static float ZoomScale
         {
             get
             {
-                if (!IsoConfig.Enabled)
-                    return OrthoPlaySize;
-                Camera cam = Instance != null && Instance.targetCamera != null ? Instance.targetCamera : Camera.main;
-                return cam != null ? PlayOrthoSizeFor(CameraViewMath.ResolveAspect(cam)) : IsoConfig.IsoOrthoSize;
+                if (!_zoomRead)
+                {
+                    _zoomScale = LoadZoom();
+                    _zoomRead = true;
+                }
+                return _zoomScale;
+            }
+            private set
+            {
+                _zoomScale = Mathf.Clamp(value, MinZoom, MaxZoom);
+                _zoomRead = true;
             }
         }
 
-        /// <summary>Play ortho size for an explicit aspect (iso off ignores aspect).</summary>
-        public static float PlayOrthoSizeFor(float aspect)
-        {
-            return IsoConfig.Enabled ? IsoConfig.OrthoSizeForAspect(aspect) : OrthoPlaySize;
-        }
+        static float LoadZoom() { return Mathf.Clamp(PlayerPrefs.GetFloat(ZoomPrefKey, 1f), MinZoom, MaxZoom); }
 
-        /// <summary>
-        /// Size actually applied for a serialized/demo size: iso on always uses the iso size
-        /// (a serialized 6 in a scene cannot leak into the iso camera).
-        /// </summary>
-        public static float EffectiveOrtho(float serialized, float aspect)
+        /// <summary>Clamps and persists the zoom preference. The lens glides toward it in LateUpdate.</summary>
+        public static void SetZoom(float scale)
         {
-            return IsoConfig.Enabled ? IsoConfig.OrthoSizeForAspect(aspect) : serialized;
+            ZoomScale = Mathf.Clamp(scale, MinZoom, MaxZoom);
+            PlayerPrefs.SetFloat(ZoomPrefKey, ZoomScale);
+            PlayerPrefs.Save();
         }
 
         public static CameraViewService Instance { get; private set; }
 
         [SerializeField] Camera targetCamera;
-        [SerializeField] [Min(0.1f)] float orthographicSize = OrthoPlaySize;
+        [SerializeField] [Min(0.1f)] float orthographicSize = PlayOrthoSize;
 
-        /// <summary>Effective size this service applies (see <see cref="EffectiveOrtho"/>).</summary>
-        public float OrthographicSize
-        {
-            get
-            {
-                var cam = targetCamera != null ? targetCamera : GetComponent<Camera>();
-                return EffectiveOrtho(orthographicSize, cam != null ? CameraViewMath.ResolveAspect(cam) : IsoConfig.TargetAspect);
-            }
-        }
-
-        public Camera TargetCamera => targetCamera != null ? targetCamera : GetComponent<Camera>();
+        public float OrthographicSize => orthographicSize;
 
         public static bool TryGet(out IWorldView view)
         {
@@ -82,6 +76,7 @@ namespace RogueShooter.Vision
             Instance = this;
             if (targetCamera == null)
                 targetCamera = GetComponent<Camera>();
+            _zoomApplied = ZoomScale;
             ApplyLens();
         }
 
@@ -98,6 +93,14 @@ namespace RogueShooter.Vision
 
         void LateUpdate()
         {
+            // Mouse wheel zooms the view while the game is live; paused/reward/settle states ignore it.
+            if (!RogueShooter.Player.RunPause.IsPaused)
+            {
+                float wheel = Input.mouseScrollDelta.y;
+                if (wheel != 0f)
+                    SetZoom(ZoomScale - Mathf.Sign(wheel) * ZoomStep);
+            }
+            _zoomApplied = Mathf.MoveTowards(_zoomApplied, ZoomScale, Time.unscaledDeltaTime * 2f);
             ApplyLens();
         }
 
@@ -109,7 +112,7 @@ namespace RogueShooter.Vision
                 return;
 
             targetCamera.orthographic = true;
-            targetCamera.orthographicSize = EffectiveOrtho(orthographicSize, CameraViewMath.ResolveAspect(targetCamera));
+            targetCamera.orthographicSize = orthographicSize * _zoomApplied;
         }
 
         public Rect GetViewRect()
@@ -124,22 +127,10 @@ namespace RogueShooter.Vision
                 CameraViewMath.ResolveAspect(cam));
         }
 
-        /// <summary>
-        /// Logic position inside the screen view. Iso off: the ortho rect (unchanged). Iso on: the
-        /// view quad in logic space (<see cref="IsoProjection.ViewQuadInLogic(Camera, Vector2[])"/>).
-        /// </summary>
         public bool IsInCameraView(Vector3 worldPos)
         {
-            if (!IsoConfig.Enabled)
-                return CameraViewMath.ContainsInclusive(GetViewRect(), worldPos);
-            var cam = targetCamera != null ? targetCamera : Camera.main;
-            if (cam == null)
-                return false;
-            IsoProjection.ViewQuadInLogic(cam, _quad);
-            return ViewSpace.QuadContains(_quad, new Vector2(worldPos.x, worldPos.y));
+            return CameraViewMath.ContainsInclusive(GetViewRect(), worldPos);
         }
-
-        readonly Vector2[] _quad = new Vector2[4];
 
         void OnDrawGizmos()
         {

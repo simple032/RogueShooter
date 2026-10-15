@@ -15,6 +15,17 @@ namespace RogueShooter.Build
         public int BuildCount { get; private set; }
         public int RarityScore { get; private set; }
         public int Gold { get; private set; }
+        double _killGoldRemainder;
+        public double KillGoldRemainder => _killGoldRemainder;
+        public void AddKillGold(int amount)
+        {
+            if(amount<=0) return;
+            double total=_killGoldRemainder+amount*RewardStatHooks.ProductMul(_owned,"gold_gain");
+            int whole=(int)System.Math.Floor(total+1e-7);
+            _killGoldRemainder=System.Math.Max(0,total-whole);
+            AddGold(whole);
+        }
+
         public int ShopBuys { get; private set; }
         public string LastPick { get; private set; }
         readonly HashSet<string> _altarSizes = new HashSet<string>();
@@ -49,18 +60,28 @@ namespace RogueShooter.Build
             Gold += amount;
         }
 
+        public bool CanReceive(string id)
+        {
+            if(string.IsNullOrEmpty(id)) return true;
+            if(RewardCatalog.IsUniqueId(id) && _owned.Contains(id)) return false;
+            return !RewardCatalog.TryGet(id,out RewardRow row) || !RewardStatHooks.IsPoolExcluded(row,_owned);
+        }
+
         public void ApplyReward(string id)
         {
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrEmpty(id) || !CanReceive(id))
                 return;
-            if (!RewardCatalog.TryGet(id, out _))
+            // crit2 属性档（VIT_C/ARM_R/…）不在 15 条目录内，但仍是合法持有强化。
+            if (!RewardCatalog.TryGet(id, out _) && !RewardPresent.IsBalanceStatId(id))
                 return;
             _owned.Add(id);
+            Regression.NotifyChosen(id);
         }
 
         /// <summary>Chest confirm. Small +1 Build, large +2 Build.</summary>
         public void GrantBuildPick(string id, string rarity, int score, int buildDelta = 1)
         {
+            if (!CanReceive(id)) return;
             if (buildDelta < 1)
                 buildDelta = 1;
             BuildCount += buildDelta;
@@ -101,6 +122,7 @@ namespace RogueShooter.Build
 
         public bool ConfirmAltarPick(AltarSize size, string rewardId)
         {
+            if (!CanReceive(rewardId)) return false;
             bool first = ConfirmAltarSize(size);
             ApplyReward(rewardId);
             if (!string.IsNullOrEmpty(rewardId))
@@ -111,7 +133,7 @@ namespace RogueShooter.Build
         /// <summary>Shop buy: gold + reward, Build always +1 per success.</summary>
         public bool TryShopBuy(int price, int buildEquiv, string rewardId)
         {
-            if (price < 0 || Gold < price)
+            if (price < 0 || Gold < price || !CanReceive(rewardId))
                 return false;
             Gold -= price;
             ShopBuys++;
@@ -131,6 +153,7 @@ namespace RogueShooter.Build
 
         public void Reset(int startGold)
         {
+            _killGoldRemainder = 0;
             BuildCount = 0;
             RarityScore = 0;
             ShopBuys = 0;

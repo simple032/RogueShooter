@@ -39,8 +39,8 @@ namespace RogueShooter.Maze
             sb.Append("chestAltar=2waves+[PortalFx] ");
             sb.Append("normal=1wave+[PortalFx] ");
             sb.Append("pool=S1 Normal/Chest→N Altar→E ");
-            sb.Append("ortho=6 move=6 ");
-            sb.Append("rooms=36x28 pitch=58/50 gap=22u startDoor=22u ");
+            sb.Append("ortho=8 move=6 ");
+            sb.Append("rooms=28x22 pitch=50/44 gap=22u startDoor=22u ");
             sb.Append("startN=fixedNormal shuffle4=Altar+Chest×2+Normal noLargeChest ");
             sb.Append("connFollowsAltar orthoStraight diagFoldOnly ");
             sb.Append("no-walk-clock-gate ");
@@ -50,23 +50,23 @@ namespace RogueShooter.Maze
             sb.Append("fullCharge≥0.70s weak=0 elite=same ");
             sb.Append("zhenshi=R15_C+20%/R15_R+40% mul-then-ws ");
             sb.Append("pacing=informational-walk combatEst-not-locked ");
-            sb.Append("S2S3=not-built");
+            sb.Append("S2S3/BOSS=separate-checks");
             return sb.ToString();
         }
 
         static string CheckFeelLocks()
         {
-            if (Math.Abs(MazeRules.PlayOrtho - 6f) > 0.001f
-                || Math.Abs(CameraViewService.PlayOrthoSize - 6f) > 0.001f
-                || Math.Abs(EnemyCombatRules.PlayOrthoSize - 6f) > 0.001f)
-                return "play ortho 6";
+            if (Math.Abs(MazeRules.PlayOrtho - 8f) > 0.001f
+                || Math.Abs(CameraViewService.PlayOrthoSize - 8f) > 0.001f
+                || Math.Abs(EnemyCombatRules.PlayOrthoSize - 8f) > 0.001f)
+                return "play ortho 8";
             if (Math.Abs(MazeRules.PlayMoveSpeed - 6f) > 0.001f
                 || Math.Abs(EnemyCombatRules.WalkPlayerStub - 6f) > 0.001f
                 || Math.Abs(EnemyPoolDraft.DraftPlayerMove - 6f) > 0.001f)
                 return "play moveSpeed 6";
-            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.68f) > 0.001f
-                || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.72f) > 0.001f)
-                return "weak window must stay 0.68–0.72";
+            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.67f) > 0.001f
+                || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.73f) > 0.001f)
+                return "weak window must stay 0.67–0.73";
             if (Math.Abs(MazeRules.PortalHoldSeconds - 1.0f) > 0.001f)
                 return "portal hold 1.0s";
             if (!MazeRules.UsesPortalFx(MazeNodeKind.Normal)
@@ -76,21 +76,21 @@ namespace RogueShooter.Maze
             if (MazeRules.UsesPortalFx(MazeNodeKind.Start)
                 || MazeRules.UsesPortalFx(MazeNodeKind.Connector))
                 return "START/CONN must not portal";
-            if (Math.Abs(MazeRules.CombatWidth - 36f) > 0.001f
-                || Math.Abs(MazeRules.CombatHeight - 28f) > 0.001f)
-                return "combat rooms must be 36x28";
-            if (Math.Abs(MazeRules.PitchX - 58f) > 0.001f
-                || Math.Abs(MazeRules.PitchY - 50f) > 0.001f)
-                return "pitch must be 58/50";
+            if (Math.Abs(MazeRules.CombatWidth - 28f) > 0.001f
+                || Math.Abs(MazeRules.CombatHeight - 22f) > 0.001f)
+                return "combat rooms must be 28x22";
+            if (Math.Abs(MazeRules.PitchX - 50f) > 0.001f
+                || Math.Abs(MazeRules.PitchY - 44f) > 0.001f)
+                return "pitch must be 50/44";
             if (Math.Abs(MazeRules.PitchX - MazeRules.CombatWidth - 22f) > 0.01f
                 || Math.Abs(MazeRules.PitchY - MazeRules.CombatHeight - 22f) > 0.01f)
                 return "net gap Pitch-room must be 22u";
             if (Math.Abs(MazeRules.AltarWidth - MazeRules.CombatWidth) > 0.001f
                 || Math.Abs(MazeRules.AltarHeight - MazeRules.CombatHeight) > 0.001f)
-                return "altar must match combat room size 36x28";
+                return "altar must match combat room size 28x22";
             if (Math.Abs(MazeRules.HubWidth - MazeRules.CombatWidth) > 0.001f
                 || Math.Abs(MazeRules.HubHeight - MazeRules.CombatHeight) > 0.001f)
-                return "START hub matches combat 36x28";
+                return "START hub matches combat 28x22";
             if (MazeRules.QuotaChest != 2 || MazeRules.QuotaNormal != 2 || MazeRules.QuotaAltar != 1)
                 return "quota Chest×2+Altar×1+Normal×2";
             if (MazeRules.CorridorSegMax > 30.01f)

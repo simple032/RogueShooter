@@ -13,7 +13,7 @@ namespace RogueShooter.Ai
 
     /// <summary>
     /// Patrol → Alert → Chase → Attack → Disengage → Patrol.
-    /// Outside detect radius, chase is never started (视野外不追).
+    /// Fresh enemies use base vision; alert/damage remembers combat until the wider leash is left.
     /// </summary>
     public sealed class MobAiBrain
     {
@@ -25,10 +25,14 @@ namespace RogueShooter.Ai
 
         public float DisengageRadius
         {
-            get { return DetectRadius * DisengageMul; }
+            get { return System.Math.Max(18f, DetectRadius * System.Math.Max(2f, DisengageMul)); }
         }
 
         float _alertT;
+        bool _engaged;
+        // Engaged re-alert floor: hit mobs remember combat across the wider leash.
+        // 15.5 keeps the +6.5 headroom over the 9.0 base detect (was 12 over 5.5).
+        public float AlertRadius => _engaged ? System.Math.Max(15.5f, DetectRadius) : DetectRadius;
 
         public void Configure(float detectRadius, float disengageMul, float alertSeconds)
         {
@@ -37,7 +41,7 @@ namespace RogueShooter.Ai
 
         public void Configure(float detectRadius, float disengageMul, float alertSeconds, float attackRange)
         {
-            DetectRadius = detectRadius > 0.01f ? detectRadius : 5.5f;
+            DetectRadius = detectRadius > 0.01f ? detectRadius : 9.0f;
             DisengageMul = disengageMul > 0.01f ? disengageMul : 1.6f;
             AlertSeconds = alertSeconds < 0f ? 0f : alertSeconds;
             AttackRange = attackRange > 0.05f ? attackRange : 0.7f;
@@ -48,6 +52,7 @@ namespace RogueShooter.Ai
         {
             State = MobAiState.Patrol;
             _alertT = 0f;
+            _engaged = false;
         }
 
         public MobAiState Tick(float distToPlayer, bool damaged, float dt, bool atHome)
@@ -55,12 +60,16 @@ namespace RogueShooter.Ai
             // Already in reach: swing or cast now. Do not sit in Alert at contact range.
             if (distToPlayer <= AttackRange)
             {
+                _engaged = true;
                 SetState(MobAiState.Attack);
                 return State;
             }
 
             if (damaged)
-                EnterAlert();
+            {
+                _engaged = true;
+                if (State == MobAiState.Patrol || State == MobAiState.Disengage) EnterAlert();
+            }
 
             switch (State)
             {
@@ -74,10 +83,10 @@ namespace RogueShooter.Ai
                     _alertT += dt < 0f ? 0f : dt;
                     if (_alertT >= AlertSeconds)
                     {
-                        if (distToPlayer <= DetectRadius)
+                        if (distToPlayer <= DisengageRadius)
                             SetState(MobAiState.Chase);
                         else
-                            SetState(MobAiState.Patrol);
+                            SetState(MobAiState.Disengage);
                     }
                     break;
 
@@ -96,10 +105,10 @@ namespace RogueShooter.Ai
                     break;
 
                 case MobAiState.Disengage:
-                    if (distToPlayer <= DetectRadius)
+                    if (distToPlayer <= AlertRadius)
                         EnterAlert();
                     else if (atHome)
-                        SetState(MobAiState.Patrol);
+                    { _engaged = false; SetState(MobAiState.Patrol); }
                     break;
             }
 
@@ -111,6 +120,7 @@ namespace RogueShooter.Ai
             if (State == MobAiState.Alert)
                 return;
             _alertT = 0f;
+            _engaged = true;
             SetState(MobAiState.Alert);
         }
 

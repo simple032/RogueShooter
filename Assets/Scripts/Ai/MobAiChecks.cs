@@ -7,12 +7,12 @@ namespace RogueShooter.Ai
     {
         public static string Run(BalanceLockData data)
         {
-            float detect = data != null && data.mobDetectRadius > 0f ? data.mobDetectRadius : 5.5f;
+            float detect = data != null && data.mobDetectRadius > 0f ? data.mobDetectRadius : 9.0f;
             float mul = data != null && data.mobDisengageMul > 0f ? data.mobDisengageMul : 1.6f;
             float alert = data != null && data.mobAlertSeconds > 0f ? data.mobAlertSeconds : 1.2f;
             var brain = new MobAiBrain();
             brain.Configure(detect, mul, alert, 0.7f);
-            float disengage = detect * mul;
+            float disengage = brain.DisengageRadius;
 
             if (brain.State != MobAiState.Patrol)
                 return "AI start Patrol";
@@ -58,8 +58,8 @@ namespace RogueShooter.Ai
                 t += 0.05f;
             }
 
-            if (brain.State != MobAiState.Patrol)
-                return "hit outside detect must not chase (视野外不追)";
+            if (brain.State != MobAiState.Chase)
+                return "hit outside base detect must chase within engaged leash";
 
             brain.Reset();
             brain.Tick(detect * 0.5f, true, 0.02f, false);

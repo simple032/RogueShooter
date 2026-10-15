@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<title>骸冠典狱长 SE 持格预览</title>
+<style>
+  body { margin: 0; background: #1c1e24; color: #e6e2d8; font: 14px/1.4 "Segoe UI", sans-serif; }
+  header { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px; }
+  button { background: #2c313c; color: #eee; border: 1px solid #4a5160; padding: 6px 10px; cursor: pointer; }
+  button.on { background: #6a5432; border-color: #d2b48c; }
+  main { display: flex; gap: 24px; padding: 8px 16px 24px; align-items: flex-start; }
+  figure { margin: 0; background: #2a2d34; }
+  img { width: 512px; height: 512px; image-rendering: auto; background:
+    linear-gradient(45deg,#3a3d44 25%,transparent 25%),linear-gradient(-45deg,#3a3d44 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#3a3d44 75%),linear-gradient(-45deg,transparent 75%,#3a3d44 75%);
+    background-size: 32px 32px; background-position: 0 0, 0 16px, 16px -16px, -16px 0; }
+  #meta { min-width: 280px; }
+  .ev { color: #ffb080; }
+</style>
+</head>
+<body>
+<header id="bar"></header>
+<main>
+  <figure><img id="view" alt="frame"/></figure>
+  <div id="meta"></div>
+</main>
+<script>
+const CLIPS = [{"id":"p1_idle","name":"持盾待机","frames":4,"timeline":[[0,5],[1,5],[2,5],[3,5]],"events":{},"ticks":20,"mode":"循环"},{"id":"p1_walk","name":"持盾步行","frames":8,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2]],"events":{},"ticks":16,"mode":"距离循环1.44u"},{"id":"p1_single","name":"单发弩箭","frames":19,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,1],[11,4],[12,4],[13,4],[14,4],[15,4],[16,4],[17,4],[18,5]],"events":{"lock":10,"fire":20,"recover":21},"ticks":54,"mode":"单次"},{"id":"p1_burst","name":"预判三连发","frames":24,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,1],[11,1],[12,2],[13,2],[14,2],[15,2],[10,1],[11,1],[12,2],[13,2],[14,2],[15,2],[10,1],[16,4],[17,4],[18,5],[19,5],[20,5],[21,5],[22,5],[23,4]],"events":{"lock_1":13,"fire_1":20,"lock_2":23,"fire_2":30,"lock_3":33,"fire_3":40,"recover":41},"ticks":78,"mode":"单次；上弦/后坐6帧循环两遍并第三次释放"},{"id":"p1_charge","name":"盾冲","frames":34,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,2],[11,1],[12,1],[13,1],[14,2],[15,2],[16,2],[17,2],[18,2],[19,2],[20,2],[21,2],[22,2],[23,2],[24,2],[25,2],[26,3],[27,3],[28,3],[29,3],[30,3],[31,3],[32,3],[33,3]],"events":{"lock":12,"dash_start":23,"dash_end_max":37,"recover":37},"ticks":73,"mode":"最长单次；执行按实际距离可提前退出"},{"id":"p1_bash","name":"近战盾撞击","frames":22,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,3],[14,3],[15,3],[16,3],[17,3],[18,3],[19,3],[20,3],[21,4]],"events":{"lock":6,"contact_start":17,"contact_end":20,"recover":20},"ticks":48,"mode":"单次"},{"id":"p2_idle","name":"无盾待机","frames":4,"timeline":[[0,4],[1,4],[2,4],[3,4]],"events":{},"ticks":16,"mode":"循环"},{"id":"p2_walk","name":"无盾快步","frames":8,"timeline":[[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1]],"events":{},"ticks":8,"mode":"距离循环1.44u；静态20Hz仅预览"},{"id":"p2_triple","name":"三矢同时射击","frames":20,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,1],[9,1],[10,1],[11,3],[12,3],[13,3],[14,3],[15,3],[16,3],[17,3],[18,3],[19,2]],"events":{"lock":8,"fire_all_3":18,"recover":19},"ticks":45,"mode":"单次"},{"id":"p2_leap","name":"起跳砸落","frames":38,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1],[16,1],[17,1],[18,1],[19,2],[20,2],[21,2],[22,1],[23,1],[24,1],[25,3],[26,3],[27,3],[28,3],[29,3],[30,3],[31,3],[32,2],[33,2],[34,2],[35,2],[36,2],[37,2]],"events":{"target_lock_and_takeoff":14,"land_and_contact":31,"contact_end":34,"recover":34},"ticks":67,"mode":"单次"},{"id":"p2_bash","name":"近战弩砸击","frames":24,"timeline":[[0,2],[1,2],[2,2],[3,2],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,2],[13,2],[14,2],[15,2],[16,2],[17,2],[18,2],[19,2],[20,1],[21,1],[22,1],[23,1]],"events":{"lock":3,"contact_start":14,"contact_end":16,"recover":16},"ticks":36,"mode":"单次"},{"id":"p1_to_p2","name":"弃盾破冠","frames":24,"timeline":[[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1],[16,1],[17,1],[18,1],[19,1],[20,1],[21,1],[22,1],[23,1]],"events":{"crown_crack":6,"shield_release":8,"triple_bow_open":12,"p2_pose_ready":20,"transition_end":24},"ticks":24,"mode":"单次；非缩放时间"},{"id":"p2_death","name":"死亡收尾","frames":16,"timeline":[[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1]],"events":{"combat_cleanup":0,"collapse":6,"final_pose":15},"ticks":16,"mode":"单次；可从P1直接死亡切入"}];
+const bar = document.getElementById('bar');
+const img = document.getElementById('view');
+const meta = document.getElementById('meta');
+let clip = CLIPS[0];
+let tick = 0;
+let acc = 0;
+let last = performance.now();
+let playing = true;
+function total(c){ return c.timeline.reduce((s, it) => s + it[1], 0); }
+function frameAt(c, t){
+  let a = 0;
+  for (const [idx, hold] of c.timeline){
+    if (t < a + hold) return { idx, local: t - a, hold };
+    a += hold;
+  }
+  const last = c.timeline[c.timeline.length - 1];
+  return { idx: last[0], local: 0, hold: last[1] };
+}
+function show(){
+  const fr = frameAt(clip, tick);
+  const nn = String(fr.idx).padStart(2, '0');
+  img.src = clip.id + '/se/jh_boss_warden_' + clip.id + '_se_' + nn + '.png';
+  const events = Object.entries(clip.events || {}).filter(([, v]) => v === tick).map(([k]) => k);
+  meta.innerHTML = '<h2>' + clip.name + '</h2><p>' + clip.id + ' · ' + clip.mode + '</p>'
+    + '<p>图 ' + nn + ' · 逻辑格 ' + tick + ' / ' + total(clip) + ' · 本图第 ' + fr.local + '/' + fr.hold + ' 格</p>'
+    + '<p class="ev">' + (events.length ? events.join('、') : '') + '</p>'
+    + '<p>1 逻辑格 = 0.05s。空格暂停。</p>';
+}
+function select(id){
+  clip = CLIPS.find((c) => c.id === id);
+  tick = 0; acc = 0;
+  for (const b of bar.children) b.classList.toggle('on', b.dataset.id === id);
+  show();
+}
+for (const c of CLIPS){
+  const b = document.createElement('button');
+  b.textContent = c.name;
+  b.dataset.id = c.id;
+  b.onclick = () => select(c.id);
+  bar.appendChild(b);
+}
+select(CLIPS[0].id);
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { playing = !playing; e.preventDefault(); }
+  if (e.code === 'ArrowRight') { tick = (tick + 1) % total(clip); show(); }
+  if (e.code === 'ArrowLeft') { tick = (tick + total(clip) - 1) % total(clip); show(); }
+});
+function loop(now){
+  const dt = now - last; last = now;
+  if (playing){
+    acc += dt;
+    const stepMs = 50;
+    while (acc >= stepMs){
+      acc -= stepMs;
+      tick = (tick + 1) % total(clip);
+      show();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

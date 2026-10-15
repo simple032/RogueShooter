@@ -17,6 +17,8 @@ namespace RogueShooter.Spawning
         public float WindupSeconds;
         public float AttackIntervalSeconds;
         public float AtkStub;
+        /// <summary>Arrow-sweep lateral radius around the ground point. 0 = legacy locked feet radius.</summary>
+        public float HitRadius;
     }
 
     /// <summary>
@@ -28,12 +30,16 @@ namespace RogueShooter.Spawning
         public static readonly EnemyKindProfile Normal = MeleeProfile(
             EnemyKindIds.Normal, "普通小怪", "melee_normal", 3.0f,
             EnemyCombatRules.WalkNormalStub, EnemyCombatRules.MeleeHitRadius,
-            EnemyDamageCatalog.E1);
+            EnemyDamageCatalog.E1,
+            // Silhouette reach 0–1.5u band: idle ≤0.42, walk ≤0.59, atk ≤0.71, alert ≤0.78.
+            0.82f);
 
         public static readonly EnemyKindProfile Dog = MeleeProfile(
             EnemyKindIds.Dog, "狗", "melee_dog", 1.5f,
             EnemyCombatRules.WalkDogStub, EnemyCombatRules.MeleeHitRadius,
-            EnemyDamageCatalog.E2);
+            EnemyDamageCatalog.E2,
+            // Long body: idle_e 0.75, lunge atk_ne 0.86, full extent incl. paws 0.89.
+            0.90f);
 
         public static readonly EnemyKindProfile CultMage = MageProfile(
             EnemyKindIds.CultMage, "邪法师", "ranged_orb", 2.0f,
@@ -42,7 +48,9 @@ namespace RogueShooter.Spawning
         public static readonly EnemyKindProfile Shield = MeleeProfile(
             EnemyKindIds.Shield, "盾兵", "melee_shield", 4.0f,
             EnemyCombatRules.WalkShieldStub, 0.80f,
-            EnemyDamageCatalog.E1);
+            EnemyDamageCatalog.E1,
+            // Guarded poses ≤0.59; unshielded sword swing body ≤0.74 (blade tip excluded).
+            0.78f);
 
         public static readonly EnemyKindProfile GrandMage = MageProfile(
             EnemyKindIds.GrandMage, "大邪术师", "ranged_grand", 3.0f,
@@ -83,6 +91,8 @@ namespace RogueShooter.Spawning
 
         public static float WalkSpeed(string kindId, bool shielded)
         {
+            if (!shielded && kindId == EnemyKindIds.Dog)
+                return EnemyCombatRules.WalkDogStub;
             EnemyPoolDraft.EnsureLoaded();
             float v = EnemyPoolDraft.MoveSpeed(kindId, shielded);
             if (v > 0.01f)
@@ -96,7 +106,8 @@ namespace RogueShooter.Spawning
         }
 
         static EnemyKindProfile MeleeProfile(
-            string id, string name, string role, float ttk, float walk, float attackRange, EnemyDamageDef src)
+            string id, string name, string role, float ttk, float walk, float attackRange, EnemyDamageDef src,
+            float hitRadius = 0f)
         {
             return new EnemyKindProfile
             {
@@ -108,10 +119,11 @@ namespace RogueShooter.Spawning
                 RangedOrb = false,
                 Shield = id == EnemyKindIds.Shield,
                 WalkSpeedPlayStub = walk,
-                AttackRange = attackRange,
-                WindupSeconds = src.WindupRecommend,
+                AttackRange = EnemyCombatRules.MeleeStartRangeFor(id),
+                WindupSeconds = EnemyCombatRules.MeleeWindupFor(id),
                 AttackIntervalSeconds = src.AttackIntervalRecommend,
-                AtkStub = src.AtkRecommend
+                AtkStub = src.AtkRecommend,
+                HitRadius = hitRadius
             };
         }
 
@@ -131,8 +143,19 @@ namespace RogueShooter.Spawning
                 AttackRange = 4.50f,
                 WindupSeconds = src.WindupRecommend,
                 AttackIntervalSeconds = src.AttackIntervalRecommend,
-                AtkStub = src.AtkRecommend
+                AtkStub = src.AtkRecommend,
+                // Measured silhouette reach (pivot row ±, 0–1.5u band, all clips):
+                // idle ≤0.40, walk ≤0.50, alert ≤0.81 (robe flare), cast ≤0.73 body.
+                // 0.85 covers every body pose with margin; staff/glow FX stays outside.
+                HitRadius = 0.85f
             };
+        }
+
+        /// <summary>Arrow sweep radius for a kind. Falls back to the legacy locked feet radius.</summary>
+        public static float HitRadiusFor(string kindId)
+        {
+            EnemyKindProfile p = ForKind(kindId);
+            return p.HitRadius > 0.01f ? p.HitRadius : RogueShooter.Demo.Stage1Coin.BodyRadius;
         }
     }
 }

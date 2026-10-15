@@ -52,8 +52,8 @@ namespace RogueShooter.Build
 
             if (!RewardCatalog.TryGet("R3", out var r3) || r3.Tier != RewardTier.High)
                 return "R3 鸿运 must high";
-            if (r3.ShopPrice != 60)
-                return "R3 shop mid of 54-66";
+            if (r3.ShopPrice != ShopStock.PriceBaseHigh)
+                return "R3 shop price must equal PriceBaseHigh";
             if (!RewardCatalog.TryGet("R10", out var r10) || r10.Tier != RewardTier.Mid)
                 return "R10 止血 must mid";
             if (Math.Abs(r10.Value - 0.40f) > 0.001f)
@@ -144,7 +144,7 @@ namespace RogueShooter.Build
                 return "R14H should remain in pool at Σ=0.80";
             ids.Add("R14H");
             if (!RewardStatHooks.PierceBackSaturated(ids)
-                || Math.Abs(RewardStatHooks.PierceBackAdd(ids) - 1.20f) > 0.001f)
+                || Math.Abs(RewardStatHooks.PierceBackAdd(ids) - 1f) > 0.001f)
                 return "R14H three stacks cap";
             RewardCatalog.BindPoolOwned(ids);
             for (int t = 0; t < 200; t++)
@@ -175,8 +175,8 @@ namespace RogueShooter.Build
                 return "震矢 must have no high tier";
 
             float dps0 = Crit2Dps.Dps0();
-            if (dps0 < 160f || dps0 > 180f)
-                return "DPS0 expect~169 got " + dps0.ToString("0.#");
+            if (dps0 < 240f || dps0 > 243f)
+                return "DPS0 expect~241.43 got " + dps0.ToString("0.#");
 
             var owned = new System.Collections.Generic.List<string> { "R1L" };
             float dps1 = Crit2Dps.FromIds(owned, true).Dps;
@@ -227,11 +227,11 @@ namespace RogueShooter.Build
                 return "shop buy must add Build +1";
             if (!st.TryShopBuy(60, 3, "R7H") || st.BuildCount != 2)
                 return "shop buy stays +1 even if caller passes old high equiv";
-            if (ShopStock.PriceBaseHigh != 60
-                || ShopStock.HighPriceMin != 54
-                || ShopStock.HighPriceMax != 66
-                || ShopStock.PriceFromLow(ShopSlotRole.High, 20) != 60)
-                return "shop high must be 54-66 (mid 60, ratio 1:2:3)";
+            if (ShopStock.PriceBaseHigh != 120
+                || ShopStock.HighPriceMin != 120
+                || ShopStock.HighPriceMax != 120
+                || ShopStock.PriceFromLow(ShopSlotRole.High, 40) != 120)
+                return "shop high must be fixed 120, tier ratio 1:2:3";
             float dpsShop = Crit2Dps.FromState(st, true).Dps;
             if (dpsShop <= dps0)
                 return "shop reward must affect DPS";

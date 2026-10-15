@@ -4,7 +4,7 @@ namespace RogueShooter.Build
 {
     /// <summary>
     /// N36 balance_gold_plan_箭骸.csv. Start gold 0. Chest 15/30 unchanged.
-    /// Kill gold only in P1 (E1=0/E2=1/E3=2/E4=3); P2–P4 = 0. EmptySoft off (0–0).
+    /// Kill gold is 1 in every stage; gold_gain is applied on pickup. EmptySoft off (0–0).
     /// Death inherit = min(floor(prevHeld × 0.50), 30).
     /// </summary>
     public static class EconomyGold
@@ -28,17 +28,8 @@ namespace RogueShooter.Build
 
         public static int KillGold(string enemyKind, float wallMinutes)
         {
-            if (TimePressure.PhaseId(wallMinutes) != "P1")
-                return 0;
+            return 1; // Every stage: one base coin; bonus is settled on pickup.
 
-            string k = string.IsNullOrEmpty(enemyKind) ? "E1" : enemyKind.ToUpperInvariant();
-            switch (k)
-            {
-                case "E2": return 1;
-                case "E3": return 2;
-                case "E4": return 3;
-                default: return 0;
-            }
         }
 
         /// <summary>min(floor(previous held × 0.50), 30).</summary>

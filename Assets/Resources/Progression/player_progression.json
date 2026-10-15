@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "maxLevel": 10,
+  "hpPerLevel": 8,
+  "costConstant": 36,
+  "costLinear": 28,
+  "costQuadratic": 0,
+  "bossXp": 120,
+  "eliteXpMultiplier": 1.5,
+  "stageXpMultipliers": [
+    1,
+    1.1,
+    1.4
+  ],
+  "enemies": [
+    {
+      "kind": "E1",
+      "xp": 10
+    },
+    {
+      "kind": "E2",
+      "xp": 8
+    },
+    {
+      "kind": "E3",
+      "xp": 12
+    },
+    {
+      "kind": "SHIELD",
+      "xp": 18
+    },
+    {
+      "kind": "GRAND",
+      "xp": 20
+    }
+  ]
+}

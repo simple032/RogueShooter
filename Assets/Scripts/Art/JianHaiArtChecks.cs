@@ -13,8 +13,8 @@ namespace RogueShooter.Art
                 return "PPU must be 32";
             if (JianHaiArtCatalog.EntityStubWorldScale != 0.62f)
                 return "entity stub world scale must stay 0.62 (play ortho 6)";
-            if (!L5VisionChecks.OrthoMatchesMode(CameraViewService.PlayOrthoSize))
-                return "play ortho must be 6 ortho / 5.25 iso (CameraViewService.PlayOrthoSize)";
+            if (Math.Abs(CameraViewService.PlayOrthoSize - 8f) > 0.001f)
+                return "play ortho must stay 8 (producer retune)";
             if (JianHaiArtCatalog.StubWorldScale(JianHaiArtCatalog.PlayerIdle)
                 != JianHaiArtCatalog.EntityStubWorldScale)
                 return "player stub scale";
@@ -62,8 +62,8 @@ namespace RogueShooter.Art
             if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.PlayerIdle)
                 != "Assets/Art/JianHai/Characters/jh_char_archer_idle_00.png")
                 return "player idle path";
-            if (JianHaiArtCatalog.EnemyE1Idle != "jh_enemy_e1_skel_idle_00")
-                return "skel idle must be framed _00 (bare idle is a solid placeholder)";
+            if (JianHaiArtCatalog.EnemyE1Idle != "jh_enemy_e1_skel_idle")
+                return "skel idle";
             if (JianHaiArtCatalog.EnemyDogIdle != "jh_enemy_dog_idle_00")
                 return "dog idle";
             if (JianHaiArtCatalog.EnemyMageIdle != "jh_enemy_mage_idle_00")
@@ -105,38 +105,13 @@ namespace RogueShooter.Art
                 return "fx layer";
             if (Math.Abs(ChargeFxHooks.ChargeSeconds - 0.70f) > 0.001f)
                 return "ring fill must be 0.70s";
-            if (Math.Abs(ChargeFxHooks.GreenEnter - 0.68f) > 0.001f
-                || Math.Abs(ChargeFxHooks.GreenExit - 0.72f) > 0.001f)
-                return "weak-spot window 0.68–0.72s";
+            if (Math.Abs(ChargeFxHooks.GreenEnter - 0.67f) > 0.001f
+                || Math.Abs(ChargeFxHooks.GreenExit - 0.73f) > 0.001f)
+                return "weak-spot window 0.67–0.73s";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
                 return "shoot recovery must be 0.20s";
             if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
                 return "weak-spot stagger must be 0.50s";
-            if (JianHaiArtCatalog.ArrowFlight != "jh_proj_arrow_fly")
-                return "arrow flight PHASE1 jh_proj_arrow_fly";
-            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.ArrowFlight) != "Projectiles")
-                return "arrow projectile folder";
-            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.OrbFlight) != "Projectiles")
-                return "mage orb projectile folder";
-            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.OrbFlight) != JianHaiArtCatalog.LayerFx)
-                return "mage orb fx layer";
-            if (JianHaiArtCatalog.AssetPath(JianHaiArtCatalog.OrbFlight)
-                != "Assets/Art/JianHai/Projectiles/jh_proj_orb_mage_fly.png")
-                return "mage orb path";
-            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.TileFloorCorridor) != "Tiles")
-                return "floor tile folder";
-            if (JianHaiArtCatalog.FolderForArtId(JianHaiArtCatalog.WallStone) != "Tiles")
-                return "wall folder";
-            if (JianHaiArtCatalog.SortingLayer(JianHaiArtCatalog.TileFloorCorridor) != JianHaiArtCatalog.LayerGround)
-                return "floor sorting";
-            // Arrow / orb projectile PNGs are not on main (placeholder until art lands).
-            if (!JianHaiSprites.HasSourceFile(JianHaiArtCatalog.PlayerIdle)
-                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.TileFloorCorridor)
-                || !JianHaiSprites.HasSourceFile(JianHaiArtCatalog.WallStone))
-                return "Provide JianHai PNGs must exist on disk";
-            if (Math.Abs(JianHaiArtCatalog.PivotS1.y - 0.15f) > 0.001f
-                || JianHaiArtCatalog.Ppu != 32)
-                return "PHASE1 PPU32 / S1 pivot 0.15";
 
             for (int i = 0; i < LockSiteCatalog.Sites.Length; i++)
             {

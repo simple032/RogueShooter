@@ -21,8 +21,8 @@ namespace RogueShooter.Spawning
             if (kinds2 != "E1,E2,E3,SHIELD")
                 return "S2 kinds expect E1,E2,E3,SHIELD got " + kinds2;
             string kinds3 = StageEnemyPool.FormatKinds(StageId.S3);
-            if (kinds3 != "E1,E2,E3,SHIELD,GRAND")
-                return "S3 kinds expect E1,E2,E3,SHIELD,GRAND got " + kinds3;
+            if (kinds3 != "E1,E2,E3,SHIELD")
+                return "S3 kinds expect E1,E2,E3,SHIELD got " + kinds3;
 
             if (StageEnemyPool.HasKind(StageId.S1, EnemyKindIds.Shield)
                 || StageEnemyPool.HasKind(StageId.S1, EnemyKindIds.GrandMage))
@@ -34,9 +34,9 @@ namespace RogueShooter.Spawning
             string s2Mage = CheckS2CultMage();
             if (s2Mage != null)
                 return s2Mage;
-            if (!StageEnemyPool.HasKind(StageId.S3, EnemyKindIds.GrandMage)
+            if (StageEnemyPool.HasKind(StageId.S3, EnemyKindIds.GrandMage)
                 || !StageEnemyPool.HasKind(StageId.S3, EnemyKindIds.CultMage))
-                return "S3 must include GRAND + earlier kinds";
+                return "S3 must exclude GRAND and keep cult mage";
 
             string nErr = CheckTier(StageId.S1, false, 5);
             if (nErr != null) return nErr;
@@ -110,15 +110,15 @@ namespace RogueShooter.Spawning
                 return "shield weak-spot stagger 1s";
             if (Math.Abs(ChargeShotRules.WeakSpotStaggerSeconds - 0.50f) > 0.001f)
                 return "weak-spot stagger 0.5s";
-            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.68f) > 0.001f
-                || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.72f) > 0.001f)
-                return "weak-spot window 0.68–0.72";
+            if (Math.Abs(ChargeShotRules.GreenEnterSeconds - 0.67f) > 0.001f
+                || Math.Abs(ChargeShotRules.GreenExitSeconds - 0.73f) > 0.001f)
+                return "weak-spot window 0.67–0.73";
             if (Math.Abs(ChargeShotRules.RingFillSeconds - 0.70f) > 0.001f)
                 return "ring full @0.70";
             if (Math.Abs(ChargeShotRules.RecoverSeconds - 0.20f) > 0.001f)
                 return "shot recovery 0.2s";
-            if (Math.Abs(EnemyCombatRules.PlayOrthoSize - 6f) > 0.001f)
-                return "play ortho 6";
+            if (Math.Abs(EnemyCombatRules.PlayOrthoSize - 8f) > 0.001f)
+                return "play ortho 8";
 
             if (EnemyKindCatalog.StubHp(EnemyKindIds.Normal) != 39)
                 return "DRAFT HP normal mid 39";
@@ -126,8 +126,8 @@ namespace RogueShooter.Spawning
                 return "DRAFT HP dog mid 20";
             if (EnemyKindCatalog.StubHp(EnemyKindIds.CultMage) != 26)
                 return "DRAFT HP mage mid 26";
-            if (EnemyKindCatalog.StubHp(EnemyKindIds.Shield) != 52)
-                return "DRAFT HP shield mid 52";
+            if (EnemyKindCatalog.StubHp(EnemyKindIds.Shield) != 65)
+                return "DRAFT HP shield mid 65";
             if (EnemyKindCatalog.StubHp(EnemyKindIds.GrandMage) != 39)
                 return "DRAFT HP grand mid 39";
             if (Math.Abs(EnemyPoolDraft.DraftDps0B - 13f) > 0.001f)
@@ -159,7 +159,7 @@ namespace RogueShooter.Spawning
 
         static string CheckTier(StageId stage, bool enhanced, int minCount)
         {
-            DraftCompositionRow[] rows = EnemyPoolDraft.CompsFor(stage, enhanced);
+            DraftCompositionRow[] rows = enhanced ? StageEnemyPool.EnhancedComps(stage) : StageEnemyPool.NormalComps(stage);
             if (rows == null || rows.Length < minCount)
                 return StageIdUtil.Label(stage) + (enhanced ? " enhanced" : " normal")
                     + " need ≥" + minCount + " comps got " + (rows == null ? 0 : rows.Length);
@@ -312,8 +312,8 @@ namespace RogueShooter.Spawning
                 return "S2 cult mage must not lunge";
 
             DraftEnemyStat s1 = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
-            if (Math.Abs(s1.Ttk0B - 2.0f) > 0.001f || s1.HpMid != 26 || Math.Abs(s1.Atk - 19f) > 0.001f)
-                return "cult mage 0B TTK≈2s HP mid 26 atk 19 (stage-independent)";
+            if (Math.Abs(s1.Ttk0B - 2.0f) > 0.001f || s1.HpMid != 26 || Math.Abs(s1.Atk - 16f) > 0.001f)
+                return "cult mage 0B TTK≈2s HP mid 26 atk 16 (stage-independent)";
             if (EnemyKindCatalog.StubHp(EnemyKindIds.CultMage) != 26)
                 return "S2 cult mage HP must match S1 (no stage inflate)";
             if (EnemyKindCatalog.ForKind(EnemyKindIds.CultMage).RangedOrb != true)
@@ -343,7 +343,7 @@ namespace RogueShooter.Spawning
             sb.Append(" S3=").Append(StageEnemyPool.FormatKinds(StageId.S3));
             sb.Append(" comps=5n+5e/stage room=Normal/Chest→N Altar/LargeChest→E");
             sb.Append(" enhance=<4:+1 ==4:elite×HP1.25/atk1.15");
-            sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:52,GRAND:39");
+            sb.Append(" draftHp=E1:39,E2:20,E3:26,SHIELD:65,GRAND:39");
             sb.Append(" draftAtk=E1:25,E2:15,E3:19,SHIELD:30,GRAND:25");
             sb.Append(" draftMove=E1:4.5,E2:7.2,E3:3.6,SHIELD:4.5/2.25,GRAND:3.3");
             sb.Append(" playerMove=6 orb=12=player×2 dps0b=13 thrust=[30,40]");
@@ -362,18 +362,18 @@ namespace RogueShooter.Spawning
                 return "DRAFT atk normal 25 (not 12)";
             if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.Dog, false), 15f))
                 return "DRAFT atk dog 15 (not 10)";
-            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.CultMage, false), 19f))
-                return "DRAFT atk mage 19 (not 14)";
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.CultMage, false), 16f))
+                return "DRAFT atk mage 16 (not 14)";
             if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.Shield, false), 30f))
                 return "DRAFT atk shield 30 (not 15)";
-            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.GrandMage, false), 25f))
-                return "DRAFT atk grand 25 per orb (not 12)";
+            if (!Near(EnemyPoolDraft.Atk(EnemyKindIds.GrandMage, false), 22f))
+                return "DRAFT atk grand 22 per orb (not 12)";
 
             if (!Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.Normal), 25f)
                 || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.Dog), 15f)
-                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.CultMage), 19f)
+                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.CultMage), 16f)
                 || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.Shield), 30f)
-                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.GrandMage), 25f))
+                || !Near(EnemyKindCatalog.HitDamageStub(EnemyKindIds.GrandMage), 22f))
                 return "HitDamageStub must follow latest draft atk";
 
             if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.Normal, false), 4.5f))
@@ -389,8 +389,8 @@ namespace RogueShooter.Spawning
             if (!Near(EnemyPoolDraft.MoveSpeed(EnemyKindIds.GrandMage, false), 3.3f))
                 return "DRAFT move grand 3.3";
 
-            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Dog, false), 7.2f))
-                return "WalkSpeed dog 7.2";
+            if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Dog, false), 5.4f))
+                return "WalkSpeed dog 5.4";
             if (!Near(EnemyKindCatalog.WalkSpeed(EnemyKindIds.Shield, true), 2.25f))
                 return "WalkSpeed shield raised 2.25";
 
@@ -403,8 +403,8 @@ namespace RogueShooter.Spawning
             if (!Near(dog.Atk, 15f) || !Near(dog.MoveSpeed, 7.2f))
                 return "dog CSV atk 15 move 7.2";
             DraftEnemyStat mage = EnemyPoolDraft.Stat(EnemyKindIds.CultMage);
-            if (!Near(mage.Atk, 19f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 6f))
-                return "mage CSV atk 19 move 3.6 orb 12";
+            if (!Near(mage.Atk, 16f) || !Near(mage.MoveSpeed, 3.6f) || !Near(mage.OrbSpeed, 6f))
+                return "mage CSV atk 16 move 3.6 orb 12";
             DraftEnemyStat shield = EnemyPoolDraft.Stat(EnemyKindIds.Shield);
             if (!Near(shield.Atk, 30f) || !Near(shield.MoveSpeed, 4.5f)
                 || !Near(shield.ShieldedMoveSpeed, 2.25f))

@@ -12,7 +12,6 @@ using RogueShooter.Layout;
 using RogueShooter.Player;
 using RogueShooter.Spawning;
 using RogueShooter.Vision;
-using RogueShooter.Combat;
 
 namespace RogueShooter.Demo
 {
@@ -22,7 +21,7 @@ namespace RogueShooter.Demo
     [DefaultExecutionOrder(50)]
     public class ThreeRouteScaffoldDemo : MonoBehaviour
     {
-        [SerializeField] float orthographicSize = CameraViewService.OrthoPlaySize; // 6 = producer retune
+        [SerializeField] float orthographicSize = CameraViewService.PlayOrthoSize; // 6 = producer retune
         [Tooltip("Play default ~6. 0 = MoveSpeeds.Player (L=22 lock)")]
         [SerializeField] float moveSpeed = 6f;
         [Tooltip("0 = use demo_spawnband_defaults.csv demo_clock_scale")]
@@ -184,10 +183,7 @@ namespace RogueShooter.Demo
             player.AddComponent<PlayerVitals>().Configure(EnemyDamageCatalog.PlayerMaxHpRef);
             player.AddComponent<PlayerStrike>().Configure(_lock != null ? _lock.strikeRange : 1.85f);
             player.AddComponent<PlayerCharge>();
-            player.AddComponent<PlayerDodge>();
             player.AddComponent<GuaranteedCritActive>();
-            CollisionVolume.Add(player, CollisionLayer.Player, false, CollisionRules.PlayerHalfX, CollisionRules.PlayerHalfY);
-            EntityAnimView.Add(player, true);
             _player = player.transform;
             Debug.Log($"[MoveSpeed] player={playerSpeed:0.00000} charge×{MoveSpeeds.ChargeMul:0.0} " +
                       $"E1={MoveSpeeds.E1:0.00000} E2={MoveSpeeds.E2:0.00000} E3={MoveSpeeds.E3:0.00000} E4={MoveSpeeds.E4:0.00000}");
@@ -224,8 +220,6 @@ namespace RogueShooter.Demo
             stubPrefab.SetActive(false);
             JianHaiBind.ApplyTo(stubPrefab, JianHaiArtCatalog.EnemyE1Idle);
             stubPrefab.AddComponent<StubEnemy>();
-            CollisionVolume.Add(stubPrefab, CollisionLayer.Mob, false, CollisionRules.MobHalfX, CollisionRules.MobHalfY);
-            EntityAnimView.Add(stubPrefab, false);
 
             var slots = new List<SpawnBandDirector.Slot>();
             for (int i = 0; i < LockSiteCatalog.Corridors.Length; i++)
@@ -421,7 +415,7 @@ namespace RogueShooter.Demo
             bool idsOk = missing.Count == 0;
             bool configOk = _lock != null;
             bool viewOk = _view != null
-                && Mathf.Abs(orthographicSize - CameraViewService.OrthoPlaySize) < 0.01f // serialized ortho authoring size; applied size below
+                && Mathf.Abs(orthographicSize - CameraViewService.PlayOrthoSize) < 0.01f
                 && Mathf.Abs(_view.OrthographicSize - CameraViewService.PlayOrthoSize) < 0.01f;
 
             bool inViewSkip = _demoAnchors != null
@@ -553,9 +547,6 @@ namespace RogueShooter.Demo
 
         void OnGUI()
         {
-            // Reward/shop panel open: hide the debug HUD so it never covers the left card.
-            if (RewardScreenView.PanelOpen)
-                return;
             const int pad = 8;
             int w = 580;
             int h = 360;
@@ -628,11 +619,8 @@ namespace RogueShooter.Demo
             if (_boss != null && _boss.Brain != null && _boss.FightStarted)
             {
                 var brain = _boss.Brain;
-                string beat = _boss.Combat == null
-                    ? brain.Phase.ToString()
-                    : _boss.Combat.Phase + " " + _boss.Combat.CurrentMove;
                 GUI.Label(new Rect(pad + 8, pad + 226, w - 16, 18),
-                    "BOSS " + beat
+                    "BOSS " + brain.Phase
                     + " door=" + (brain.DoorClosed ? "CLOSED" : "OPEN")
                     + " lockHP=" + (brain.HpLocked ? "YES" : "NO")
                     + " " + brain.Hp.ToString("0") + "/" + brain.MaxHp.ToString("0"),
@@ -643,6 +631,8 @@ namespace RogueShooter.Demo
 
             DrawIdPanel();
             DrawViewBorder();
+            if (_buildDir != null)
+                _buildDir.DrawOfferGui();
         }
 
         static void DrawMobStates(int x, int y, int w, GUIStyle style)

@@ -53,6 +53,18 @@ namespace RogueShooter.Player
             _actor = GetComponent<Stage1IsoActor>();
         }
 
+        /// <summary>The motor advances the same clock that determines displacement.</summary>
+        public float AdvanceMotion(float dt)
+        {
+            if (!LocksActions || dt <= 0f) return 0f;
+            float moveDt = Mathf.Min(dt, Mathf.Max(0f, MoveSeconds - _t));
+            _t = Mathf.Min(_t + dt, MoveSeconds + RecoverSeconds);
+            // Start the reward window when actions really unlock, also at low FPS.
+            if (!LocksActions)
+                GetComponent<ConditionalShotPerks>()?.NotifyRollFinished(0f);
+            return moveDt;
+        }
+
         void Update()
         {
             PlayerVitals vitals = GetComponent<PlayerVitals>();
@@ -63,7 +75,9 @@ namespace RogueShooter.Player
 
             if (_t < MoveSeconds + RecoverSeconds)
             {
-                _t += Time.deltaTime;
+                // No second clock in Update: the motor runs in Update or FixedUpdate.
+                var motor = GetComponent<PlayerMotor2D>();
+                if (motor == null || !motor.enabled) AdvanceMotion(Time.deltaTime);
                 return;
             }
 
@@ -75,8 +89,14 @@ namespace RogueShooter.Player
                 input.Normalize();
             else
                 input = FacingVector(_actor);
-            _dir = input;
-            _t = 0f;
+            TryStartRoll(input);
+        }
+
+        public bool TryStartRoll(Vector2 direction)
+        {
+            var vitals=GetComponent<PlayerVitals>();if(RunPause.IsPaused||LocksActions||vitals!=null&&vitals.IsDown)return false;
+            _dir=direction.sqrMagnitude>.01f?direction.normalized:FacingVector(_actor);_t=0f;GetComponent<ConditionalShotPerks>()?.NotifyRollStarted();
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_player_roll",this);return true;
         }
 
         static Vector2 FacingVector(Stage1IsoActor actor)

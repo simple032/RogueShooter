@@ -1,820 +1,288 @@
-using System;
+using UnityEngine;
 using System.Collections.Generic;
-
+using RogueShooter.Demo;
+using RogueShooter.Maze;
+using RogueShooter.Player;
 namespace RogueShooter.Boss
 {
-    public struct BossHitEvent
+    /// <summary>Spatial execution. Gameplay clock owns all events; v04 art follows that clock.</summary>
+    public sealed class FinalBossCombat : MonoBehaviour
     {
-        public float Damage;
-        public string Kind;
-        public BossMoveId Move;
-        public int Group;
-    }
-
-    struct BossShot
-    {
-        public float X;
-        public float Y;
-        public float DirX;
-        public float DirY;
-        public float Speed;
-        public float Radius;
-        public float Left;
-        public int Group;
-        public int MoveIndex;
-        public BossMoveId Move;
-        public bool Alive;
-    }
-
-    struct WalkSample
-    {
-        public float Time;
-        public float Dx;
-        public float Dy;
-        public float Dt;
-    }
-
-    /// <summary>
-    /// Spatial execution for the one boss clock on <see cref="BossBrain"/>.
-    /// Projectiles, fans, charge and leap are resolved here. This is not a second move machine.
-    /// Provisional: no official frames. The driver may draw the logical shots.
-    /// </summary>
-    public sealed class FinalBossCombat
-    {
-        readonly BossBrain _brain;
-        readonly List<BossShot> _shots = new List<BossShot>();
-        readonly List<BossHitEvent> _hits = new List<BossHitEvent>();
-        readonly List<long> _hitKeys = new List<long>();
-        readonly List<WalkSample> _walk = new List<WalkSample>();
-        readonly Random _rng;
-
-        int _seenIndex = -1;
-        int _shotsFired;
-        bool _hitThisMove;
-        bool _chargeDone;
-        bool _leapLocked;
-        bool _hasPlayer;
-        bool _p1FirstRanged;
-        bool _p1FirstCharge;
-        bool _p2FirstRanged;
-        float _aimX = 1f;
-        float _aimY;
-        float _leapX;
-        float _leapY;
-        float _leapStartX;
-        float _leapStartY;
-        float _dashEndX;
-        float _dashEndY;
-
-        public bool AllowActions = true;
-        public bool AutoSelect = true;
-        public bool AutoMove = true;
-        public bool AcceptWalkSample = true;
-        public bool BodyAndCrownInView = true;
-        public bool PlayerInvulnerable;
-        public bool HasArena;
-        public float ArenaMinX;
-        public float ArenaMinY;
-        public float ArenaMaxX;
-        public float ArenaMaxY;
-
-        public float FacingX { get; private set; }
-        public float FacingY { get; private set; }
-        public float BossX { get; private set; }
-        public float BossY { get; private set; }
-        public float PlayerX { get; private set; }
-        public float PlayerY { get; private set; }
-        public int DamageApplications { get; private set; }
-        public float DamageToPlayer { get; private set; }
-        public int ArrowsFired { get; private set; }
-        public int LastVolleyCount { get; private set; }
-        public float LastVolleyTime { get; private set; }
-        public int LastVolleyMoveIndex { get; private set; }
-        public float LastVolleyAngle0 { get; private set; }
-        public float LastVolleyAngle1 { get; private set; }
-        public float LastVolleyAngle2 { get; private set; }
-        public int LiveShots { get { return CountShots(); } }
-        public float LeapTargetX { get { return _leapX; } }
-        public float LeapTargetY { get { return _leapY; } }
-        public bool LeapTargetLocked { get { return _leapLocked; } }
-
-        public float MaxHp { get { return _brain != null ? _brain.MaxHp : FinalBossRules.MaxHp; } }
-        public float Hp { get { return _brain != null ? _brain.Hp : 0f; } }
-        public BossPhase Phase { get { return _brain != null ? _brain.Phase : BossPhase.IdleOutside; } }
-        public BossMoveId CurrentMove { get { return _brain != null ? _brain.CurrentMove : BossMoveId.None; } }
-        public BossMoveStep Step { get { return _brain != null ? _brain.MoveStep : BossMoveStep.Idle; } }
-        public int P1RangedUses { get { return _brain != null ? _brain.P1RangedUses : 0; } }
-        public bool ReadyToSelect { get { return _brain != null && _brain.ReadyToSelect; } }
-
-        public float Distance
+        BossFightDriver _fight; SpriteRenderer _body; Transform _visual;
+        public BossWardenPresentation Presentation {get;private set;}
+        readonly List<LineRenderer> _warnings=new List<LineRenderer>();
+        int _warningUsed,_moveIndex=-1,_shotCount; bool _locked,_began,_landed;
+        int _approachChoiceIndex=-1;bool _approachChoice;
+        SpriteRenderer _alert;static Sprite _alertSprite;
+        public bool AlertVisible=>_alert!=null&&_alert.enabled;
+        public int VolleyCount=>_shotCount;
+        Vector3 _aim=Vector3.down,_face=Vector3.down,_start,_dashEnd,_target,_last;
+        float _walkClock,_previousElapsed;
+        System.Random _rng;
+        public int WarningCount {get {int n=0;foreach(var w in _warnings)if(w!=null&&w.enabled)n++;return n;}}
+        public int AttacksExecuted{get;private set;}
+        public int ArrowsFired{get;private set;}
+        public Vector3 LockedAim=>_aim;
+        public Vector3 BodyFacing=>_face;
+        public SpriteRenderer BodyRenderer=>_body;
+        public Vector3 DashEnd=>_dashEnd;
+        public Vector3 LeapTarget=>_target;
+        public bool Airborne=>_fight!=null&&_fight.Brain.CurrentMove==BossMoveId.LeapSlam&&_fight.Brain.ActionElapsed>=.7f&&_fight.Brain.ActionElapsed<1.55f;
+        public void Bind(BossFightDriver fight)
         {
-            get
-            {
-                float dx = PlayerX - BossX;
-                float dy = PlayerY - BossY;
-                return (float)Math.Sqrt(dx * dx + dy * dy);
-            }
+            _fight=fight;_last=transform.position;_rng=new System.Random(fight.FightSeed);
+            transform.localScale=Vector3.one*FinalBossRules.BodyScale;
+            _visual=new GameObject("BOSS v04 refined right-hand animation").transform;_visual.SetParent(transform,false);
+            // Source PPU already encodes the final world size. Preserve the gameplay root scale.
+            _visual.localScale=Vector3.one/FinalBossRules.BodyScale;
+            _body=_visual.gameObject.AddComponent<SpriteRenderer>();_body.sortingLayerName="Entity";_body.spriteSortPoint=SpriteSortPoint.Pivot;
+            Presentation=_visual.gameObject.AddComponent<BossWardenPresentation>();Presentation.Bind(_body);
+            var group=gameObject.AddComponent<UnityEngine.Rendering.SortingGroup>();group.sortingLayerName="Entity";
+            var alert=new GameObject("Boss windup !");alert.transform.SetParent(transform,false);
+            _alert=alert.AddComponent<SpriteRenderer>();_alert.sprite=AlertSprite();_alert.sortingLayerName="FX";_alert.sortingOrder=50;_alert.enabled=false;
+            ShowBody();
         }
-
-        public FinalBossCombat(BossBrain brain)
+        bool Visible(Vector3 p,float pad=.25f)
         {
-            _brain = brain;
-            _rng = new Random(42);
-            FacingX = 0f;
-            FacingY = -1f;
-            _aimX = FacingX;
-            _aimY = FacingY;
+            var cam=Camera.main;if(cam==null)return false;
+            var min=cam.WorldToViewportPoint(p-new Vector3(pad,pad,0));var max=cam.WorldToViewportPoint(p+new Vector3(pad,pad,0));
+            return min.z>0&&min.x>.03f&&max.x<.97f&&min.y>.04f&&max.y<.94f;
         }
-
-        public void SetArena(float cx, float cy, float halfW, float halfH)
+        public bool FullyVisibleAt(Vector3 foot)
+        {return Visible(foot+Vector3.up*1.7f,1.8f);}
+        bool ClearLine(Vector3 a,Vector3 b,float radius=0)=>MazeCollision.FirstBlockT(_fight.Maze,null,a,b,radius)>1f;
+        Vector3 PlayerPoint=>_fight.PlayerBody!=null?_fight.PlayerBody.position:transform.position+Vector3.down;
+        Vector3 DirectionToPlayer(){var d=PlayerPoint-transform.position;d.z=0;return d.sqrMagnitude>.001f?d.normalized:_face;}
+        static Vector3 Dir(float degrees){float a=degrees*Mathf.Deg2Rad;return new Vector3(Mathf.Cos(a),Mathf.Sin(a),0);}
+        static string FacingFrom(Vector3 d){string[] dirs={"e","ne","n","nw","w","sw","s","se"};int n=Mathf.RoundToInt(Mathf.Atan2(d.y,d.x)*Mathf.Rad2Deg/45f);return dirs[(n%8+8)%8];}
+        void Turn(Vector3 wanted,float dt)
+        {if(wanted.sqrMagnitude<.001f)return;float from=Mathf.Atan2(_face.y,_face.x)*Mathf.Rad2Deg,to=Mathf.Atan2(wanted.y,wanted.x)*Mathf.Rad2Deg;_face=Dir(Mathf.MoveTowardsAngle(from,to,FinalBossRules.TurnSpeed(_fight.Brain.Phase)*dt));_aim=_face;}
+        public static Vector3 PredictPoint(Vector3 player,Vector3 boss,Vector2 groundVelocity)
         {
-            HasArena = true;
-            ArenaMinX = cx - halfW;
-            ArenaMaxX = cx + halfW;
-            ArenaMinY = cy - halfH;
-            ArenaMaxY = cy + halfH;
+            float lead=Mathf.Min(.75f,Vector3.Distance(player,boss)/8f+.35f);
+            return player+(Vector3)Vector2.ClampMagnitude(groundVelocity*lead*.65f,3f);
         }
-
-        public void SetBossPosition(float x, float y)
-        {
-            BossX = x;
-            BossY = y;
-        }
-
-        public void SetPlayerPosition(float x, float y)
-        {
-            PlacePlayer(x, y, 0f);
-        }
-
-        public void PlacePlayer(float x, float y, float dt)
-        {
-            if (_hasPlayer && AcceptWalkSample && dt > 0.000001f)
-                NoteWalk(x - PlayerX, y - PlayerY, dt);
-            _hasPlayer = true;
-            PlayerX = x;
-            PlayerY = y;
-        }
-
-        public void NoteWalk(float dx, float dy, float dt)
-        {
-            if (!AcceptWalkSample || dt <= 0.000001f)
-                return;
-            _walk.Add(new WalkSample
-            {
-                Time = _brain != null ? _brain.CombatSeconds : 0f,
-                Dx = dx,
-                Dy = dy,
-                Dt = dt
-            });
-            TrimWalk();
-        }
-
-        public void SetFacing(float x, float y)
-        {
-            float mag = (float)Math.Sqrt(x * x + y * y);
-            if (mag < 0.00001f)
-                return;
-            FacingX = x / mag;
-            FacingY = y / mag;
-            _aimX = FacingX;
-            _aimY = FacingY;
-        }
-
-        public float ApplyPlayerShot(float amount, float dirX, float dirY, bool weak)
-        {
-            if (_brain == null || amount <= 0f)
-                return 0f;
-            if (_brain.Phase == BossPhase.IdleOutside || _brain.Phase == BossPhase.Defeated || _brain.Transitioning)
-                return 0f;
-            if (!_brain.GroundVulnerable)
-                return 0f;
-            BossPhase guard = _brain.Phase == BossPhase.P2 ? BossPhase.P2 : BossPhase.P1;
-            float mul = FinalBossRules.IncomingMultiplier(guard, FacingX, FacingY, dirX, dirY, weak);
-            int cuts = _brain.Phase2Transitions;
-            float before = _brain.Hp;
-            _brain.ApplyDamage(amount * mul);
-            if (_brain.Phase == BossPhase.Defeated || _brain.Phase2Transitions > cuts)
-                ClearShots();
-            return before - _brain.Hp;
-        }
-
-        public bool TryStart(BossMoveId move)
-        {
-            if (_brain == null || !AllowActions)
-                return false;
-            return _brain.TryStart(move);
-        }
-
-        public void Simulate(float dt)
-        {
-            if (dt < 0f)
-                dt = 0f;
-            while (dt > 0.000001f)
-            {
-                float step = dt > FinalBossRules.LogicStep ? FinalBossRules.LogicStep : dt;
-                dt -= step;
-                TickSlice(step);
-            }
-        }
-
-        public List<BossHitEvent> ConsumeHits()
-        {
-            var copy = new List<BossHitEvent>(_hits);
-            _hits.Clear();
-            return copy;
-        }
-
-        public void ClearShots()
-        {
-            _shots.Clear();
-            if (_brain != null)
-                _brain.NoteProjectiles(true);
-        }
-
-        void TickSlice(float dt)
-        {
-            if (_brain == null)
-                return;
-            if (!AllowActions || _brain.Transitioning)
-                return;
-            if (_brain.Phase != BossPhase.P1 && _brain.Phase != BossPhase.P2)
-                return;
-            bool clear = CountShots() == 0;
-            MoveSpan span = _brain.Tick(dt, clear);
-
-            if (span.HasMove)
-                Resolve(span, dt);
-            _brain.NoteProjectiles(CountShots() == 0);
-            if (AutoSelect && _brain.ReadyToSelect && CountShots() == 0)
-                Select();
-            else if (AutoMove && _brain.CurrentMove == BossMoveId.None)
-                Wander(dt);
-        }
-
-        void Resolve(MoveSpan span, float dt)
-        {
-            if (span.Index != _seenIndex)
-            {
-                _seenIndex = span.Index;
-                _shotsFired = 0;
-                _hitThisMove = false;
-                _chargeDone = false;
-                _leapLocked = false;
-                _leapX = PlayerX;
-                _leapY = PlayerY;
-                _leapStartX = BossX;
-                _leapStartY = BossY;
-                _dashEndX = BossX;
-                _dashEndY = BossY;
-            }
-
-            BossSkill skill = FinalBossRules.Skill(span.Move);
-            float elapsed = span.To;
-            Aim(span.Move, skill, elapsed, dt);
-
-            if (span.Move == BossMoveId.LeapSlam && !_leapLocked && elapsed + 0.00001f >= skill.Lock)
-            {
-                _leapLocked = true;
-                _leapStartX = BossX;
-                _leapStartY = BossY;
-                ClampLeap(PlayerX, PlayerY);
-            }
-            else if (span.Move == BossMoveId.LeapSlam && !_leapLocked)
-            {
-                ClampLeap(PlayerX, PlayerY);
-            }
-
-            if (span.Move == BossMoveId.WarningCharge && !_chargeDone && span.From < skill.Lock)
-                AimDash(skill);
-
-            FireIfDue(span, skill);
-            if (span.Move == BossMoveId.WarningCharge)
-                Dash(span, skill);
-            if (span.Move == BossMoveId.LeapSlam)
-                Leap(span, skill);
-            if (FinalBossRules.IsMelee(span.Move))
-                Melee(span, skill);
-            FlyShots(dt);
-        }
-
-        void Aim(BossMoveId move, BossSkill skill, float elapsed, float dt)
-        {
-            int stage = move == BossMoveId.BurstShot ? _shotsFired : 0;
-            bool pendingShot = move == BossMoveId.BurstShot
-                ? stage < 3
-                : skill.Projectiles > 0 && _shotsFired < 1;
-            float lockAt = skill.Lock;
-            if (move == BossMoveId.BurstShot)
-                lockAt = skill.Lock + stage * skill.ShotInterval;
-
-            bool tracking = false;
-            if (pendingShot && elapsed + 0.00001f < lockAt)
-                tracking = true;
-            else if (move == BossMoveId.LeapSlam && !_leapLocked)
-                tracking = true;
-            else if (move == BossMoveId.WarningCharge && elapsed < skill.Lock)
-                tracking = true;
-            else if (FinalBossRules.IsMelee(move) && elapsed < skill.Lock)
-                tracking = true;
-
-            if (!tracking)
-            {
-                _aimX = FacingX;
-                _aimY = FacingY;
-                return;
-            }
-
-            float wantX;
-            float wantY;
-            if (move == BossMoveId.BurstShot)
-            {
-                float vx;
-                float vy;
-                WalkVelocity(out vx, out vy);
-                float px;
-                float py;
-                FinalBossRules.PredictPoint(PlayerX, PlayerY, BossX, BossY, vx, vy, out px, out py);
-                wantX = px - BossX;
-                wantY = py - BossY;
-            }
-            else
-            {
-                wantX = PlayerX - BossX;
-                wantY = PlayerY - BossY;
-            }
-
-            TurnToward(wantX, wantY, FinalBossRules.TurnSpeed(_brain.Phase) * dt);
-            _aimX = FacingX;
-            _aimY = FacingY;
-        }
-
-        void FireIfDue(MoveSpan span, BossSkill skill)
-        {
-            if (skill.Projectiles <= 0)
-                return;
-            int cap = span.Move == BossMoveId.BurstShot ? 3 : 1;
-            while (_shotsFired < cap)
-            {
-                float fireAt = skill.Windup + _shotsFired * (span.Move == BossMoveId.BurstShot ? skill.ShotInterval : 0f);
-                if (span.From > fireAt + 0.00001f || span.To + 0.00001f < fireAt)
-                    break;
-                if (_shotsFired == 0)
-                    _brain.NotifyRangedFired(span.Move, span.Index);
-                if (span.Move == BossMoveId.TripleShot)
-                {
-                    float baseAng = (float)Math.Atan2(_aimY, _aimX);
-                    LastVolleyAngle0 = -15f;
-                    LastVolleyAngle1 = 0f;
-                    LastVolleyAngle2 = 15f;
-                    for (int side = -1; side <= 1; side++)
-                    {
-                        float ang = baseAng + side * 15f * (float)(Math.PI / 180.0);
-                        Spawn(span, (float)Math.Cos(ang), (float)Math.Sin(ang), 0, skill);
-                    }
-
-                    LastVolleyCount = 3;
-                }
-                else
-                {
-                    Spawn(span, _aimX, _aimY, _shotsFired, skill);
-                    LastVolleyCount = 1;
-                    LastVolleyAngle0 = 0f;
-                    LastVolleyAngle1 = 0f;
-                    LastVolleyAngle2 = 0f;
-                }
-
-                LastVolleyTime = fireAt;
-                LastVolleyMoveIndex = span.Index;
-                _shotsFired++;
-            }
-        }
-
-        void Spawn(MoveSpan span, float dirX, float dirY, int group, BossSkill skill)
-        {
-            float mag = (float)Math.Sqrt(dirX * dirX + dirY * dirY);
-            if (mag < 0.00001f)
-            {
-                dirX = FacingX;
-                dirY = FacingY;
-                mag = 1f;
-            }
-
-            dirX /= mag;
-            dirY /= mag;
-            _shots.Add(new BossShot
-            {
-                X = BossX + dirX * 0.9f,
-                Y = BossY + dirY * 0.9f,
-                DirX = dirX,
-                DirY = dirY,
-                Speed = skill.Speed,
-                Radius = skill.HitRadius,
-                Left = FinalBossRules.ShotRange,
-                Group = group,
-                MoveIndex = span.Index,
-                Move = span.Move,
-                Alive = true
-            });
-            ArrowsFired++;
-        }
-
-        void FlyShots(float dt)
-        {
-            for (int i = 0; i < _shots.Count; i++)
-            {
-                BossShot shot = _shots[i];
-                if (!shot.Alive)
-                    continue;
-                float step = shot.Speed * dt;
-                if (step > shot.Left)
-                    step = shot.Left;
-                float nx = shot.X + shot.DirX * step;
-                float ny = shot.Y + shot.DirY * step;
-                if (!PlayerInvulnerable && SegmentHits(shot.X, shot.Y, nx, ny, PlayerX, PlayerY, FinalBossRules.PlayerRadius + shot.Radius))
-                {
-                    TryHit(shot.Move, shot.Group, shot.MoveIndex);
-                    shot.Alive = false;
-                }
-                else
-                {
-                    shot.X = nx;
-                    shot.Y = ny;
-                    shot.Left -= step;
-                    if (shot.Left <= 0.0001f || (HasArena && !Inside(nx, ny, 0.2f)))
-                        shot.Alive = false;
-                }
-
-                _shots[i] = shot;
-            }
-        }
-
-        void Dash(MoveSpan span, BossSkill skill)
-        {
-            if (_chargeDone)
-                return;
-            float from = span.From > skill.Windup ? span.From : skill.Windup;
-            float to = span.To < skill.Windup + skill.Active ? span.To : skill.Windup + skill.Active;
-            if (to <= from)
-                return;
-            float slice = to - from;
-            float travel = skill.Speed * slice;
-            float dx = _dashEndX - BossX;
-            float dy = _dashEndY - BossY;
-            float remain = (float)Math.Sqrt(dx * dx + dy * dy);
-            float x0 = BossX;
-            float y0 = BossY;
-            if (remain <= travel || remain < 0.0001f)
-            {
-                BossX = _dashEndX;
-                BossY = _dashEndY;
-                _chargeDone = true;
-                _brain.EndChargeEarly();
-            }
-            else
-            {
-                BossX += dx / remain * travel;
-                BossY += dy / remain * travel;
-            }
-
-            if (!_hitThisMove && !PlayerInvulnerable
-                && SegmentHits(x0, y0, BossX, BossY, PlayerX, PlayerY, skill.Radius + FinalBossRules.PlayerRadius))
-            {
-                _hitThisMove = true;
-                TryHit(BossMoveId.WarningCharge, 0, span.Index);
-            }
-        }
-
-        void AimDash(BossSkill skill)
-        {
-            float len = skill.Radius > 0f ? 7f : 7f;
-            float endX = BossX + _aimX * len;
-            float endY = BossY + _aimY * len;
-            if (HasArena)
-            {
-                for (int i = 0; i < 40; i++)
-                {
-                    if (Inside(endX, endY, 1f))
-                        break;
-                    endX = BossX + (endX - BossX) * 0.9f;
-                    endY = BossY + (endY - BossY) * 0.9f;
-                }
-            }
-
-            _dashEndX = endX;
-            _dashEndY = endY;
-        }
-
-        void Leap(MoveSpan span, BossSkill skill)
-        {
-            float air = span.To - skill.Windup;
-            if (air < 0f)
-                return;
-            if (air < FinalBossRules.LeapAirSeconds)
-            {
-                float u = air / FinalBossRules.LeapAirSeconds;
-                BossX = _leapStartX + (_leapX - _leapStartX) * u;
-                BossY = _leapStartY + (_leapY - _leapStartY) * u;
-                return;
-            }
-
-            BossX = _leapX;
-            BossY = _leapY;
-            if (_hitThisMove || PlayerInvulnerable)
-                return;
-            if (span.To < FinalBossRules.LeapLandTime || span.From > FinalBossRules.LeapHitEnd)
-                return;
-            float dx = PlayerX - _leapX;
-            float dy = PlayerY - _leapY;
-            float reach = skill.Radius + FinalBossRules.PlayerRadius;
-            if (dx * dx + dy * dy <= reach * reach)
-            {
-                _hitThisMove = true;
-                TryHit(BossMoveId.LeapSlam, 0, span.Index);
-            }
-        }
-
-        void Melee(MoveSpan span, BossSkill skill)
-        {
-            float hitStart = skill.Windup;
-            float hitEnd = skill.Windup + skill.Active;
-            if (span.To < hitStart || span.From > hitEnd || _hitThisMove)
-                return;
-            bool inside = FinalBossRules.InSector(
-                BossX, BossY, _aimX, _aimY, PlayerX, PlayerY, skill.Radius, skill.Angle, FinalBossRules.PlayerRadius);
-            if (!inside || PlayerInvulnerable)
-                return;
-            _hitThisMove = true;
-            TryHit(span.Move, 0, span.Index);
-        }
-
-        void TryHit(BossMoveId move, int group, int moveIndex)
-        {
-            long key = ((long)moveIndex << 8) + (uint)group;
-            for (int i = 0; i < _hitKeys.Count; i++)
-            {
-                if (_hitKeys[i] == key)
-                    return;
-            }
-
-            _hitKeys.Add(key);
-            float amount = FinalBossRules.Skill(move).Damage * (_brain != null ? _brain.LiveDmgMul : 1f);
-            DamageApplications++;
-            DamageToPlayer += amount;
-            _hits.Add(new BossHitEvent
-            {
-                Damage = amount,
-                Kind = "BOSS_" + move,
-                Move = move,
-                Group = group
-            });
-        }
-
-        void Select()
-        {
-            if (!BodyAndCrownInView)
-                return;
-            BossMoveId ranged = _brain.Phase == BossPhase.P1 ? _brain.NextP1Ranged : BossMoveId.TripleShot;
-            BossMoveId melee = _brain.Phase == BossPhase.P1 ? BossMoveId.ShieldBash : BossMoveId.CrossbowBash;
-            BossMoveId heavy = _brain.Phase == BossPhase.P1 ? BossMoveId.WarningCharge : BossMoveId.LeapSlam;
-            if (Legal(melee) && _brain.TryStart(melee))
-                return;
-
-            bool firstRanged = _brain.Phase == BossPhase.P1 ? !_p1FirstRanged : !_p2FirstRanged;
-            if (firstRanged && Legal(ranged) && _brain.TryStart(ranged))
-            {
-                NoteOpened(ranged);
-                return;
-            }
-
-            if (_brain.Phase == BossPhase.P1 && _p1FirstRanged && !_p1FirstCharge && Legal(heavy) && _brain.TryStart(heavy))
-            {
-                NoteOpened(heavy);
-                return;
-            }
-
-            bool rangedOk = Legal(ranged);
-            bool heavyOk = Legal(heavy);
-            BossMoveId pick = BossMoveId.None;
-            if (rangedOk && heavyOk)
-                pick = _rng.Next(100) < (_brain.Phase == BossPhase.P1 ? 60 : 55) ? ranged : heavy;
-            else if (rangedOk)
-                pick = ranged;
-            else if (heavyOk)
-                pick = heavy;
-            if (pick != BossMoveId.None && _brain.TryStart(pick))
-                NoteOpened(pick);
-        }
-
-        void NoteOpened(BossMoveId move)
-        {
-            if (_brain.Phase == BossPhase.P1 && FinalBossRules.IsP1Ranged(move))
-                _p1FirstRanged = true;
-            if (move == BossMoveId.WarningCharge)
-                _p1FirstCharge = true;
-            if (move == BossMoveId.TripleShot)
-                _p2FirstRanged = true;
-        }
-
+        Vector3 PredictedDirection()
+        {var motor=_fight.PlayerBody!=null?_fight.PlayerBody.GetComponent<PlayerMotor2D>():null;var p=PredictPoint(PlayerPoint,transform.position,motor!=null?motor.RecentWalkVelocity:Vector2.zero);var d=p-transform.position;return d.sqrMagnitude>.001f?d.normalized:_face;}
         bool Legal(BossMoveId move)
         {
-            if (_brain == null || !_brain.CanUse(move) || !BodyAndCrownInView)
-                return false;
-            if (FinalBossRules.IsP1Ranged(move) && move != _brain.NextP1Ranged)
-                return false;
-            BossSkill skill = FinalBossRules.Skill(move);
-            float dist = Distance;
-            if (dist < skill.Min || dist > skill.Max)
-                return false;
-            if (move == BossMoveId.WarningCharge)
-            {
-                float dx = _aimX;
-                float dy = _aimY;
-                if (dx * dx + dy * dy < 0.0001f)
-                {
-                    dx = PlayerX - BossX;
-                    dy = PlayerY - BossY;
-                }
-
-                float mag = (float)Math.Sqrt(dx * dx + dy * dy);
-                if (mag < 0.0001f)
-                    return false;
-                return true;
-            }
-
-            if (move == BossMoveId.LeapSlam)
-                return true;
-            return true;
+            var b=_fight.Brain;var s=FinalBossRules.Skill(move);float d=Vector3.Distance(transform.position,PlayerPoint);
+            if(!b.CanUse(move)||d<s.Min||d>s.Max||!FullyVisibleAt(transform.position)||!ClearLine(transform.position,PlayerPoint))return false;
+            if(FinalBossRules.IsMelee(move))return Visible(transform.position,s.Radius+.4f);
+            if(move==BossMoveId.LeapSlam){Vector3 target;return FindLeapTarget(PlayerPoint,out target);}
+            if(move==BossMoveId.WarningCharge)return Vector3.Distance(transform.position,ClippedChargeEnd(transform.position,DirectionToPlayer()))>=2f;
+            return Vector3.Angle(_face,DirectionToPlayer())<=45f;
         }
-
-        void Wander(float dt)
+        public void SelectOrMove(float dt)
         {
-            float dist = Distance;
-            float speed = FinalBossRules.MoveSpeed(_brain.Phase);
-            float dx = PlayerX - BossX;
-            float dy = PlayerY - BossY;
-            if (dist >= 4.5f && dist <= 7f)
+            var b=_fight.Brain;
+            var melee=b.Phase==BossPhase.P1?BossMoveId.ShieldBash:BossMoveId.CrossbowBash;
+            if(b.ReadyToSelect&&_fight.ProjectileCount==0)
             {
-                TurnToward(dx, dy, FinalBossRules.TurnSpeed(_brain.Phase) * dt);
-                _aimX = FacingX;
-                _aimY = FacingY;
-                return;
-            }
-
-            float dir = dist > 7f ? 1f : -1f;
-            if (dist < 0.001f)
-            {
-                dx = FacingX;
-                dy = FacingY;
-                dist = 1f;
-            }
-
-            float step = speed * dt;
-            float nx = BossX + dir * dx / dist * step;
-            float ny = BossY + dir * dy / dist * step;
-            if (!HasArena || Inside(nx, ny, FinalBossRules.BodyRadius))
-            {
-                BossX = nx;
-                BossY = ny;
-            }
-
-            TurnToward(PlayerX - BossX, PlayerY - BossY, FinalBossRules.TurnSpeed(_brain.Phase) * dt);
-            _aimX = FacingX;
-            _aimY = FacingY;
-        }
-
-        void ClampLeap(float x, float y)
-        {
-            if (HasArena)
-            {
-                float minX = ArenaMinX + 2.5f;
-                float maxX = ArenaMaxX - 2.5f;
-                float minY = ArenaMinY + 2.5f;
-                float maxY = ArenaMaxY - 2.5f;
-                if (minX > maxX)
-                {
-                    minX = (ArenaMinX + ArenaMaxX) * 0.5f;
-                    maxX = minX;
-                }
-
-                if (minY > maxY)
-                {
-                    minY = (ArenaMinY + ArenaMaxY) * 0.5f;
-                    maxY = minY;
-                }
-
-                if (x < minX) x = minX;
-                if (x > maxX) x = maxX;
-                if (y < minY) y = minY;
-                if (y > maxY) y = maxY;
-            }
-
-            _leapX = x;
-            _leapY = y;
-        }
-
-        void TurnToward(float tx, float ty, float maxDeg)
-        {
-            float tl = (float)Math.Sqrt(tx * tx + ty * ty);
-            if (tl < 0.00001f)
-                return;
-            float fa = (float)Math.Atan2(FacingY, FacingX);
-            float ta = (float)Math.Atan2(ty, tx);
-            float delta = ta - fa;
-            float pi = (float)Math.PI;
-            while (delta > pi)
-                delta -= pi * 2f;
-            while (delta < -pi)
-                delta += pi * 2f;
-            float max = maxDeg * (float)(Math.PI / 180.0);
-            if (delta > max)
-                delta = max;
-            if (delta < -max)
-                delta = -max;
-            float na = fa + delta;
-            FacingX = (float)Math.Cos(na);
-            FacingY = (float)Math.Sin(na);
-        }
-
-        void WalkVelocity(out float vx, out float vy)
-        {
-            TrimWalk();
-            float dx = 0f;
-            float dy = 0f;
-            float dt = 0f;
-            float now = _brain != null ? _brain.CombatSeconds : 0f;
-            for (int i = 0; i < _walk.Count; i++)
-            {
-                if (now - _walk[i].Time > FinalBossRules.PredictWindow)
-                    continue;
-                dx += _walk[i].Dx;
-                dy += _walk[i].Dy;
-                dt += _walk[i].Dt > 0f ? _walk[i].Dt : 0.02f;
-            }
-
-            if (dt <= 0.00001f)
-            {
-                vx = 0f;
-                vy = 0f;
-                return;
-            }
-
-            vx = dx / dt;
-            vy = dy / dt;
-        }
-
-        void TrimWalk()
-        {
-            float now = _brain != null ? _brain.CombatSeconds : 0f;
-            int i = 0;
-            while (i < _walk.Count)
-            {
-                if (now - _walk[i].Time > FinalBossRules.PredictWindow)
-                    _walk.RemoveAt(i);
+                var ranged=b.Phase==BossPhase.P1?b.NextP1Ranged:b.NextP2Ranged;
+                var heavy=b.Phase==BossPhase.P1?BossMoveId.WarningCharge:BossMoveId.LeapSlam;
+                BossMoveId pick=BossMoveId.None;
+                if(Legal(melee))pick=melee;
                 else
-                    i++;
+                {
+                    // Roll once per decision, not once per frame: pursuing must be allowed to finish.
+                    if(_approachChoiceIndex!=b.MoveIndex){_approachChoiceIndex=b.MoveIndex;_approachChoice=_rng.Next(100)<75;}
+                    bool pursue=_approachChoice&&b.CanUse(melee)&&Vector3.Distance(PlayerPoint,transform.position)<=6.5f;
+                    if(!pursue)
+                    {
+                        bool r=Legal(ranged),h=Legal(heavy);
+                        if(r&&h)pick=_rng.Next(100)<40?ranged:heavy;
+                        else if(r)pick=ranged;else if(h)pick=heavy;
+                    }
+                }
+                if(pick!=BossMoveId.None&&b.TryStart(pick))
+                {Debug.Log("[FinalBoss] seed="+_fight.FightSeed+" pick="+pick+" index="+b.MoveIndex+" time="+b.CombatSeconds);return;}
             }
-        }
-
-        int CountShots()
-        {
-            int n = 0;
-            for (int i = 0; i < _shots.Count; i++)
+            if(b.MoveStep!=BossMoveStep.Idle)return;
+            // Default is close pursuit. A small step out is only needed to rotate after two melee uses.
+            float desired=2.15f;
+            if(!b.CanUse(melee)&&b.CooldownLeft(melee)<=.0001f)desired=3.8f;
+            Vector3 away=transform.position-PlayerPoint;if(away.sqrMagnitude<.001f)away=-_face;
+            Vector3 goal=PlayerPoint+away.normalized*desired;float best=float.PositiveInfinity;
+            if(!_fight.InArena(goal,1)||!FullyVisibleAt(goal)||!ClearLine(goal,goal,.7f))
             {
-                if (_shots[i].Alive)
-                    n++;
+                goal=transform.position;
+                for(int i=0;i<32;i++)
+                {var p=PlayerPoint+Dir(i*11.25f)*desired;if(!_fight.InArena(p,1)||!FullyVisibleAt(p)||!ClearLine(p,p,.7f))continue;
+                    float score=(p-transform.position).sqrMagnitude;if(score<best){best=score;goal=p;}}
             }
-
-            return n;
+            var to=MazeCollision.Slide(_fight.Maze,null,transform.position,Vector3.MoveTowards(transform.position,goal,FinalBossRules.MoveSpeed(b.Phase)*dt),.7f);
+            Move(to);Turn(DirectionToPlayer(),dt);
         }
-
-        bool Inside(float x, float y, float inset)
+        public void Tick(float dt)
         {
-            return x >= ArenaMinX + inset && x <= ArenaMaxX - inset
-                && y >= ArenaMinY + inset && y <= ArenaMaxY - inset;
+            var b=_fight.Brain;var move=b.CurrentMove;
+            if(move==BossMoveId.None){HideWarnings();_visual.localPosition=Vector3.zero;ShowBody();return;}
+            if(_moveIndex!=b.MoveIndex)
+            {
+                ClearWarnings();_moveIndex=b.MoveIndex;_shotCount=0;_locked=_began=_landed=false;_previousElapsed=0;
+                _start=transform.position;_target=PlayerPoint;_dashEnd=transform.position;
+                RogueShooter.Audio.JianHaiAudio.Emit(AudioPrefix(move)+"_warn",this);
+            }
+            float t=b.ActionElapsed;var s=FinalBossRules.Skill(move);
+            if(b.MoveStep==BossMoveStep.Windup)_start=transform.position;
+            bool burst=move==BossMoveId.BurstShot||move==BossMoveId.TripleBurst;
+            float nextFire=s.Windup+(burst?_shotCount*FinalBossRules.VolleyInterval:0);
+            float nextLock=s.Lock+(burst?_shotCount*FinalBossRules.VolleyInterval:0);
+            bool pending=burst?_shotCount<3:_shotCount==0;
+            if(!_locked&&(t<s.Windup||(burst&&pending)||(move==BossMoveId.LeapSlam&&!_began)))
+            {
+                var wanted=FinalBossRules.IsRanged(move)?PredictedDirection():DirectionToPlayer();
+                Turn(wanted,dt);
+                if(FinalBossRules.IsRanged(move))_aim=wanted;
+                if(move==BossMoveId.LeapSlam){Vector3 target;if(FindLeapTarget(PlayerPoint,out target))_target=target;}
+                if(move==BossMoveId.WarningCharge)_dashEnd=ClippedChargeEnd(_start,_aim);
+                if(t+.00001f>=nextLock){_locked=true;RogueShooter.Audio.JianHaiAudio.Emit(AudioPrefix(move)+"_lock",this);}
+            }
+            if(t+.00001f>=s.Windup&&!_began)
+            {if(move==BossMoveId.LeapSlam)_start=transform.position;_began=true;AttacksExecuted++;RogueShooter.Audio.JianHaiAudio.StopThreat(this);RogueShooter.Audio.JianHaiAudio.Emit(FinalBossRules.IsMelee(move)?"jh_skel_swing":AudioPrefix(move)+(FinalBossRules.IsHeavy(move)?"_active":"_fire"),this);}
+            if(move==BossMoveId.WarningCharge&&b.MoveStep==BossMoveStep.Windup)_dashEnd=ClippedChargeEnd(_start,_aim);
+            if(FinalBossRules.IsRanged(move)&&pending&&t+.00001f>=nextFire)
+            {
+                b.NotifyRangedFired();int group=burst?_shotCount:0;
+                if(FinalBossRules.IsP2Ranged(move)){float angle=Mathf.Atan2(_aim.y,_aim.x)*Mathf.Rad2Deg+(move==BossMoveId.TripleBurst?FinalBossRules.TripleSweep(_shotCount):0);for(int side=-1;side<=1;side++)Spawn(Dir(angle+side*FinalBossRules.TripleSpread),move,group);}
+                else Spawn(_aim,move,group);
+                if(_shotCount>0)RogueShooter.Audio.JianHaiAudio.Emit(AudioPrefix(move)+"_fire",this);
+                _shotCount++;if(burst&&_shotCount<3)_locked=false;
+            }
+            if(move==BossMoveId.WarningCharge&&t>=s.Windup&&_previousElapsed<s.Windup+s.Active&&b.MoveStep!=BossMoveStep.Idle)
+            {
+                float slice=Mathf.Max(0,Mathf.Min(t,s.Windup+s.Active)-Mathf.Max(_previousElapsed,s.Windup));
+                Vector3 from=transform.position,to=Vector3.MoveTowards(from,_dashEnd,s.Speed*slice);
+                if(_fight.PlayerBody!=null&&MazeCollision.CircleEntryT(PlayerPoint,from,to,s.Radius+FinalBossRules.PlayerRadius)<=1)_fight.TryAttackHit(move,0);
+                Move(to);if((transform.position-_dashEnd).sqrMagnitude<.0001f)b.EndChargeEarly();
+            }
+            if(FinalBossRules.IsMelee(move)&&t>=s.Windup&&_previousElapsed<s.Windup+s.Active)
+            {
+                if(FinalBossRules.InSector(transform.position,_aim,PlayerPoint,s.Radius,s.Angle,FinalBossRules.PlayerRadius)&&ClearLine(transform.position,PlayerPoint))
+                    _fight.TryAttackHit(move,0);
+            }
+            if(move==BossMoveId.LeapSlam)
+            {
+                float air=t-s.Windup;
+                if(air>=0&&air<FinalBossRules.LeapAir)
+                {
+                    Move(Vector3.Lerp(_start,_target,Mathf.Clamp01(air/FinalBossRules.LeapAir)));
+                    float h=air<.3f?Mathf.Sin(air/.3f*Mathf.PI*.5f):air<.45f?1f:Mathf.Cos((air-.45f)/.4f*Mathf.PI*.5f);
+                    _visual.localPosition=Vector3.up*(Mathf.Max(0,h)*FinalBossRules.LeapHeight/FinalBossRules.BodyScale);
+                }
+                else if(air>=FinalBossRules.LeapAir)
+                {
+                    if(!_landed){_landed=true;Move(_target);_visual.localPosition=Vector3.zero;}
+                    if(t<1.7f&&Vector3.Distance(PlayerPoint,_target)<=s.Radius+FinalBossRules.PlayerRadius&&ClearLine(_target,PlayerPoint))_fight.TryAttackHit(move,0);
+                }
+            }
+            ShowBody();DrawWarnings(move,t);_previousElapsed=t;
         }
-
-        static bool SegmentHits(float x0, float y0, float x1, float y1, float cx, float cy, float radius)
+        string AudioPrefix(BossMoveId m)=>FinalBossRules.IsP2Ranged(m)?"jh_boss_triple":FinalBossRules.IsP1Ranged(m)?"jh_boss_bolt":"jh_boss_dash";
+        void Move(Vector3 to){if(_fight.InArena(to,.7f))transform.position=to;}
+        Vector3 ClippedChargeEnd(Vector3 start,Vector3 direction)
         {
-            float dx = x1 - x0;
-            float dy = y1 - y0;
-            float fx = x0 - cx;
-            float fy = y0 - cy;
-            float a = dx * dx + dy * dy;
-            float c = fx * fx + fy * fy - radius * radius;
-            if (a < 0.0000001f)
-                return c <= 0f;
-            float b = 2f * (fx * dx + fy * dy);
-            float disc = b * b - 4f * a * c;
-            if (disc < 0f)
-                return false;
-            float s = (float)Math.Sqrt(disc);
-            float t1 = (-b - s) / (2f * a);
-            float t2 = (-b + s) / (2f * a);
-            if (t1 >= 0f && t1 <= 1f)
-                return true;
-            if (t2 >= 0f && t2 <= 1f)
-                return true;
-            return c <= 0f;
+            var end=start+direction*7;float wall=MazeCollision.FirstBlockT(_fight.Maze,null,start,end,.75f);
+            if(wall<=1)end=Vector3.Lerp(start,end,Mathf.Max(0,wall-.005f));
+            // Stop before telegraph or full body leaves the camera/room.
+            for(int i=0;i<40;i++){if(_fight.InArena(end,1)&&Visible(end,1.1f)&&FullyVisibleAt(end))break;end=Vector3.Lerp(end,start,.1f);}
+            return end;
         }
+        Vector3 TracerEnd(Vector3 d)
+        {var end=transform.position+d*7;for(int i=0;i<32&&!Visible(end,.25f);i++)end=Vector3.Lerp(end,transform.position,.1f);float wall=MazeCollision.FirstBlockT(_fight.Maze,null,transform.position,end,.12f);return wall<=1?Vector3.Lerp(transform.position,end,Mathf.Max(0,wall-.005f)):end;}
+        public bool FindLeapTarget(Vector3 wanted,out Vector3 target)
+        {
+            target=wanted;if(_fight.Arena==null)return false;
+            var r=_fight.Arena;target.x=Mathf.Clamp(target.x,r.Center.X-r.Width*.5f+2.5f,r.Center.X+r.Width*.5f-2.5f);
+            target.y=Mathf.Clamp(target.y,r.Center.Y-r.Height*.5f+2.5f,r.Center.Y+r.Height*.5f-2.5f);
+            if(LegalLanding(target))return true;
+            Vector3 best=target;float distance=float.PositiveInfinity;
+            for(int ring=1;ring<=12;ring++)for(int i=0;i<32;i++)
+            {var p=target+Dir(i*11.25f)*ring*.5f;if(!LegalLanding(p))continue;float d=(p-wanted).sqrMagnitude;if(d<distance){distance=d;best=p;}}
+            target=best;return !float.IsPositiveInfinity(distance);
+        }
+        bool LegalLanding(Vector3 p)=>_fight.InArena(p,2.5f)&&ClearLine(p,p,2.5f)&&Visible(p,2.5f)&&FullyVisibleAt(p+Vector3.up*FinalBossRules.LeapHeight);
+        void Spawn(Vector3 dir,BossMoveId move,int group)
+        {
+            var go=new GameObject("Boss projectile "+move);var shot=go.AddComponent<FinalBossProjectile>();_fight.RegisterProjectile(shot);
+            string clip=BossWardenArt.MoveClip(move),facing=FacingFrom(_face);
+            int frame=BossWardenArt.Find(clip).FrameAt(_fight.Brain.ActionElapsed);
+            Vector3 muzzle=Presentation.Muzzle(clip,facing,frame);
+            // Art has eight rendered directions; rotate only the residual angle within a sector.
+            float angle=Mathf.Atan2(dir.y,dir.x)*Mathf.Rad2Deg;
+            go.transform.rotation=Quaternion.Euler(0,0,Mathf.DeltaAngle(Mathf.Round(angle/45f)*45f,angle));
+            // Separate visual muzzle from ground collision origin (same travel, distinct height).
+            shot.Launch(_fight,transform.position+dir*.9f,dir,move,group);
+            var visual=new GameObject("BOSS flying bolt");visual.transform.SetParent(go.transform,false);
+            var renderer=visual.AddComponent<SpriteRenderer>();renderer.sprite=BossWardenArt.Bolt(FinalBossRules.IsP2Ranged(move),BossWardenArt.Facing(dir));renderer.sortingLayerName="Entity";renderer.sortingOrder=3;
+            visual.transform.position=muzzle;shot.BindVisual(visual.transform);ArrowsFired++;
+        }
+        static Sprite AlertSprite()
+        {
+            if(_alertSprite!=null)return _alertSprite;
+            var texture=new Texture2D(16,40,TextureFormat.RGBA32,false){filterMode=FilterMode.Point};var pixels=new Color32[16*40];
+            for(int y=0;y<40;y++)for(int x=0;x<16;x++)
+            {bool outer=x>=3&&x<=12&&(y>=12&&y<=38||y>=1&&y<=10);bool inner=x>=5&&x<=10&&(y>=14&&y<=36||y>=3&&y<=8);pixels[y*16+x]=inner?new Color32(255,239,180,255):outer?new Color32(32,24,18,255):new Color32(0,0,0,0);}
+            texture.SetPixels32(pixels);texture.Apply(false,true);_alertSprite=Sprite.Create(texture,new Rect(0,0,16,40),new Vector2(.5f,0),48);return _alertSprite;
+        }
+        void DrawWarnings(BossMoveId move,float t)
+        {
+            HideWarnings();_warningUsed=0;var s=FinalBossRules.Skill(move);
+            var color=_locked?new Color(1,.35f,.15f,.95f):new Color(1,.78f,.30f,.85f);
+            bool repeating=move==BossMoveId.BurstShot||move==BossMoveId.TripleBurst;
+            bool windup=t<s.Windup||(repeating&&_shotCount<3);
+            if(_alert!=null&&windup&&FinalBossRules.IsRanged(move))
+            {_alert.enabled=true;_alert.transform.position=new Vector3(transform.position.x,_body.bounds.max.y+.12f,0);_alert.transform.localScale=Vector3.one*(1f+.08f*Mathf.Sin(t*18))/FinalBossRules.BodyScale;_alert.color=_locked?new Color(1,.45f,.3f):Color.white;}
+            if(FinalBossRules.IsMelee(move)&&t<s.Windup+s.Active)
+            {
+                color=t<s.Windup?new Color(1f,.78f,.30f,.85f):new Color(1f,.30f,.15f,.95f);
+                Circle(transform.position,s.Radius,color,s.Angle);
+                float angle=Mathf.Atan2(_aim.y,_aim.x)*Mathf.Rad2Deg;
+                Warning(transform.position,transform.position+Dir(angle-s.Angle*.5f)*s.Radius,color,.07f);
+                Warning(transform.position,transform.position+Dir(angle+s.Angle*.5f)*s.Radius,color,.07f);
+                return;
+            }
+            if(move==BossMoveId.LeapSlam&&t<1.55f){Circle(_target,s.Radius,color,360);return;}
+            if(move==BossMoveId.WarningCharge&&t<s.Windup)Warning(_start,_dashEnd,color,s.Radius*2);
+        }
+        void Circle(Vector3 center,float radius,Color color,float angle)
+        {
+            float at=Mathf.Atan2(_aim.y,_aim.x)*Mathf.Rad2Deg-angle*.5f;var line=WarningLine(color,.08f,33);
+            for(int i=0;i<=32;i++)line.SetPosition(i,center+Dir(at+angle*i/32f)*radius);
+        }
+        LineRenderer WarningLine(Color color,float width,int count)
+        {
+            if(_warningUsed==_warnings.Count){var go=new GameObject("Boss telegraph");go.transform.SetParent(transform.parent,false);var l=go.AddComponent<LineRenderer>();l.useWorldSpace=true;l.sortingLayerName="Decal";l.sortingOrder=100;_warnings.Add(l);}
+            var result=_warnings[_warningUsed++];result.enabled=true;result.positionCount=count;result.startWidth=result.endWidth=width;result.sharedMaterial=Stage1IsoArt.BandMaterial(color);return result;
+        }
+        void Warning(Vector3 a,Vector3 b,Color c,float width){var l=WarningLine(c,width,2);l.SetPosition(0,a);l.SetPosition(1,b);}
+        void HideWarnings(){if(_alert!=null)_alert.enabled=false;foreach(var l in _warnings)if(l!=null)l.enabled=false;}
+        public void ClearWarnings(){if(_alert!=null)_alert.enabled=false;RogueShooter.Audio.JianHaiAudio.StopThreat(this);foreach(var l in _warnings)if(l!=null)Destroy(l.gameObject);_warnings.Clear();_warningUsed=0;}
+        public void ResetPresentation(){_moveIndex=-1;_locked=_began=_landed=false;_visual.localPosition=Vector3.zero;ClearWarnings();ShowBody();}
+        public void ShowBody()
+        {
+            if(_body==null||Presentation.Dying)return;var b=_fight.Brain;
+            Vector3 delta=transform.position-_last;_last=transform.position;_walkClock+=delta.magnitude/1.44f;
+            bool p2=b.Phase==BossPhase.P2;string facing=FacingFrom(_face);
+            if(_fight.PresentingTransition){Presentation.Show("p1_to_p2",facing,_fight.TransitionElapsed);return;}
+            if(b.CurrentMove!=BossMoveId.None&&b.MoveStep!=BossMoveStep.Idle)
+            {
+                string clip=BossWardenArt.MoveClip(b.CurrentMove);float seconds=b.ActionElapsed;
+                // Re-arm the supplied triple-shot clip before each .5s volley, then play its recovery.
+                if(b.CurrentMove==BossMoveId.TripleBurst&&seconds>=.95f)
+                    seconds=seconds<1.45f?.45f+(seconds-.95f):seconds<1.95f?.45f+(seconds-1.45f):seconds-1f;
+                // Clipped charge skips remaining dash poses and enters recovery immediately.
+                if(b.CurrentMove==BossMoveId.WarningCharge&&b.MoveStep==BossMoveStep.Recovery)seconds=1.85f+b.StepElapsed;
+                Presentation.Show(clip,facing,seconds);return;
+            }
+            bool moving=delta.sqrMagnitude>.000001f;string idle=(p2?"p2_":"p1_")+(moving?"walk":"idle");
+            float clock=moving?_walkClock*BossWardenArt.Find(idle).ticks.Length/20f:Time.time;
+            Presentation.Show(idle,facing,clock,true);
+        }
+        public void BeginDeath(bool phase2){ClearWarnings();_visual.localPosition=Vector3.zero;Presentation.BeginDeath(phase2,FacingFrom(_face));}
+        public static LineRenderer Stroke(Transform parent,Vector3[] pts,Color color,float width,int order,bool world)
+        {var line=new GameObject("Stroke").AddComponent<LineRenderer>();line.transform.SetParent(parent,false);line.useWorldSpace=world;line.positionCount=pts.Length;line.SetPositions(pts);line.startWidth=line.endWidth=width;line.sharedMaterial=Stage1IsoArt.BandMaterial(color);line.sortingOrder=order;return line;}
+        void OnDisable(){ClearWarnings();}
     }
 }

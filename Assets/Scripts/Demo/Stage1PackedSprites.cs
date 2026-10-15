@@ -13,6 +13,7 @@ namespace RogueShooter.Demo
         public Sprite[] sprites = System.Array.Empty<Sprite>();
 
         static Dictionary<string, Sprite> _map;
+        public static void Invalidate() { _map = null; }
 
         public static Sprite Find(string assetPath)
         {

@@ -1,4 +1,4 @@
-﻿# Unity
+# Unity
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -55,7 +55,15 @@ crashlytics-build.properties
 *.private.meta
 
 # Local tooling
-.codely-cli/
+# Keep only the package required by Packages/manifest.json.
+.codely-cli/*
+!.codely-cli/extensions/
+.codely-cli/extensions/*
+!.codely-cli/extensions/TJGenerators/
+.codely-cli/extensions/TJGenerators/*
+!.codely-cli/extensions/TJGenerators/Packages/
+.codely-cli/extensions/TJGenerators/Packages/*
+!.codely-cli/extensions/TJGenerators/Packages/cn.tuanjie.ai.generators/
 .codely.packages/
 
 
@@ -67,3 +75,21 @@ qa-compile-pr3.log
 .codelyignore
 screenshots/
 
+
+# Machine-local notes, generated evidence and temporary files
+.codely/
+CODELY.md
+outputs/
+*.log
+.__tmp*
+*.blend1
+
+# Local credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+oauth_creds.json
+credentials.json

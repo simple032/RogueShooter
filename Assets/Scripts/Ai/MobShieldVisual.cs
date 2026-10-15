@@ -26,7 +26,8 @@ namespace RogueShooter.Ai
         public void SetRaised(bool raised, Vector3 facing)
         {
             Ensure();
-            _disc.SetActive(raised);
+            var actor = GetComponent<Stage1IsoActor>();
+            _disc.SetActive(raised && (actor == null || actor.Family != "shield"));
             if (!raised)
                 return;
             facing.z = 0f;

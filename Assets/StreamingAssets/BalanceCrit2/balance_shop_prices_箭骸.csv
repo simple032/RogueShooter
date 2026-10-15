@@ -1,13 +1,13 @@
-# Shop prices · crit2 重标定：当量/价比 1:2:3；heal=mid
+# Shop prices · crit2 重标定：当量/价比 1:2:3；heal=60，v0.57
 # 废止 1:2:4 与高档 72-88
 
 slot,role,price_min,price_max,price_mid,reinforce,note
-fixed,tier_low,18,22,20,1,普通
-fixed,tier_mid,36,44,40,2,中等
-fixed,tier_high,54,66,60,3,高级
-fixed,heal,36,44,40,2,回血=中
+fixed,tier_low,40,40,40,1,普通
+fixed,tier_mid,80,80,80,2,中等
+fixed,tier_high,120,120,120,3,高级
+fixed,heal,60,60,60,2,治疗优先可达
 meta,price_ratio,1:2:3,,,
-meta,float_mode,range,,
+meta,float_mode,fixed,,
 meta,shelf_count,6,,,
 meta,random_count,2,,,
 meta,random_p_low,0.56,,,

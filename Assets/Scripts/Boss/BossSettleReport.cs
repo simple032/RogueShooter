@@ -59,8 +59,9 @@ namespace RogueShooter.Boss
             switch (tier)
             {
                 case 1: return "P1";
-                case 2: return "P2/P3";
-                case 3: return "P4";
+                case 2: return "P2";
+                case 3: return "P3";
+                case 4: return "P4";
                 default: return "P?";
             }
         }
@@ -70,8 +71,9 @@ namespace RogueShooter.Boss
             switch (tier)
             {
                 case 1: return 2f;
-                case 2: return 8f;
-                case 3: return 11f;
+                case 2: return 6f;
+                case 3: return 10f;
+                case 4: return 13f;
                 default: return 0f;
             }
         }

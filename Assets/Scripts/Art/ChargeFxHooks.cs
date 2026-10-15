@@ -9,23 +9,16 @@ namespace RogueShooter.Art
     public static class ChargeFxHooks
     {
         public const float ChargeSeconds = 0.70f;
-        public const float GreenEnter = 0.68f;
-        public const float GreenExit = 0.72f;
+        public const float GreenEnter = RogueShooter.Player.ChargeShotRules.GreenEnterSeconds;
+        public const float GreenExit = RogueShooter.Player.ChargeShotRules.GreenExitSeconds;
         public const float MidAt = 0.15f;
 
         public static float GreenWindowSeconds => GreenExit - GreenEnter;
 
-        public static event Action OnChargeStart;
         public static event Action OnChargeMid;
         public static event Action OnChargeEnterGreen;
         public static event Action OnChargeExitGreen;
-        public static event Action OnChargeFull;
         public static event Action OnCritConfirm;
-
-        public static void ChargeStart()
-        {
-            OnChargeStart?.Invoke();
-        }
 
         public static void ChargeMid()
         {
@@ -40,11 +33,6 @@ namespace RogueShooter.Art
         public static void ChargeExitGreen()
         {
             OnChargeExitGreen?.Invoke();
-        }
-
-        public static void ChargeFull()
-        {
-            OnChargeFull?.Invoke();
         }
 
         public static void CritConfirm()

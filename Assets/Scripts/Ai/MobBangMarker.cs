@@ -3,11 +3,11 @@ using RogueShooter.Demo;
 
 namespace RogueShooter.Ai
 {
-    /// <summary>Placeholder 感叹号 / bang during attack windup. Art stub; VFX outsourced.</summary>
+    /// <summary>Single ! above the rendered head during windup. No extra dot or attack-area graphics.</summary>
     public class MobBangMarker : MonoBehaviour
     {
         TextMesh _tm;
-        SpriteRenderer _dot;
+        
         bool _on;
 
         public void Ensure()
@@ -21,15 +21,11 @@ namespace RogueShooter.Ai
             _tm.text = "!";
             _tm.anchor = TextAnchor.LowerCenter;
             _tm.alignment = TextAlignment.Center;
-            _tm.characterSize = 0.22f;
+            _tm.characterSize = 0.34f;
             _tm.fontSize = 32;
-            _tm.color = new Color(1f, 0.92f, 0.15f);
+            _tm.color = new Color(1f, .88f, .55f);
             BuiltinUiFont.Apply(_tm);
-            var dot = new GameObject("BangDot");
-            dot.transform.SetParent(go.transform, false);
-            dot.transform.localPosition = new Vector3(0f, 0.55f, 0f);
-            dot.transform.localScale = new Vector3(0.18f, 0.18f, 1f);
-            _dot = DemoPrimitives.AddSprite(dot, new Color(1f, 0.85f, 0.1f, 0.95f), 20);
+            var renderer=go.GetComponent<MeshRenderer>();renderer.sortingLayerName="FX";renderer.sortingOrder=30;
             SetVisible(false);
         }
 
@@ -40,6 +36,11 @@ namespace RogueShooter.Ai
                 _tm.gameObject.SetActive(on);
         }
 
+        void LateUpdate()
+        {
+            if(!_on||_tm==null)return;var body=GetComponent<SpriteRenderer>();
+            if(body!=null)_tm.transform.position=new Vector3(transform.position.x,body.bounds.max.y+.08f,transform.position.z);
+        }
         public bool Visible => _on;
     }
 }

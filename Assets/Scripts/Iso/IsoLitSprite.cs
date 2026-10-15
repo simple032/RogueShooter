@@ -20,6 +20,7 @@ namespace RogueShooter.Iso
                 _renderer = GetComponent<SpriteRenderer>();
             if (_renderer == null || _renderer.sprite == null || LitMaterial == null)
                 return;
+            if(_renderer.sprite.name.StartsWith("jh_archer_meshy_")){HeroMeshyArt.Apply(_renderer);return;}
             bool archer = _renderer.sprite.name.StartsWith("jh_archer_");
             bool wall = _renderer.sprite.name.StartsWith("jh_iso_wall_");
             if (!archer)

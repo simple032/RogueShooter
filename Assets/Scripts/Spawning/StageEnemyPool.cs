@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Collections.Generic;
 
 namespace RogueShooter.Spawning
 {
@@ -62,7 +63,7 @@ namespace RogueShooter.Spawning
         static readonly string[] S3Kinds =
         {
             EnemyKindIds.Normal, EnemyKindIds.Dog, EnemyKindIds.CultMage,
-            EnemyKindIds.Shield, EnemyKindIds.GrandMage
+            EnemyKindIds.Shield
         };
 
         public static string[] KindsFor(StageId stage)
@@ -96,12 +97,12 @@ namespace RogueShooter.Spawning
 
         public static DraftCompositionRow[] NormalComps(StageId stage)
         {
-            return EnemyPoolDraft.CompsFor(stage, false);
+            return CurrentRows(stage, false);
         }
 
         public static DraftCompositionRow[] EnhancedComps(StageId stage)
         {
-            return EnemyPoolDraft.CompsFor(stage, true);
+            return CurrentRows(stage, true);
         }
 
         /// <summary>
@@ -122,7 +123,7 @@ namespace RogueShooter.Spawning
                 ? table[rng.Next(table.Length)]
                 : default(DraftCompositionRow);
 
-            SpawnMember[] members = EnemyPoolDraft.CloneMembers(row.Members);
+            SpawnMember[] members = NormalizeMembers(stage, row.Members);
             int extra = 0;
 
             bool eliteMark = row.EliteMark;
@@ -143,6 +144,33 @@ namespace RogueShooter.Spawning
                 EliteCount = CountElite(units),
                 FromDraftCsv = true
             };
+        }
+
+        public static SpawnMember[] NormalizeMembers(StageId stage, SpawnMember[] original)
+        {
+            var result=new List<SpawnMember>();
+            if(original!=null)foreach(var item in original)
+            {
+                string kind=item.KindId==EnemyKindIds.GrandMage?EnemyKindIds.CultMage:item.KindId;
+                if(!HasKind(stage,kind))kind=EnemyKindIds.Normal;
+                int index=result.FindIndex(m=>m.KindId==kind);
+                if(index<0)result.Add(new SpawnMember{KindId=kind,Count=item.Count});
+                else {var merged=result[index];merged.Count+=item.Count;result[index]=merged;}
+            }
+            return result.ToArray();
+        }
+        static DraftCompositionRow[] CurrentRows(StageId stage,bool enhanced)
+        {
+            var rows=EnemyPoolDraft.CompsFor(stage,enhanced);
+            for(int i=0;i<rows.Length;i++){var row=rows[i];row.Members=NormalizeMembers(stage,row.Members);rows[i]=row;}
+            return rows;
+        }
+        public static DrawnComposition DrawRoom(StageId stage,string roomId,CombatRoomKind kind,int wave,Random rng)
+        {
+            if(wave!=1||stage==StageId.S1||roomId!="S"+(int)stage+"_A")return DrawComposition(stage,kind,rng);
+            EnemyPoolDraft.EnsureLoaded();if(rng==null)rng=new Random();
+            var members=new[]{new SpawnMember{KindId=EnemyKindIds.Normal,Count=2},new SpawnMember{KindId=stage==StageId.S2?EnemyKindIds.Shield:EnemyKindIds.CultMage,Count=1}};
+            return new DrawnComposition{Stage=stage,RoomKind=kind,CompId="S"+(int)stage+"_OPEN",Tier="normal",CompLabel="首房教学",Members=members,Units=ExpandUnits(members,null,rng),ExtraAdded=0,EliteCount=0,FromDraftCsv=false};
         }
 
         public static string LogLine(StageId stage, CombatRoomKind roomKind, DrawnComposition drawn)

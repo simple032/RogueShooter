@@ -11,7 +11,12 @@ namespace RogueShooter.Maze
         Chest = 2,
         LargeChest = 3,
         Altar = 4,
-        Connector = 5
+        Connector = 5,
+        Mechanism = 6,
+        Stronghold = 7,
+        Boss = 8,
+        Safe = 9,
+        Heal = 10
     }
 
     public struct MazeVec2
@@ -51,6 +56,15 @@ namespace RogueShooter.Maze
         public float Width;
         public float Height;
         public string[] NeighborIds;
+        public UnityEngine.Rect[] FloorVoids;
+        public readonly System.Collections.Generic.List<UnityEngine.Rect> SolidProps = new System.Collections.Generic.List<UnityEngine.Rect>();
+        public bool Walkable(float x,float y){if(!HasFloor(x,y))return false;foreach(var r in SolidProps)if(r.Contains(new UnityEngine.Vector2(x,y)))return false;return true;}
+        public bool HasFloor(float x, float y)
+        {
+            if (FloorVoids != null) foreach(var r in FloorVoids)
+                if(x >= r.xMin && x <= r.xMax && y >= r.yMin && y <= r.yMax) return false;
+            return true;
+        }
 
         public int WaveCount
         {
@@ -167,7 +181,7 @@ namespace RogueShooter.Maze
                 for (int i = 0; i < Nodes.Length; i++)
                 {
                     if (Nodes[i].Contains(x, y, WalkInset))
-                        return true;
+                        return Nodes[i].Walkable(x,y);
                 }
             }
 
@@ -246,35 +260,83 @@ namespace RogueShooter.Maze
     }
 
     /// <summary>
-    /// Spec v0.5 S1 maze. Rooms 36×28 (Normal/Chest/Altar/START/CONN),
-    /// pitch 58×50, ortho door gap 22u. START neighbor is a fixed Normal.
-    /// Four combat slots shuffle Altar×1+Chest×2+Normal×1; CONN follows Altar.
-    /// No pure-walk time gate. Folds only on diagonal links.
+    /// Room size and pitch for one generation. MazeRules now carries the
+    /// sample-room sync 28×22 at pitch 50/44 (gap 22/22); the former
+    /// experimental copy layout equals Main.
+    /// </summary>
+    public struct MazeLayout
+    {
+        public float Width;
+        public float Height;
+        public float PitchX;
+        public float PitchY;
+        public float StartPitchY;
+        public float CorridorWidth;
+
+        public static MazeLayout Main
+        {
+            get
+            {
+                return new MazeLayout
+                {
+                    Width = MazeRules.CombatWidth,
+                    Height = MazeRules.CombatHeight,
+                    PitchX = MazeRules.PitchX,
+                    PitchY = MazeRules.PitchY,
+                    StartPitchY = MazeRules.StartPitchY,
+                    CorridorWidth = MazeRules.CorridorWidth
+                };
+            }
+        }
+
+        /// <summary>Copy only. Not applied to Stage1Maze.</summary>
+        public static MazeLayout Copy28x22
+        {
+            get
+            {
+                return new MazeLayout
+                {
+                    Width = 28f,
+                    Height = 22f,
+                    PitchX = 50f,
+                    PitchY = 44f,
+                    StartPitchY = 44f,
+                    CorridorWidth = MazeRules.CorridorWidth
+                };
+            }
+        }
+    }
+
+    /// <summary>
+    /// Spec v0.5 S1 maze. Rooms 28×22 (Normal/Chest/Altar/START/CONN) synced
+    /// from the sample room, pitch 50/44, ortho door gap 22u. START neighbor
+    /// is a fixed Normal. Four combat slots shuffle Altar×1+Chest×2+Normal×1;
+    /// CONN follows Altar. No pure-walk time gate. Folds only on diagonal links.
     /// </summary>
     public static class MazeRules
     {
         public const float PlayMoveSpeed = 6f;
-        public const float PlayOrtho = 6f;
+        public const float PlayOrtho = 8f;
         /// <summary>Pitch = room + 22u gap. Not a clock lock.</summary>
-        public const float CombatWidth = 36f;
-        public const float CombatHeight = 28f;
-        public const float PitchX = 58f;
-        public const float PitchY = 50f;
-        public const float HubWidth = 36f;
-        public const float HubHeight = 28f;
-        public const float AltarWidth = 36f;
-        public const float AltarHeight = 28f;
+        public const float CombatWidth = 28f;
+        public const float CombatHeight = 22f;
+        public const float PitchX = 50f;
+        public const float PitchY = 44f;
+        public const float HubWidth = 28f;
+        public const float HubHeight = 22f;
+        public const float AltarWidth = 28f;
+        public const float AltarHeight = 22f;
         public const float CorridorWidth = 8f;
         public const float CorridorSegMax = 30f;
         public const float CorridorSegMaxSeconds = 5f;
         /// <summary>START→N口 uses the same 22u door gap. Not an ACCEPTANCE clock.</summary>
         public const float StartDoorGap = 22f;
-        public const float StartPitchY = 50f;
+        public const float StartPitchY = 44f;
         public const float WavePacingEstimateSeconds = 28f;
         /// <summary>Old portal stub constant. Stage-1 play does not wait this long.</summary>
         public const float PortalHoldSeconds = 1.0f;
         /// <summary>Seconds Stage-1 play actually waits before a wave appears. Checks must use this.</summary>
-        public const float PlayPortalWaitSeconds = 0f;
+        public const float PlayPortalWaitSeconds = 1.5f;
         public const int QuotaNormal = 2;
         public const int QuotaChest = 2;
         public const int QuotaAltar = 1;
@@ -290,6 +352,8 @@ namespace RogueShooter.Maze
                 case MazeNodeKind.Altar:
                     return 2;
                 case MazeNodeKind.Normal:
+                case MazeNodeKind.Mechanism:
+                case MazeNodeKind.Stronghold:
                     return 1;
                 default:
                     return 0;

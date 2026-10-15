@@ -6,7 +6,7 @@ namespace RogueShooter.Balance
     public static class MoveSpeeds
     {
         public const float Player = 0.10267f;
-        public const float ChargeMul = 0.5f;
+        public const float ChargeMul = 0.25f;
         public const float E1 = 0.06673f;
         public const float E2 = 0.11294f;
         public const float E3 = 0.05647f;

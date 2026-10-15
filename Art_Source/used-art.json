@@ -1,0 +1,2301 @@
+{
+  "selection": "PNG originals matched by filename and SHA-256 to the runtime Stage1PackedSprites catalog",
+  "assets": [
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_e_00.png"
+      ],
+      "sha256": "01e46a5d2fa930f9ccbe5a3e84bc51d73742853a17a9afbcca4aa9656b7256ef"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_e_01.png"
+      ],
+      "sha256": "8da049bf704cccc0cf2380ce52bbcf4bf3bf192e9d16d31cae687d394860cb70"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_e_02.png"
+      ],
+      "sha256": "a6db93dd2615a18fe80bab9eaa057a016e9c5b957599acea7c260b0235960e6c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_e_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_e_03.png"
+      ],
+      "sha256": "dce08505d661efccca0bb078c714266fb80387c4fe4c27fa979b2c481944d13e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_e_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_e_04.png"
+      ],
+      "sha256": "173f9b04de0f36b5314aae5672ad292c23b57b9ef14eda65593278f37787cff8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_n_00.png"
+      ],
+      "sha256": "81a171cd2941e2db4ec33d6c8e5670453431fa71ef127766e38f3c5cf65d9d9f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_n_01.png"
+      ],
+      "sha256": "97696df4e8ddcad9b215e50b7ef380ccdf2499e08db3f403c0b4344210aa969a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_n_02.png"
+      ],
+      "sha256": "75bd917596ca185c1c83768fae1eef2da2761f6a9c72bf00c9157f7bd98aff55"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_n_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_n_03.png"
+      ],
+      "sha256": "486befc89bde03066103415217814b4609e2c7d6fe05f568c03b16bdd613957e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_n_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_n_04.png"
+      ],
+      "sha256": "fd2d9d2b49158aaa1137ba2009882e07fe06224e83ea3fc77ca31138060e8904"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_ne_00.png"
+      ],
+      "sha256": "ab4918d5845155deb0eea8934d10656d18d45311d53aab13e4338f4a1ea740b7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_ne_01.png"
+      ],
+      "sha256": "318f4526c56cfa324d83801aed9293deed9dcdbba73ac38f522999a8cb8bdc35"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_ne_02.png"
+      ],
+      "sha256": "06acc6c28eb60201091de56063fddce2559d120aecb08743b7cf50e0f6d7bd78"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_ne_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_ne_03.png"
+      ],
+      "sha256": "9e59fb33889f275127453b3cde24ed23187df8bdbc0751858a43a924b60a0b47"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_ne_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_ne_04.png"
+      ],
+      "sha256": "289bfec5795d54277e9450deaa5a9c667045202e59c8591c1984ac0ecf1ef28b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_nw_00.png"
+      ],
+      "sha256": "b104dc0151724995dd50635ca85729f5baf4478351f4cbac99904d795427057c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_nw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_nw_01.png"
+      ],
+      "sha256": "d8a9b737db9866f792e30785263232921fcb1ac12dee5d7b6f979c2f99c091fe"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_nw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_nw_02.png"
+      ],
+      "sha256": "253a0a4449f858aae8ddba0c016f0e81791fe481330102823876293fecfcba0b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_nw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_nw_03.png"
+      ],
+      "sha256": "55ada5eeef7fd6c060753304a2e612c52a9d8d95e29423e988b543bd49f330c0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_nw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_nw_04.png"
+      ],
+      "sha256": "3e5ffaca4f5d73f685ba5fdb4c0422399e9243206ea018c219e0dcee1d4d71fc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_s_00.png"
+      ],
+      "sha256": "1fd2b3e5874ebaf3b0c05abdeda8b67819c582cf1991f7e08ce02dd6b9e0d6b6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_s_01.png"
+      ],
+      "sha256": "17b3e96e57207562ce2ab19af6fc32f46f0ccb696f6b8b4f1414923d36ead0e9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_s_02.png"
+      ],
+      "sha256": "2dbabbc4ab6d33f507228bb9548a0df0545ec501334577be3be195bd3e8dbea6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_s_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_s_03.png"
+      ],
+      "sha256": "027718ff30e303fb6a3a080f1f1ab9448fbc999cc69a010794eec3e91464485c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_s_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_s_04.png"
+      ],
+      "sha256": "9948b94d42f29bb69785c7fc941ecb373332ab6a5c88ec287d34f560400c5e25"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_se_00.png"
+      ],
+      "sha256": "b3785e82c9618a787b09ef523dacdba983310de1382a5b6878c2ab600ff791df"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_se_01.png"
+      ],
+      "sha256": "38d65bac723da01eb557207ab202bd6d5396f083f21c9919b0dfe56411851f65"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_se_02.png"
+      ],
+      "sha256": "b7397cdfdc97bdfa5a45d2c90ad128f9f2bb7f4b0a013b035c8688310c53bd02"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_se_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_se_03.png"
+      ],
+      "sha256": "aa905aa03a24b0ea7534a2dc109ad46c704d59398969508215c0804aee12c0ed"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_se_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_se_04.png"
+      ],
+      "sha256": "f478f4dbd5ca9c05be983b33c10e3cfae24a0761842a67c5cd4738554bc8a5c7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_sw_00.png"
+      ],
+      "sha256": "9961b9dfbd6c768747c594437620252319568aed3211bd4452ad88e6638912f1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_sw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_sw_01.png"
+      ],
+      "sha256": "82ed6b927f4f61833fe8ddfc4b2d93b1a0a44a909e73760d6211c61b29285dad"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_sw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_sw_02.png"
+      ],
+      "sha256": "31ae38b7bb138b41c14a26f6dc2ab7283a84017af19307ead897eca375c5e644"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_sw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_sw_03.png"
+      ],
+      "sha256": "0363daaceb2a8a971379b2b5665c93c4048eb0ff8117676970fd503cfab32014"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_sw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_sw_04.png"
+      ],
+      "sha256": "62049ed6154bd493d145371ab415994909951ae3516db283b53b486c392b0617"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_w_00.png"
+      ],
+      "sha256": "66b2a841922905aaa0ca7c96c6c3f0a81536ce421c70ffb6e62302c758c7e9b1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_w_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_w_01.png"
+      ],
+      "sha256": "1ae50a14dbf63d114ffaa1ba1b8ba6b6f2e675fe14a1761fada5e2a5e4b1adc1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_w_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_w_02.png"
+      ],
+      "sha256": "c9f3c5447cb2433ceab44c924d34ad716a0a11a1b7cd7bbca3af4af9662d0036"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_w_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_w_03.png"
+      ],
+      "sha256": "b9686ec71fffe70a34ddf8f1305b2c0771d83903e4a9d21e82603981f8cbc88b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_atk_w_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_atk_w_04.png"
+      ],
+      "sha256": "24d62c89f4c53505007d9845a0fc745efa930f15aa0f868c9fbec29f938cfc92"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_e_00.png"
+      ],
+      "sha256": "4a0eec1398e30af2605873a1d2cac92ea1a133d957a5e9d9e0242c98f9d8164c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_e_01.png"
+      ],
+      "sha256": "0020ad71940d7c8b2e7fe9c7743f0b9f53c105448c80936d5bcf34baf1b5abcf"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_e_02.png"
+      ],
+      "sha256": "517d707f4306cdb25df76388d6a4db3bc3827a23d56778b4a20fd024aa4fda36"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_e_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_e_03.png"
+      ],
+      "sha256": "2b8069671adb0148727f7c7bf4e7858024806e215010dcfa82bfec27e4eb4c4f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_e_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_e_04.png"
+      ],
+      "sha256": "647cb1c03681d57e15dc4aa741befc6630e0da407a6e782584940fe025db9846"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_e_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_e_05.png"
+      ],
+      "sha256": "5a65a6e1fde1c0ec3a80f060ee8978884eb84be8b9c35da67801ec155dc00a37"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_n_00.png"
+      ],
+      "sha256": "6c02b9d325994921bb8bd36918b6f1f1e264765234457de86c637fa1ce6bbead"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_n_01.png"
+      ],
+      "sha256": "ea2dbdb47637e83d891f023d68575daed933c5a53cdf626eb38c1d35f1e8d7fe"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_n_02.png"
+      ],
+      "sha256": "205aa72ba7aecb2157f8f1e805cc2231f75954cb50397418cba65fbb738e0ffb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_n_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_n_03.png"
+      ],
+      "sha256": "4314ed4f395418e03cb10760a103eba35a2998d6fa4ea52854bf034d883d7c91"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_n_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_n_04.png"
+      ],
+      "sha256": "e74582649668bd6a5f06da716440ce7016c4168df1bda711611cca85a7ff1dd7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_n_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_n_05.png"
+      ],
+      "sha256": "dba11aae3349b16212fe2a0dd96aa9255c7b887a948a7a9baac1012f77db812c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_ne_00.png"
+      ],
+      "sha256": "6f5c577bef46409fd36df3c1c40287a85f218fc309712a11373882a58afa2d25"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_ne_01.png"
+      ],
+      "sha256": "7796e88cff7e1c91d3e728c4c85e66a75c0f2a09d5adf7e49c9ec108399319b0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_ne_02.png"
+      ],
+      "sha256": "bf1d6066bc3a8e85857b2e4d5a58404178ccad6bcdc0c413d0c3559b5c4964dd"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_ne_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_ne_03.png"
+      ],
+      "sha256": "242444ba0df4b418317831dc497014d875b415b94ac00fa1c0b9586376b00662"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_ne_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_ne_04.png"
+      ],
+      "sha256": "fe816567410f0a14116d613aa73d204b4b618197af79e3dfcf2307b3c4870511"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_ne_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_ne_05.png"
+      ],
+      "sha256": "813b77958b4fed99dead0253bbb9744f69e2d5c029f9615b87f59561278d90d0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_nw_00.png"
+      ],
+      "sha256": "62b3b3e1942e170f37c22aa0be864860f02d60a7f2038ac83011463f6bad3005"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_nw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_nw_01.png"
+      ],
+      "sha256": "42123d9d0739b7a5d6917dd3390d29bf9884b83f30c69baf59646422c2d161d9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_nw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_nw_02.png"
+      ],
+      "sha256": "34161a5d7e2fb33f9d2bdcb1d03ac9f9660d4b3bda10e89118b0c44992b4d729"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_nw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_nw_03.png"
+      ],
+      "sha256": "e082846a1ed431560ad0ecc5e572902d376d07261c1d030da8111b4ef44ccb4f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_nw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_nw_04.png"
+      ],
+      "sha256": "72a839c9472468b8f2f0aed2d653d6d4a24c10055b0b13268450b02a46378a71"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_nw_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_nw_05.png"
+      ],
+      "sha256": "ac39d57ce4bf7737e9a3f324904cdc04bd100d6cd0a404cf862fce96decb6ee9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_s_00.png"
+      ],
+      "sha256": "289ce74975ef7464ad97abce35155ca4d9da9b0a92aa70792dbb02e313a029f0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_s_01.png"
+      ],
+      "sha256": "01af6473cb09ead314b0349f926934add99adc7c07082ddc003e21c81e845e70"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_s_02.png"
+      ],
+      "sha256": "e89cc9666fa674131ebb6025117497480b8f1c618b3062a9873c44cdf370db28"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_s_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_s_03.png"
+      ],
+      "sha256": "9aec933dbafac0ebe4ebed0c63619f9c53eaac8cf65456dda80c35d2ba153fbb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_s_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_s_04.png"
+      ],
+      "sha256": "7ecd6a3a4946558c2e9419b45aa95cf54bc7067e80b1b622e43036dee3b23780"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_s_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_s_05.png"
+      ],
+      "sha256": "18cb38ae2438ee7617a4a534065b00e53bc7f6e53fe1b2877660d80d5b760ff3"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_se_00.png"
+      ],
+      "sha256": "aef3efa14a07ab3f459fe75616ef4d4a99f852dc396ebb89982bb247e957f579"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_se_01.png"
+      ],
+      "sha256": "9a88240e0db5969a286ef9e83de5a8637df8bde3fb10ec7c0288a436ca8d49d3"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_se_02.png"
+      ],
+      "sha256": "c9c2ecf5705546f109fde7826d39509bbcf13313cb5c6cf7e17c2f15c37cd127"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_se_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_se_03.png"
+      ],
+      "sha256": "6d80c9434d3387374e87b9d1e6e0e625c92625b03cfa8b3a2d8d37ec39f9076c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_se_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_se_04.png"
+      ],
+      "sha256": "e9790f816354299ceb811de3fa86cfaf242d54cb2f7fb525bb62d54c57768b4d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_se_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_se_05.png"
+      ],
+      "sha256": "7e1aa4628e9ad1ff6d33f1885592fe2085b2ee281c0cfb0a09aef19f25e59ac0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_sw_00.png"
+      ],
+      "sha256": "ebc5d44b20c3e38411d74fe83c016f09ae88acef0028af0f21b42dad5811d14b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_sw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_sw_01.png"
+      ],
+      "sha256": "dc2736d4140087b7c979486b53a7f2c42e332f7fa7116fe62a19a9c22b501d42"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_sw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_sw_02.png"
+      ],
+      "sha256": "b65a091571e837fc5c32bd64c19893c91cc462deeb44bb2745e16bf2754b83e2"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_sw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_sw_03.png"
+      ],
+      "sha256": "d77bd91b24e116b85616f043e026a06e2f2f8cebfd36642c9e966c6e34847600"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_sw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_sw_04.png"
+      ],
+      "sha256": "d6ee490f134dad4bbe1ce2673977503a724889a06946377b079c4d4faa63bc55"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_sw_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_sw_05.png"
+      ],
+      "sha256": "a029794fb325124e783875726fc1048c6edab4ed2af03c11a06211576f6660a7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_w_00.png"
+      ],
+      "sha256": "c27f2827c04a153583497b5e9e1ea1333b9048f378b0c7556a64b22ecb7ae2a9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_w_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_w_01.png"
+      ],
+      "sha256": "6688b135e7e7e4f7c8594081509e2551d80f2eddf4b5227d67e9aced3672bb8e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_w_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_w_02.png"
+      ],
+      "sha256": "6fff9debf60f1f3a15e583354a985748a90b3f465b1aac56dde01bb5686fedfd"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_w_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_w_03.png"
+      ],
+      "sha256": "47536fa9f4ef88238b09f3e888c3c7325927e4b949e19caee9ea7252eaf77de7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_w_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_w_04.png"
+      ],
+      "sha256": "15c7207db7566f7cf6e3d3ab66986f59551aa3eb69580dd77a3ce10d93516e2b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_charge_w_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_charge_w_05.png"
+      ],
+      "sha256": "3d47288a1b11238d556db6ec6406974a035fe5b8d1e5aeb23cb79fdd52c6fb8f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_e_00.png"
+      ],
+      "sha256": "9ef33951bb6f76f5126065ad951cedd58a344d3e01780205a12e5d31d12a559c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_e_01.png"
+      ],
+      "sha256": "319af9ff3623661b3ca911c6295161deaae9b6d37afa424a4cdc9f7e36c31f15"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_e_02.png"
+      ],
+      "sha256": "652204333bdc462dc952a823226610c940efc6c7a5fac1630c7403fe2c2a01a9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_e_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_e_03.png"
+      ],
+      "sha256": "9ae0155b712de016290833ea72851a2162909f3ec08e54d32013950fdd2411b9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_e_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_e_04.png"
+      ],
+      "sha256": "61d244a4014f5db162753c91d494b22b269611f75b37886ba55ef47832ea185a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_e_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_e_05.png"
+      ],
+      "sha256": "bcaae8d7db66dbbd4408db2fe3c636dcc6a60cf86e6d55f24449ff25d693e8dc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_n_00.png"
+      ],
+      "sha256": "f9979c9a5cbcb8a501d71a23fbf672d61fb59afa36c6d73b92ab75b688799e56"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_n_01.png"
+      ],
+      "sha256": "1c567a80fed63d521e83dd818085e7b800671b92b1ac91d2e3ef2a7dd4deb8f5"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_n_02.png"
+      ],
+      "sha256": "9716a18d0242b6bc69c7629691ab71bbf43a952cfc295e8323fa9e9aa1d1ccf8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_n_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_n_03.png"
+      ],
+      "sha256": "2bb9aa058a84af3d365b28f8f5dd44db9b54fe96cb4b747db0c5ba6b3c7b7576"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_n_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_n_04.png"
+      ],
+      "sha256": "dc1dc78a717e08d48318d0a6bbc042343390d105f836ae98bb5b9155d8ecf1bd"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_n_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_n_05.png"
+      ],
+      "sha256": "c786cf8f49b48e92baf31a2e9770f6bc7342760e90d51851f3bbe57dd5137822"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_ne_00.png"
+      ],
+      "sha256": "356de70bf196ba96505e9d80091985b11bab8fc8b8575ac24cdafc0ea4c48327"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_ne_01.png"
+      ],
+      "sha256": "8116415ec738dfca48463fb3059eb6fe5eb3ae02ca58b2cb530b33962eadfe3d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_ne_02.png"
+      ],
+      "sha256": "342dbd375c79238f288d87a16166993ed472cf545ddcd7f79e93550b035c7bf8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_ne_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_ne_03.png"
+      ],
+      "sha256": "f76a2e35a106fa6d0456613ee8aa010605bc45a7c4d6fdaf492b38282046e110"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_ne_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_ne_04.png"
+      ],
+      "sha256": "df232146d716176838f2f5bc58ac1a842b040a7cff36965974316d6520ed8e5f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_ne_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_ne_05.png"
+      ],
+      "sha256": "0243c08b8c6989d19a9764e7d2a5df69824e5dae39fdbad59989cc37778c9e2a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_nw_00.png"
+      ],
+      "sha256": "407615afae6ea199e85e9151076541fe3535c1617f78140b13a22cfff18c7eaa"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_nw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_nw_01.png"
+      ],
+      "sha256": "34c0ab204a97c102d8afc2a24e3334502e75e1dba52d3043d27ec52fa4fdc477"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_nw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_nw_02.png"
+      ],
+      "sha256": "099af8dbe661d1c5dd467d84da7d79a9ff227a567b1b6fc4d4f111e9973b3182"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_nw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_nw_03.png"
+      ],
+      "sha256": "e1ab0bed0e937c51e16461e6f68275e4b66a2c24870c899ca006b395a0420494"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_nw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_nw_04.png"
+      ],
+      "sha256": "7f5e66f76993e8d89dbef390aa188c7f6b902bcf67e29a65e0b7b913a7b449fc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_nw_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_nw_05.png"
+      ],
+      "sha256": "c659cb480afe5037a01bad8438e07a0c1d8158927ab2586ac1cc1d503c3ce951"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_s_00.png"
+      ],
+      "sha256": "0356d26dd4bcd172c54a5988c64c56f901baf3717ee34efae1ebe3f818ebe3e9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_s_01.png"
+      ],
+      "sha256": "23291f8b665e2dd334d366811ce727972c850be58697bf229b963132f15eea3a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_s_02.png"
+      ],
+      "sha256": "7bfb36c4ad6d62d7bdef444926038340c0fe40a811fb8a76f897950674d92fd1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_s_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_s_03.png"
+      ],
+      "sha256": "e2026c2aac2ac02025aa86aa9126a38f56b23ef6b72ca23a98bbeb7be7bdb5f6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_s_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_s_04.png"
+      ],
+      "sha256": "9144663a309e92ec6dacf95314377e3c8ad7cab3276bc17c42913d036a8a0763"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_s_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_s_05.png"
+      ],
+      "sha256": "0785ed3229ad5442a6d11ce39df1752cd85bb9af80e0723499b6f0dd6d366ed0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_se_00.png"
+      ],
+      "sha256": "a8288093ca93fcd81e2f6f40b37fdafd65aee59a176b552834c31411335a03cc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_se_01.png"
+      ],
+      "sha256": "e68a482881a3a19383b65f898b49ab4b6da4faff3a10e167670018337fbc0f0e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_se_02.png"
+      ],
+      "sha256": "06efcc73f2951615a2b74b4daddf13cae364e014504131ace7189ae58ba4464d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_se_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_se_03.png"
+      ],
+      "sha256": "25111d8956ea7166a5e31b99e88c138482bf9c510d684b45e0c2f4feacd997eb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_se_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_se_04.png"
+      ],
+      "sha256": "ee6db35a185ad88d9b450d8cfa0198dc8860bf51ec41737180cdaea182472550"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_se_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_se_05.png"
+      ],
+      "sha256": "4d5c825ebeb66f2a84e6a902f8e58af82ba5dc0652e77cb17998e3af3345f18b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_sw_00.png"
+      ],
+      "sha256": "b0aa739284e7a9285c02a7baeb691fc7404ecb2fae7c5ff0236705f246e303a1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_sw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_sw_01.png"
+      ],
+      "sha256": "0113a823f7e5b0fbee717e5e0613d157f697b11981bcf3517d142f463068cb22"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_sw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_sw_02.png"
+      ],
+      "sha256": "19d0020f7ea616a9ca1f11ab3c1c799ef858c5382fd78929ecf58356fd35b57e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_sw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_sw_03.png"
+      ],
+      "sha256": "4ac9c9cb2b2b29858233727d41f6ec7966ffd7a5d69c3b96a3ac1926022991e0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_sw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_sw_04.png"
+      ],
+      "sha256": "5fbd6cb52811f25588ebb69357a6acfe50786b08d7ae2ab3243908ed23b9cd36"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_sw_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_sw_05.png"
+      ],
+      "sha256": "db64f9b5dd949671e9a10bd7083b3f0a522893923346c8882caa4c5f8b7d7db8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_w_00.png"
+      ],
+      "sha256": "2ef658e2d991a79db25c89e9dc41d5ac9c95484e345f12e8b100a803dac938ad"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_w_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_w_01.png"
+      ],
+      "sha256": "be95804f5eecfe22deae0c75b61e03f7c7076e018945f444bd21295c224b4ab4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_w_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_w_02.png"
+      ],
+      "sha256": "6bf46f63bb00da6bd4530738b91b146e4b84d7a48b71b3683fa397ffee53e57f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_w_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_w_03.png"
+      ],
+      "sha256": "cd42f9ef475dabf985e5aaafb18a744ce1a8a7084c53250542273fd9778162ba"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_w_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_w_04.png"
+      ],
+      "sha256": "cb5fa998f1cf22bbf21f0f60d2fcc9ce66d79a7a5fbd7337da4e8723a54ddfb6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_die_w_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_die_w_05.png"
+      ],
+      "sha256": "2f50b33a0dc527664379d19dc97dd11b62900440487a8c161eb866749465b2ab"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_e_00.png"
+      ],
+      "sha256": "2d6248aa97bbd07edcd0ea4cc317d997ec6e9ff146cab3ec1f326313089670ba"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_n_00.png"
+      ],
+      "sha256": "91786f9066f72c690fe8bdabf5d64ed7f379ae4c934b0827066570b0218ca901"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_ne_00.png"
+      ],
+      "sha256": "83d71073cb64b1818a5425809926d33f174b6aecf42b2e5158099a6514abd168"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_nw_00.png"
+      ],
+      "sha256": "aa46d47b27092abf1a55c5d82746f21eecd6a9b6ab07277ce1898c1bd3190f64"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_s_00.png"
+      ],
+      "sha256": "919a8ce03068fd6277795936947fc77633dc3f3dac074154d930674bb56c8822"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_se_00.png"
+      ],
+      "sha256": "31eaea58a1a2c5eef58426b0afb6d78d04edc09ec5dfe818d6d074fe8129f028"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_sw_00.png"
+      ],
+      "sha256": "caf8ae0925ee82e1e7f85904486ed9d5fe20999bf1aa626be461925f91d62336"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_grip1to2_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_grip1to2_w_00.png"
+      ],
+      "sha256": "3940c4fd05b9fb84b7624d4adf57e978c157c87d533ba9a6f4ba4cf6c3333aa8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_e_00.png"
+      ],
+      "sha256": "c4feeff97a226a027eed00507e580ecedcae66537772534705dc291cc71aaf2e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_n_00.png"
+      ],
+      "sha256": "110a40538e33d0d81eede6ae8724105e014feb33d2e842f4a93a22577342ae83"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_ne_00.png"
+      ],
+      "sha256": "bb8e9e7dc8d197b3d5f0b98be6400930f45232675109260dd99f71a247e889e6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_nw_00.png"
+      ],
+      "sha256": "1e151c0415c50e5490051fa6cb10950c1cd1295c716b8e78562da7c31e821667"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_s_00.png"
+      ],
+      "sha256": "c06ef763fb6aae4641422125f017c23897c7a7bc5f85f695569e23c0ba799948"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_se_00.png"
+      ],
+      "sha256": "2a26fd38abd28fda402ea16872d67521391cbc6ee025be8a8e94d0fbe44023b6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_sw_00.png"
+      ],
+      "sha256": "ea54dce1d52773f5ada94225b6e25ad4f8b471d565be97cbedbd6e8891fd08dd"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_gripdraw_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_gripdraw_w_00.png"
+      ],
+      "sha256": "fcda8f655a8d34045d4150e75afc34f1c99568e41e03cfb53a85218d12e4d389"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_e_00.png"
+      ],
+      "sha256": "084a43aa5790c0d4aed8b17297406d531ea0860383ccd8ed4bc4781c14189bcb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_e_01.png"
+      ],
+      "sha256": "0d11dec5d718f2bf54ab5bc0e9a9ce3f0507d9fba4f3b330d619b28dba2d8bc5"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_e_02.png"
+      ],
+      "sha256": "b8ab6404b19d2b9f18d7a8cb8d12b5581ee3f378a2dd6791f7338525139021dc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_n_00.png"
+      ],
+      "sha256": "1a77fb0d7755f240c01f7ffee4a94432fc78509ec1a4f5087d79b7f54cdd8ab2"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_n_01.png"
+      ],
+      "sha256": "1eef94b9ddd56a40aeec9e2d77790e2a3c40a34f39d2d05c2af6b3b57f4e54e4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_n_02.png"
+      ],
+      "sha256": "ebb30d6242cc23571eb9928cd9e1e258881322cd4ff6a3d1eac32e884a077270"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_ne_00.png"
+      ],
+      "sha256": "c194a834b4ff77675c3c1894511c8627e6e94ebc0322f36bd37b41959e64f370"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_ne_01.png"
+      ],
+      "sha256": "a6914641577c9ff57e374ab1b1fdec51b4de7af7c6ea708335e73672ce8ea863"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_ne_02.png"
+      ],
+      "sha256": "b955469c526342e87815ecba2f91c9db5917e53a452a14a66edb922722d9e3a6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_nw_00.png"
+      ],
+      "sha256": "1c6b714bb0894c3ff03893b142fed8ea4e1932a67c2bcb6905e347d775c21d9a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_nw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_nw_01.png"
+      ],
+      "sha256": "d1ec1fb0e5a13e82b1e43bac29235f2c49f957c9c0fd5d5b04a90de55c3e1726"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_nw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_nw_02.png"
+      ],
+      "sha256": "d1d6fe7704cd20e22fbcf6e2ad240576d254c737e31e024334a70477e3e70a0b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_s_00.png"
+      ],
+      "sha256": "42e4e471f1600ed95c69468f4b6699e2045b979614b36284992289e0eed0b3ea"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_s_01.png"
+      ],
+      "sha256": "529edac655cb2bc58bb9bbe7a35d25e3bfa6afca48c920faf793672232ab12eb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_s_02.png"
+      ],
+      "sha256": "6a3ac0f331a0073916853097f7f9d10d74273050692d79eaa7c5bcd98e2c8618"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_se_00.png"
+      ],
+      "sha256": "2bbc39e9288edeb0ab9b4711ab082f433cc1d91934bd3c4fb6fb2b2eb5fcce88"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_se_01.png"
+      ],
+      "sha256": "600dd4102d3eee50aee6afdcd2fa9d0596f38445fde596715d8f6b72300fd47d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_se_02.png"
+      ],
+      "sha256": "560187a76154e4524674832580d310c99e2e2db79b1407c7d103468b16a86544"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_sw_00.png"
+      ],
+      "sha256": "4c4da502405fac22882474a83d591800d4a0f8ff2bbbaa8fd6c240e0d1b7ee0e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_sw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_sw_01.png"
+      ],
+      "sha256": "da504db879640f4a397abfe66c5fa76d53d11e9156946f3dbb4424533d0b0d51"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_sw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_sw_02.png"
+      ],
+      "sha256": "45d6774536e777c02fef8e663f7104a3fa1fd9ea5317739685f6c8d0f0330d72"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_w_00.png"
+      ],
+      "sha256": "80a00d5368a711b652e3d7d445367b4e36a480f67ebe763a1347d29fab0ca3a1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_w_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_w_01.png"
+      ],
+      "sha256": "20fa30ed566cd60bad08c0c17c762533e4183fc2fe85e7b9f788d5974c81c4d0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_hurt_w_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_hurt_w_02.png"
+      ],
+      "sha256": "11f3cbd1d0e28d34d7699df6e0ddd0c9155e349941aab563c70a657219d5c4e6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_00.png"
+      ],
+      "sha256": "5d96834613bd5be46214cf2f8715551b76649d0f7402f2379e92c099cc928dfe"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_01.png"
+      ],
+      "sha256": "1acbdac4105063c358deaa50527f5b498ac088940dfcd5cde11d33b06999e980"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_02.png"
+      ],
+      "sha256": "ba4984495bf96c830d79f55b74007d09ca90d7acadf7479678f34b45e51d85d0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_03.png"
+      ],
+      "sha256": "470075eba2320538c119931129bbb1fd84b9fd04bb3f3525917ce610a6403219"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_04.png"
+      ],
+      "sha256": "6c9e0cf1dd62acb33fa6c8fa69f0910b3dfb5dc14bd983b20cea4193563ee57e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_05.png"
+      ],
+      "sha256": "6831e86ce3d25a4f5d8242c4659c9c241f9c8fd1bc26f59f4b225f21bb98832d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_06.png"
+      ],
+      "sha256": "0a4e6b7be25d189b42a8d28d240ed6f7afe6209c5dd97116b13c19538245eff1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_e_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_e_07.png"
+      ],
+      "sha256": "370800ecec30c697d3c7eef1f23488ffe27ae41d216b5e8ab7bc2bb4804863c5"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_00.png"
+      ],
+      "sha256": "be98af66718094b25a735a718c5cc5402e30aa0e6060ac115b021862109ebb96"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_01.png"
+      ],
+      "sha256": "af435125392f4c191eae1490a37762fdc37b6025947fc11863f8c125252efbd3"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_02.png"
+      ],
+      "sha256": "88ff304bb889d2c808215c36058f4c470de609939f1bdf9a3201fb3cbe877932"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_03.png"
+      ],
+      "sha256": "bbe4e9826b1e0fbaeeac5e2f337fcc23c1daccf2892575b04e97853d4f86d68d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_04.png"
+      ],
+      "sha256": "c130e807bbb5ca8eeaca88b0652f7d9d0104b60f1d98852aab218a422f5a204d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_05.png"
+      ],
+      "sha256": "2954d57a4aebaddb31b2c815a319f2be85f96a27dc851fb8c8556a4ca0107986"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_06.png"
+      ],
+      "sha256": "2bff5bd1e6d762418fc4901cb6dc4dfd9dba71b4e1781b364c8e5dbf6d315e3e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_n_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_n_07.png"
+      ],
+      "sha256": "97b3ac1d885d2e2395988ef8cbebad87e3b9fdef82175edb554fed0fadf79bc7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_00.png"
+      ],
+      "sha256": "9168fe410794e0498a540a854a4aff77f5ec26f9922f1ee08693c7c278151c82"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_01.png"
+      ],
+      "sha256": "b23c469cf0ec951ca1d8feac741c37336cafb8b0b4a7f1e6e347b86e1dc612b1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_02.png"
+      ],
+      "sha256": "ba16375c877ed31c369e4ee1e45b6ff6445152edeaec0220ecb8ab65a83bdd7b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_03.png"
+      ],
+      "sha256": "fe83fd2c14b3abbf5be126be3650dc969e9a0ec8999d2ff78fc5fa47a6f73fd9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_04.png"
+      ],
+      "sha256": "fcb94d9bca0df0b8188899aa49570337a5dac71e399e3f8944e00bbfd387153a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_05.png"
+      ],
+      "sha256": "52988a58a45bf65907070d9961904dc929ee923442d7219920249d5382c6e1ff"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_06.png"
+      ],
+      "sha256": "42653b568fea4b4f1ce09e98c7178b4eee716a592dfdf843679b23a33e7bd98f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_ne_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_ne_07.png"
+      ],
+      "sha256": "e6d9e061f7797ff418ad7d2a85705ce22af17f0058fdec16609f3343bd725be1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_00.png"
+      ],
+      "sha256": "86ee16c8ec22256c30c383fa10514e4c23a03b4501cd0d1bd23de239bc5f8869"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_01.png"
+      ],
+      "sha256": "41825fb3fcb65f95c8702fb450d5d3a75c609e8b378fecdf9be1cffaaeda64e2"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_02.png"
+      ],
+      "sha256": "12bbb8d38d4449779316aa1ff322775b49a16a9aa549f84e1e125a7bf2b54b50"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_03.png"
+      ],
+      "sha256": "db6e02a075ae4d269ac735cb3d828b4892eda6477997d38c9fed4fd0410978bd"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_04.png"
+      ],
+      "sha256": "8b5fde965ef86e641a5e26da852df13a6a4512ecf204c500799f896026e57163"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_05.png"
+      ],
+      "sha256": "a945f01a8d54e0835413067e8c9b9a4c712639dc1bad454e2091ba04fc72bac4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_06.png"
+      ],
+      "sha256": "8e5ef70dba7a7eaee35606c24330f689140162bffc6ece8c06410c4bc2baa47d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_nw_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_nw_07.png"
+      ],
+      "sha256": "0553b70b99bfe7054112aa286e89da6d20e509881592a843b6d6041c75ec8cf0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_00.png"
+      ],
+      "sha256": "39fb2a8f56ca272b5620e6609d093711f4b78352a226f68fff7d2d28144df4fa"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_01.png"
+      ],
+      "sha256": "bfd9fb5342e079f85fbf720c8676ae7fa730a0ceb98238c29946db72e308e1ea"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_02.png"
+      ],
+      "sha256": "713308a5d7c660dc3c667ca5764b2429a1dbe12e19f6225be4885efc7c4d615a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_03.png"
+      ],
+      "sha256": "3781c3d8ea849e925c6ac1677162881afb35b650c8a66db25ed8350b8e89c8a9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_04.png"
+      ],
+      "sha256": "1411377b35c6b3d7758b53d7fc537e039a83c9464fe6311bd181348d07f332f8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_05.png"
+      ],
+      "sha256": "d9a7e420b2dfb48b77093afc6611bffb0735a311c719db897e049b30799d4389"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_06.png"
+      ],
+      "sha256": "772f9a7ba70f77e2babd80109cbb097a1a87d7a75b83dc89e8977ba427bce3bd"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_s_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_s_07.png"
+      ],
+      "sha256": "169d9b025af38ddf8f80082c1ee24d7697d03de82bc380070623fa68256a3eff"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_00.png"
+      ],
+      "sha256": "cf2ebd1e81eae95695e242255221f72713aedb13d0883f91a65afd1a9e1cf5fc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_01.png"
+      ],
+      "sha256": "f06a104bee6e8fecb27cc0dadfde2a068ab1a73b045dfadfc6db6411ab70d27d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_02.png"
+      ],
+      "sha256": "32c00398ca2b07e6af3756cd5b69edd3fe285b4be0bf57449e3ee4b321571f29"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_03.png"
+      ],
+      "sha256": "df3046661a517b8f1cd4a562bc9fa585273426c168ebdeacdc69a3617a8d7ce6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_04.png"
+      ],
+      "sha256": "3fcd7a3fb171f7c562d14b05ac002c855b72d21ff777aebe497dabf52b482696"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_05.png"
+      ],
+      "sha256": "07b419f58192891dbc3e90d91c60d4ec05fd72c6ae931cb9bd535b540d5ca519"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_06.png"
+      ],
+      "sha256": "74ae5e3f44e2e41d2332b835cdb141655eec62d06bf962d6c4408b06a603386d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_se_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_se_07.png"
+      ],
+      "sha256": "8fc30dbdfc5ae12ebc33b70767a0c79d371c75c6f9ee9d7157963e192e587deb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_00.png"
+      ],
+      "sha256": "d5e55f8a467d2b8ffe16220b6fdcc8e27cbc15de2971acc55342517368a424fe"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_01.png"
+      ],
+      "sha256": "d0ee4cc56b1c9971ed549c26c38b18e1aebdbd9112073e8a248ad0dadb1653c9"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_02.png"
+      ],
+      "sha256": "88c470ce62230b3cccd3152522e3aa67f776e9e84d873f33ad56bb6b986441f7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_03.png"
+      ],
+      "sha256": "b85d00405c8d08b928a1f1c608e3a2701c41ce29fb71b8311a721a102dacb0bb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_04.png"
+      ],
+      "sha256": "06f2b173c4b501137a4a697f236ffe49d1df99f8e025ddb9a4f17a6937f9dc93"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_05.png"
+      ],
+      "sha256": "f01e4d92f00f4ed309e7ef05645e014744d879d03c44979af5c60c4f7e4c604d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_06.png"
+      ],
+      "sha256": "96580e7a85882ac04927ada431b47c4d13bc08d0c69c3f1611ba285d539a5e55"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_sw_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_sw_07.png"
+      ],
+      "sha256": "cdc259be992c77e324bdd70615a4e163c821d8d4ee5b6d59b4feef9f9e8bc7ca"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_00.png"
+      ],
+      "sha256": "514f5a571ab4bbeffb6ce1d27dbab31381e45cd8fe225489b8d0c302335ef325"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_01.png"
+      ],
+      "sha256": "88d60014d56772e4a60fa4ae5bbeee9002858f52550e01a133e9e3dee243ede8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_02.png"
+      ],
+      "sha256": "e961edd82a252a6d23d167ed4355805ba72de016216410ae853f5b4f7c4212af"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_03.png"
+      ],
+      "sha256": "7233d6d0ad3d3032c2918acb4a64cc25bdd2f25ff17edd78920e412c64ad0826"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_04.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_04.png"
+      ],
+      "sha256": "3f9bcc29a6d5f76506d9d22e5be4a0b45d1657fdf741b1de81a8feb7b5c29f1d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_05.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_05.png"
+      ],
+      "sha256": "2bdfef55535c8ea4301625c1536ea99375d722f5323d4ff1f837598a9163c3a1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_06.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_06.png"
+      ],
+      "sha256": "a8fbd38845a46de720ec3a1a95c8342ce189c3e1b9013dc6147fbc14c97fa851"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_roll_w_07.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_roll_w_07.png"
+      ],
+      "sha256": "4051b811ebeab587fdb21de558af87f975778f426b3bc1aff8c6a97a36f78f4b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_e_00.png"
+      ],
+      "sha256": "d11b8b67dd8930898359fea8a8dedb5355ab6208008a9ecd27627ee98ac53a14"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_n_00.png"
+      ],
+      "sha256": "cc4dad004a5e34305e3865ca335bfb1326bc9c04e2735435ef187e324e435370"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_ne_00.png"
+      ],
+      "sha256": "05f05012121a486443d1982877034fb34f20e28251733116d4349f3e26c84b4c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_nw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_nw_00.png"
+      ],
+      "sha256": "cb43f8df4082343e7debac7b68e379dab37e5e7867aff02ea7c6c6df4d60d1d6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_s_00.png"
+      ],
+      "sha256": "6a0abc341f2fdc64c43ae4843a321bc0ac13ee62047ca41b52a0ac8ee2e968d1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_se_00.png"
+      ],
+      "sha256": "ba12469e611baf8878121a4a58fcae247ecec5cd83203a9143a1515e3465cef5"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_sw_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_sw_00.png"
+      ],
+      "sha256": "f8ab9eb09c0396761d48bfe0a3acba7183727ebf9f6eab34410e6573a8ba4038"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Archer/Textures/jh_archer_walk_w_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Characters/Archer/jh_archer_walk_w_00.png"
+      ],
+      "sha256": "9b64220c4a35ae63652f3f6feb5150ddba855bbcbcd91367a6cb922d314d9232"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_e_00.png"
+      ],
+      "sha256": "23f3c0bb7d6d1d1e9690b0a7f0636b3b8c6e50f971c3de6ccdf908ba3564bce6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_e_01.png"
+      ],
+      "sha256": "af2ac3aabe29ee46f8f55b5d87099e0e73e4c140ae378f73339a27e6fa9061e6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_n_00.png"
+      ],
+      "sha256": "361451f358449329806331bcd4cfaba2f9e0340e051cd1d6a7bd9875f24cd265"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_n_01.png"
+      ],
+      "sha256": "ff61718babecbb865a437385045cef2b72a77bcf032c79fb806c41072baa1666"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_ne_00.png"
+      ],
+      "sha256": "5149f0850f6d9b4fba1653699c49d3f4ec83bdf7480572040bcb082df2f0c7ac"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_ne_01.png"
+      ],
+      "sha256": "a8de0857351dbd1769ce3bfb4a784085f025d0d70e30b24f44a66f48ed746cf1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_s_00.png"
+      ],
+      "sha256": "3db3fc95b83ad8d7f4dcab90f0a362f02ffef1a457a6c62e69c3851a8e16b3b4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_s_01.png"
+      ],
+      "sha256": "43a324463c64596eedb581d400f02414965e2441c88b16424dd1c91f8c39fd30"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_se_00.png"
+      ],
+      "sha256": "2995cf0ed7daecfd06df728f3dce549345cdf5434b0b00de5c9a8ad310390cf4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_alert_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_alert_se_01.png"
+      ],
+      "sha256": "d20cc190946ef077031def3d25d2a3e826e1fc8e3c5b1eb75c6851c478e3c137"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_e_00.png"
+      ],
+      "sha256": "615ed33c643d20c0d369c714d66f894fba8bcfa6bb49bbb5d3134a81fa07b7e7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_e_01.png"
+      ],
+      "sha256": "5641e71720d6347d82c75bb168c53344b89dbe81fe61dde29f460e7150480f68"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_e_02.png"
+      ],
+      "sha256": "b08ee70bd07be5d9ecc6c8f3ac014858c18625f810fdd9f5ff4a7ccbcf9d03b7"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_e_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_e_03.png"
+      ],
+      "sha256": "a793f37a45f901870a9c3ccb0a3d67720067245d712247432daa261d9e7bee52"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_n_00.png"
+      ],
+      "sha256": "0e6531c6a4d5aeba77e08e80b27d4cb73baba12abd9fccb0262db7c92f4f1a04"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_n_01.png"
+      ],
+      "sha256": "fc424ebe903d139683105bf6514cc34baaf164653fd5a8703962a31540849882"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_n_02.png"
+      ],
+      "sha256": "64568aaab3d24e992a8e15f0fd0b801663b4e40d05cb0443ea7554b659fb7f1e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_n_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_n_03.png"
+      ],
+      "sha256": "8371241608a9e22f0b10df1ce353a33f1f4d77a0996ef55e6935201e246bcc69"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_ne_00.png"
+      ],
+      "sha256": "42a29893663a054ed5fccf2370d6bf9a011df9adef6228169700c70d4e0c08a4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_ne_01.png"
+      ],
+      "sha256": "8556eee5cf036cb4a5def4d5d39ac85f25d039500fcf1070cc8510db2c4184e6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_ne_02.png"
+      ],
+      "sha256": "af1dfcf2655f4f32fa035253911d5f55c3da0d5ae186c586547dfa583fa6432c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_ne_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_ne_03.png"
+      ],
+      "sha256": "45875220de19f9069c76f9227bfeedc3cbe77eb130989cbb882fcf1af069973e"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_s_00.png"
+      ],
+      "sha256": "ca69fe92aea6733e895100131992430afd467678263cf05d8557f78dd8abcf19"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_s_01.png"
+      ],
+      "sha256": "3f097d48d1cf412af32cfcb0cc1f30aae0198ee8aa1862a0b43a14b139b286a8"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_s_02.png"
+      ],
+      "sha256": "3cbff6d38f4f5f2cd804cb5c05dc25c3e1ef4ece9f1267dbb0fd17a015181b04"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_s_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_s_03.png"
+      ],
+      "sha256": "9d011b50a44014781d032924b80a4328a475d86096a0b42302449a142ce37ca3"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_se_00.png"
+      ],
+      "sha256": "85c76fd9871adad07c75d8c9f2609df7e4da8a768758fd80ac39574bdf8047c1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_se_01.png"
+      ],
+      "sha256": "f8d4288443405acdc2a8297f022d2ee838546d0d152e9b5e35a8529cbf0415fa"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_se_02.png"
+      ],
+      "sha256": "d25edf58000daa9e5c1ec8b3bbd04893f6e43db51effdc7c79580d09967b0e5c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Dog/Textures/jh_dog_idle_se_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Dog/jh_dog_idle_se_03.png"
+      ],
+      "sha256": "7d2c75eb49df511b45e1f10a2db8138b6482f5d43ef69b756bb123ea4dc9a3bb"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_e_00.png"
+      ],
+      "sha256": "f2a18b21c56c1d9c1d89500f8e7ebb0098331b89337d3e4d0a1035bea393adce"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_e_01.png"
+      ],
+      "sha256": "f6f2e0b62f1de218a3748e45000749fc8e5f3a051b1b03a3b93dda37d766834b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_e_02.png"
+      ],
+      "sha256": "5bba7efd5c77edf52e3acd6875057a2b59ffd31d13a89b0ba11eababf6fa8a60"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_n_00.png"
+      ],
+      "sha256": "ebb853fae45aa8eb6481a35e8f4c445a3fb70e7b983e7bc7e04a8749884619f3"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_n_01.png"
+      ],
+      "sha256": "faf31df060d77c1ffa1456b075a8b20229323ca2e855eb2f86df21d47835119f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_n_02.png"
+      ],
+      "sha256": "a8c4ff9bc920e4ca8f8a7a83d6e1b3b1435e0136c97c995500c0173932b90767"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_ne_00.png"
+      ],
+      "sha256": "a7b6986b20cc2957cc7ef9041c2636a44059cc7169e31eaa8c4bc3c78ca1b29b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_ne_01.png"
+      ],
+      "sha256": "ddc575441b6372cc99158e906d83529d62cf7aac36501076a4ba261ee6ccae07"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_ne_02.png"
+      ],
+      "sha256": "7e2fc49ecc56ad7ef5abe23bcd5a4e54948f19bbad23bd501247b778e78ba7f1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_s_00.png"
+      ],
+      "sha256": "4f127717c4dbbed7b9f8f6ac58c2363fdae322b008a650d7c2c75f619973198f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_s_01.png"
+      ],
+      "sha256": "d547bc66488fc091796b4f45fcc4949ace8eb307b12e1756dc2abcffc871e43a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_s_02.png"
+      ],
+      "sha256": "a6ef60da3b55147836003dac6b09eec72a0325ee6bc20193dafd6a71313182f5"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_se_00.png"
+      ],
+      "sha256": "579c9a7e79ea0414460d9dd46b311a2ee21c205f5b9e52f0f7c87d681facd7f1"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_se_01.png"
+      ],
+      "sha256": "2703302de8e848b28367cba64e3df93482f829b18f4ca12011cfc753926c2138"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_alert_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_alert_se_02.png"
+      ],
+      "sha256": "c4fa3693aa7760defb60b599fb26b5227f89a29f2c355d4edaa6f5e010068789"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_e_00.png"
+      ],
+      "sha256": "8685d6323fd7e23c14864fb43be69c1d13ff5d536b9637168b289a910e5b09e6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_e_01.png"
+      ],
+      "sha256": "1c5cb1119221d639b4df8cb71b632907ba259959de00946c2b2b705d35895b41"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_e_02.png"
+      ],
+      "sha256": "b538aaaea6b7357ac064681d9635c608da9868f557e110791706f98602cd877f"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_e_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_e_03.png"
+      ],
+      "sha256": "3d1b7d4c76a6b43973f9eb0cba0af2b6718cd516f6444bb66b93f1766ef3415c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_n_00.png"
+      ],
+      "sha256": "4f25a3fabaddd378a1c6f67ffb585b9e932148c6e07949bbe690ff950fa1b55d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_n_01.png"
+      ],
+      "sha256": "57b0c6d0bd6ff7b439bf9b2e21d7c2e26b520215865b3e58e931d6082e7e9fdf"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_n_02.png"
+      ],
+      "sha256": "da0ea1566d933806ecd266e94ed43e1d6c517fe8e7bfcd448ae040c0691a5f44"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_n_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_n_03.png"
+      ],
+      "sha256": "5aa603444cd9dc0f82964e6d8c01c8c7945b8063041dfef9cb89334d7d101ffc"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_ne_00.png"
+      ],
+      "sha256": "0607db2352b321f7a187e281df3b4999beb5da835ffc6935508bd61eb5e30314"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_ne_01.png"
+      ],
+      "sha256": "b33a374088ee2d83abd7df3cf307886ef18b47bbc941fabe263a29ce83fdce68"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_ne_02.png"
+      ],
+      "sha256": "acb58a3d23ceb1a056319e3ca298d949255f3eda1772745ddd8188d0229d8fc4"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_ne_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_ne_03.png"
+      ],
+      "sha256": "5148c01efb34041b0e1b5dc903848a276e68d7ca488f24a7607af83806661d5d"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_s_00.png"
+      ],
+      "sha256": "b19fe534a55626299e6b759652a88ca60058719f68941963cac647bfe7a6e873"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_s_01.png"
+      ],
+      "sha256": "b3368231b7f8369569506bf38da050cf0aa0d27fc03865337c1213703d1e8807"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_s_02.png"
+      ],
+      "sha256": "33558d87edd46a4b116ca8cbfd76f5ffb4116c4c0fd517365eb4d55a11728502"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_s_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_s_03.png"
+      ],
+      "sha256": "8d40d67d64c5dbe7b02ffb855ed7e8f26a21b7c013e79009af0965fc02ff791c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_se_00.png"
+      ],
+      "sha256": "d7c7d4f4c2c4f707a138492d2778ec73a7701b52d7b379d4c74f8d16fbac3294"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_se_01.png"
+      ],
+      "sha256": "765b39e1f886937f775747cce9c763443ae46bc7b335f734cd1514b5a466a861"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_se_02.png"
+      ],
+      "sha256": "a728141e7762cafd174c9421c153156a0edb31f8c222e825524faa9d1809e76a"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Mage/Textures/jh_mage_idle_se_03.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Mage/jh_mage_idle_se_03.png"
+      ],
+      "sha256": "ce3a64daed45fc07788fbe096c69b7e6a7759598fb54ba7b6dbe77bd32097338"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_e_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_e_00.png"
+      ],
+      "sha256": "046c955932c3daab8b7afe3a9b01bd414223fb5e9e8da806548edbd67db7f251"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_e_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_e_01.png"
+      ],
+      "sha256": "21dddb3a3f7b04933ed510a03f8928f99a67bbc57db5c6948ed8034e43e9760c"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_e_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_e_02.png"
+      ],
+      "sha256": "18716ed29e20e8bf33e537808a24066802b2c56d5114dca4e8e548a19c531dc0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_n_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_n_00.png"
+      ],
+      "sha256": "544f53a4791d2b909c5b0cd4dcd4953f01a86e267db331cd47021f82826c9319"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_n_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_n_01.png"
+      ],
+      "sha256": "e09622f32baeec71161bf93107ebf156ccde1918c3df593f9ed639a33af004b2"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_n_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_n_02.png"
+      ],
+      "sha256": "ff8c475b5616cb396482065b1c1ab415cad19731909b16c22c1427ef8243c127"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_ne_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_ne_00.png"
+      ],
+      "sha256": "d74ad0c9731602354f42da0e28fb79ba7c3af725563f74654b674e5647cdcadf"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_ne_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_ne_01.png"
+      ],
+      "sha256": "7adcad57ced375c0a4dc26cf0a8e4311e6d12141db0c327a49ec7e0c981326d6"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_ne_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_ne_02.png"
+      ],
+      "sha256": "25447faf6a7195ddcbee20e5fa6e08ea3e60e8dfd873f6dca94c05cc7cbddce3"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_s_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_s_00.png"
+      ],
+      "sha256": "5653dfed57b4cdcf53048c38eeea7ee2b0409a90b166d81b2468b8495337c5e5"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_s_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_s_01.png"
+      ],
+      "sha256": "cdc78db4525dc315833c7d1a975777466ef4dba4357c2584fd25d86c3d805860"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_s_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_s_02.png"
+      ],
+      "sha256": "3ed39cdc5993a2574694c0bcf5d7acf0f1560929aab471c47f8923c49afc6d1b"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_se_00.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_se_00.png"
+      ],
+      "sha256": "077c2be21afe34e5efc95e82d0cb1c183dfc4c75daaad301307838bb4a349ce0"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_se_01.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_se_01.png"
+      ],
+      "sha256": "70fa272ae24494bfeec1cb0db2ed65db19aab10cac088ada68ee49e14adf5d84"
+    },
+    {
+      "source": "Art_Source/JianHai/Iso/Skel/Textures/jh_skel_alert_se_02.png",
+      "runtime_assets": [
+        "Assets/Art/JianHai/Iso/Enemies/Skel/jh_skel_alert_se_02.png"
+      ],
+      "sha256": "c63387aad7a42bfc415c5bf259f0fb68e8f2b3f9356e43162d72402b56b00a13"
+    }
+  ]
+}

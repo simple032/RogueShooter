@@ -41,13 +41,15 @@ namespace RogueShooter.Player
 
         void ResolveStrike()
         {
+            if (RunPause.IsPaused)
+                return;
             MobFourStateAi best = null;
             float bestD = range;
             IReadOnlyList<MobFourStateAi> all = MobFourStateAi.All;
             for (int i = 0; i < all.Count; i++)
             {
                 MobFourStateAi mob = all[i];
-                if (mob == null || !mob.isActiveAndEnabled || mob.IsDead)
+                if (mob == null || !mob.isActiveAndEnabled)
                     continue;
                 float d = Vector2.Distance(
                     new Vector2(transform.position.x, transform.position.y),
@@ -72,14 +74,14 @@ namespace RogueShooter.Player
 
             if (best == null && !bossInRange)
             {
-                Debug.Log("[Strike] miss (no mob in " + range.ToString("0.00") + ")");
+                RogueShooter.Demo.GameTrace.Log("[Strike] miss (no mob in " + range.ToString("0.00") + ")");
                 return;
             }
 
             if (bossInRange && (best == null || bossD <= bestD))
             {
                 boss.DealDamage(1f);
-                Debug.Log("[Strike] hit BOSS dist=" + bossD.ToString("0.00")
+                RogueShooter.Demo.GameTrace.Log("[Strike] hit BOSS dist=" + bossD.ToString("0.00")
                     + " hp=" + boss.Brain.Hp.ToString("0") + "/" + boss.Brain.MaxHp.ToString("0"));
                 return;
             }
@@ -89,7 +91,7 @@ namespace RogueShooter.Player
                 stub.TakeDamage(1);
             else
                 best.NotifyDamaged();
-            Debug.Log("[Strike] hit " + best.name + " dist=" + bestD.ToString("0.00") + " → Alert/Chase");
+            RogueShooter.Demo.GameTrace.Log("[Strike] hit " + best.name + " dist=" + bestD.ToString("0.00") + " → Alert/Chase");
         }
     }
 }

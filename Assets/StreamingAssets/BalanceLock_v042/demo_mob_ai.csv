@@ -1,5 +1,5 @@
 key,value,status,note
-detect_radius,5.5,LOCK_DEFAULT,GDD detect; wide variants later
+detect_radius,9.0,LOCK_DEFAULT,was GDD 5.5; raised 2026-10-08 with engaged floor (mob_alert)
 disengage_mul,1.6,LOCK_DEFAULT,disengage = detect × mul
 alert_seconds,0.40,DEMO_STUB,Alert dwell before Chase
 patrol_speed,1.35,DEMO_STUB

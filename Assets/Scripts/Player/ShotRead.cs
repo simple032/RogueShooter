@@ -26,7 +26,8 @@ namespace RogueShooter.Player
             if (scale < 0.05f)
                 scale = 0.05f;
             float add = RewardStatHooks.SumAdd(owned, "crit_window");
-            float charge = ChargeShotRules.RingFillSeconds * scale;
+            float charge = RewardStatHooks.ChargeSeconds(owned);
+            scale = charge / ChargeShotRules.RingFillSeconds;
             float enter;
             float exit;
             bool plain = Mathf.Abs(scale - 1f) <= 0.00001f && add <= 0.00001f;
@@ -39,7 +40,7 @@ namespace RogueShooter.Player
             else
             {
                 float baseHalf = (ChargeShotRules.GreenExitSeconds - ChargeShotRules.GreenEnterSeconds) * 0.5f;
-                float half = baseHalf * scale + add * 0.5f;
+                float half = baseHalf * scale + add * 0.5f * 1.5f;
                 enter = charge - half;
                 exit = charge + half;
                 if (enter < 0f)
@@ -67,7 +68,7 @@ namespace RogueShooter.Player
 
         public ChargeShotKind Resolve(float heldSeconds)
         {
-            if (heldSeconds <= ChargeShotRules.MinChargeSeconds)
+            if (heldSeconds < ChargeShotRules.MinChargeSeconds)
                 return ChargeShotKind.None;
             if (heldSeconds >= GreenEnter && heldSeconds <= GreenExit)
                 return ChargeShotKind.Crit;

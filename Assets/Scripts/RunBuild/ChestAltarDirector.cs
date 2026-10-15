@@ -11,8 +11,7 @@ using RogueShooter.Spawning;
 namespace RogueShooter.Build
 {
     /// <summary>
-    /// Run-start chest P_spawn rolls, always-on altars, E interact 3-pick, 6-shelf shop (ShopStock.ShelfCount; balance_shop_prices shelf_count=6).
-    /// Offers/shop render only through RewardScreenView (old IMGUI offer panel removed).
+    /// Run-start chest P_spawn rolls, always-on altars, E interact 3-pick, 5-shelf shop.
     /// </summary>
     public class ChestAltarDirector : MonoBehaviour
     {
@@ -40,8 +39,6 @@ namespace RogueShooter.Build
 
         public RunBuildState Build => _build;
         public int Seed => _seed;
-        public Func<Vector3, bool> CanUseSites;
-        public bool AllowReseedHotkey = true;
         public int ChestPresentCount => ChestPresenceRoller.CountPresent(_chestPresent);
         public int ChestSlotCount => _chestPresent.Count;
         public int AltarCount { get; private set; }
@@ -186,7 +183,7 @@ namespace RogueShooter.Build
 
             if (Input.GetKeyDown(KeyCode.E))
                 TryInteract();
-            if (AllowReseedHotkey && Input.GetKeyDown(KeyCode.N))
+            if (Input.GetKeyDown(KeyCode.N))
                 BeginRun(Environment.TickCount);
         }
 
@@ -245,44 +242,12 @@ namespace RogueShooter.Build
 
         void TryInteract()
         {
-            if (CanUseSites != null && _player != null && !CanUseSites(_player.position))
-            {
-                Flash("clear room first");
-                return;
-            }
-
             if (_nearest == null)
             {
                 Flash("no site in range");
                 return;
             }
 
-            OpenSite(_nearest);
-        }
-
-        /// <summary>
-        /// Room-clear hook: open this site's UI without E and without the range check
-        /// (same RewardScreenView + offer rules as E). Returns true when a panel opened.
-        /// Empty chests / claimed altar sizes follow the E rules (no panel).
-        /// </summary>
-        public bool AutoOpen(SiteRuntime site, string reason)
-        {
-            if (site == null || _build == null || Offering)
-                return false;
-            if (!site.IsShop && !site.CanOfferBuild && !site.IsEmptyChest)
-                return false;
-            Debug.Log("[AutoOpen] " + site.Id + " kind=" + site.Kind + " reason=" + (reason ?? "-"));
-            _nearest = site;
-            OpenSite(site);
-            return Offering;
-        }
-
-        /// <summary>Held coins for the shop coin box (live).</summary>
-        public int CurrentGold => _build != null ? _build.Gold : 0;
-
-        void OpenSite(SiteRuntime site)
-        {
-            _nearest = site;
             if (_nearest.IsShop)
             {
                 OpenShop();
@@ -663,6 +628,68 @@ namespace RogueShooter.Build
             if (_emptyIds.Count == 0)
                 return "(none)";
             return string.Join(",", _emptyIds.ToArray());
+        }
+
+        public void DrawOfferGui()
+        {
+            if (!Offering)
+                return;
+
+            Color old = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.55f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = old;
+
+            int w = 560;
+            int h = _shopOffer ? 280 : 200;
+            float x = (Screen.width - w) * 0.5f;
+            float y = (Screen.height - h) * 0.5f;
+            GUI.Box(new Rect(x, y, w, h), "");
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
+            var style = new GUIStyle(GUI.skin.label) { fontSize = 13 };
+            if (_shopOffer)
+            {
+                GUI.Label(new Rect(x + 16, y + 10, w - 32, 24),
+                    _offering.Id + "  —  5 shelves (no refresh)", title);
+                GUI.Label(new Rect(x + 16, y + 36, w - 32, 20),
+                    "1–5 buy · Esc/E close · prices 20/28/35 · never Build", style);
+                for (int i = 0; i < _shopShelves.Length; i++)
+                {
+                    ShopShelf s = _shopShelves[i];
+                    string line = s.Sold
+                        ? (i + 1) + ")  " + s.Id + "  SOLD"
+                        : (i + 1) + ")  " + s.Id + "  " + AltarRewardRoll.TierLabel(s.Tier)
+                          + "  " + s.Price + "g  " + s.Effect;
+                    GUI.Label(new Rect(x + 16, y + 64 + i * 28, w - 32, 26), line, style);
+                }
+
+                return;
+            }
+
+            int n = _altarOffer ? _altarPicks.Length : _offers.Length;
+            string src = _altarOffer ? "altar light" : "chest";
+            GUI.Label(new Rect(x + 16, y + 10, w - 32, 24),
+                _offering.Id + "  —  pick 1 of " + n + "   [" + src + "]", title);
+            GUI.Label(new Rect(x + 16, y + 36, w - 32, 20), "1 / 2 / 3 select · Esc/E cancel (no Build)", style);
+            if (_altarOffer)
+            {
+                for (int i = 0; i < _altarPicks.Length; i++)
+                {
+                    AltarPick o = _altarPicks[i];
+                    GUI.Label(new Rect(x + 16, y + 64 + i * 28, w - 32, 26),
+                        (i + 1) + ")  " + AltarRewardRoll.TierLabel(o.Tier) + "  " + o.Effect, style);
+                }
+
+                return;
+            }
+
+            for (int i = 0; i < _offers.Length; i++)
+            {
+                RewardOption o = _offers[i];
+                GUI.Label(new Rect(x + 16, y + 64 + i * 28, w - 32, 26),
+                    (i + 1) + ")  " + o.Id + "   " + o.Rarity + "  +" + o.Score + " RS   tag=" + o.Tag,
+                    style);
+            }
         }
 
         public string SummaryLine()

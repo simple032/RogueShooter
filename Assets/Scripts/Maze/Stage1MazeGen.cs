@@ -8,7 +8,7 @@ namespace RogueShooter.Maze
     /// Seeded Stage-1 maze only (Spec v0.5 §1/§3). Quota: Chest×2 + Altar×1 +
     /// Normal×2 + START + connector stub. Corridors are edges and never spawn.
     /// Same seed → same graph. No S2/S3 layouts.
-    /// Rooms 36×28, pitch 58×50, gap 22. N口 fixed Normal, 4-slot shuffle,
+    /// Rooms 28×22, pitch 50/44, gap 22. N口 fixed Normal, 4-slot shuffle,
     /// CONN follows Altar. Ordinary Chest×2 (no LargeChest upgrade).
     /// START door ~18u feel. Folds only if diagonal.
     /// </summary>
@@ -39,6 +39,11 @@ namespace RogueShooter.Maze
 
         public static Stage1Maze Generate(int seed)
         {
+            return Generate(seed, MazeLayout.Main);
+        }
+
+        public static Stage1Maze Generate(int seed, MazeLayout layout)
+        {
             var rng = new Random(seed);
             Tpl tpl = Templates[Mod(seed, Templates.Length)];
             MazeNodeKind[] shuffleKinds =
@@ -52,11 +57,11 @@ namespace RogueShooter.Maze
 
             var nodes = new MazeNode[7];
             nodes[0] = MakeNode("START", MazeNodeKind.Start,
-                CellX(tpl.Start.Col, startCol), CellY(tpl.Start.Row, startRow),
-                MazeRules.HubWidth, MazeRules.HubHeight);
+                CellX(tpl.Start.Col, startCol, layout), CellY(tpl.Start.Row, startRow, layout),
+                layout.Width, layout.Height);
             nodes[1] = MakeNode("N1", MazeNodeKind.Normal,
-                CellX(tpl.Entry.Col, startCol), CellY(tpl.Entry.Row, startRow),
-                MazeRules.CombatWidth, MazeRules.CombatHeight);
+                CellX(tpl.Entry.Col, startCol, layout), CellY(tpl.Entry.Row, startRow, layout),
+                layout.Width, layout.Height);
 
             int normalIx = 2;
             int chestIx = 1;
@@ -78,8 +83,8 @@ namespace RogueShooter.Maze
 
                 Slot s = tpl.Shuffle[i];
                 nodes[2 + i] = MakeNode(id, kind,
-                    CellX(s.Col, startCol), CellY(s.Row, startRow),
-                    MazeRules.CombatWidth, MazeRules.CombatHeight);
+                    CellX(s.Col, startCol, layout), CellY(s.Row, startRow, layout),
+                    layout.Width, layout.Height);
                 if (kind == MazeNodeKind.Altar)
                 {
                     altarNode = 2 + i;
@@ -94,13 +99,13 @@ namespace RogueShooter.Maze
             int connCol = altarSlot.Col + tpl.ConnDx[altarShuffle < 0 ? 0 : altarShuffle];
             int connRow = altarSlot.Row + tpl.ConnDy[altarShuffle < 0 ? 0 : altarShuffle];
             nodes[6] = MakeNode("CONN", MazeNodeKind.Connector,
-                CellX(connCol, startCol), CellY(connRow, startRow),
-                MazeRules.CombatWidth, MazeRules.CombatHeight);
+                CellX(connCol, startCol, layout), CellY(connRow, startRow, layout),
+                layout.Width, layout.Height);
 
             var edges = new MazeEdge[tpl.EdgeA.Length + 1];
             for (int e = 0; e < tpl.EdgeA.Length; e++)
-                edges[e] = MakeEdge(nodes[tpl.EdgeA[e]], nodes[tpl.EdgeB[e]]);
-            edges[tpl.EdgeA.Length] = MakeEdge(nodes[altarNode], nodes[6]);
+                edges[e] = MakeEdge(nodes[tpl.EdgeA[e]], nodes[tpl.EdgeB[e]], layout);
+            edges[tpl.EdgeA.Length] = MakeEdge(nodes[altarNode], nodes[6], layout);
 
             FillNeighbors(nodes, edges);
             var maze = new Stage1Maze
@@ -570,16 +575,16 @@ namespace RogueShooter.Maze
             return new Slot { Col = col, Row = row, Start = start, Combat = combat, Connector = connector };
         }
 
-        static float CellX(int col, int startCol)
+        static float CellX(int col, int startCol, MazeLayout layout)
         {
-            return (col - startCol) * MazeRules.PitchX;
+            return (col - startCol) * layout.PitchX;
         }
 
-        static float CellY(int row, int startRow)
+        static float CellY(int row, int startRow, MazeLayout layout)
         {
             if (row <= startRow)
-                return (row - startRow) * MazeRules.StartPitchY;
-            return MazeRules.StartPitchY + (row - startRow - 1) * MazeRules.PitchY;
+                return (row - startRow) * layout.StartPitchY;
+            return layout.StartPitchY + (row - startRow - 1) * layout.PitchY;
         }
 
         static MazeNode MakeNode(string id, MazeNodeKind kind, float x, float y, float w, float h)
@@ -594,7 +599,14 @@ namespace RogueShooter.Maze
             };
         }
 
-        static MazeEdge MakeEdge(MazeNode a, MazeNode b)
+        public static int[] VisitOrder(Stage1Maze maze)
+        {
+            List<int> tour;
+            GreedyVisitAll(maze, out tour);
+            return tour.ToArray();
+        }
+
+        static MazeEdge MakeEdge(MazeNode a, MazeNode b, MazeLayout layout)
         {
             MazeVec2 doorA = DoorToward(a, b);
             MazeVec2 doorB = DoorToward(b, a);
@@ -608,7 +620,7 @@ namespace RogueShooter.Maze
                 ToId = b.Id,
                 From = doorA,
                 To = doorB,
-                Width = MazeRules.CorridorWidth,
+                Width = layout.CorridorWidth,
                 Length = len,
                 MaxSegment = maxSeg,
                 FoldCount = pts.Length - 1,
@@ -629,12 +641,11 @@ namespace RogueShooter.Maze
             if (Math.Abs(dx) >= Math.Abs(dy))
             {
                 float sx = dx >= 0f ? 1f : -1f;
-                return new MazeVec2(self.Center.X + sx * self.Width * 0.5f, MazeRules.DoorAxis(self.Center.Y));
+                return new MazeVec2(self.Center.X + sx * self.Width * 0.5f, self.Center.Y);
             }
 
-            // Door centre on a cell centre (MazeRules.DoorAxis) so the 5u corridor / 3u door / 1u stubs are whole cells.
             float sy = dy >= 0f ? 1f : -1f;
-            return new MazeVec2(MazeRules.DoorAxis(self.Center.X), self.Center.Y + sy * self.Height * 0.5f);
+            return new MazeVec2(self.Center.X, self.Center.Y + sy * self.Height * 0.5f);
         }
 
         static MazeVec2[] BuildCorridor(MazeVec2 a, MazeVec2 b)

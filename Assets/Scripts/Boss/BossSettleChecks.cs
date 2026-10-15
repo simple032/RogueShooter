@@ -1,5 +1,4 @@
 using System;
-using RogueShooter.Balance;
 
 namespace RogueShooter.Boss
 {
@@ -14,9 +13,9 @@ namespace RogueShooter.Boss
             brain.NotifyEnter();
             brain.Tick(0.02f);
             brain.Tick(0.02f);
-            brain.RefreshDamage(TimePressure.AttrMul(11f));
+            brain.NotifyTimeCross(13f);
 
-            var win = BossSettleReport.From(BossSettleOutcome.Win, brain, 11f);
+            var win = BossSettleReport.From(BossSettleOutcome.Win, brain, 13f);
             if (win.Outcome != BossSettleOutcome.Win || win.OutcomeLabel != "胜")
                 return "win label";
             if (win.BuildCount != 12)

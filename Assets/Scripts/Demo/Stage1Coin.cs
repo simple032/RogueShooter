@@ -9,6 +9,9 @@ namespace RogueShooter.Demo
     public sealed class Stage1Coin : MonoBehaviour
     {
         public const float BodyRadius = 0.55f;
+        /// <summary>Visible standing height of a mob sprite (~195px at PPU 128). Shots
+        /// hit anywhere through this silhouette, not only the feet circle.</summary>
+        public const float BodyHeight = 1.5f;
 
         Transform _player;
         int _amount;
@@ -36,6 +39,7 @@ namespace RogueShooter.Demo
             if (d.sqrMagnitude > BodyRadius * BodyRadius)
                 return;
             _taken = true;
+            RogueShooter.Audio.JianHaiAudio.Emit("jh_coin_pickup",this);
             if (_collect != null)
                 _collect(_amount);
             Destroy(gameObject);

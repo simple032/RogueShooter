@@ -30,23 +30,23 @@ namespace RogueShooter.Build
 
     /// <summary>
     /// N38 shop: 6 shelves = 普/中/高/回血各1 + 弹性2. Never refresh.
-    /// Locked mid prices 20/40/60/40 (ratio 1:2:3; high band 54–66). Elastic 56/32/12, no heal.
+    /// v0.57 prices 40/80/120, heal 60; fixed prices (tier ratio 1:2:3). Elastic 56/32/12, no heal.
     /// </summary>
     public static class ShopStock
     {
         public const int ShelfCount = 6;
         public const int FixedCount = 4;
         public const int ElasticCount = 2;
-        public const int PriceBaseLow = 20;
-        public const int PriceBaseMid = 40;
-        public const int PriceBaseHigh = 60;
-        public const int PriceBaseHeal = 40;
-        public const int LowPriceMin = 18;
-        public const int LowPriceMax = 22;
-        public const int MidPriceMin = 36;
-        public const int MidPriceMax = 44;
-        public const int HighPriceMin = 54;
-        public const int HighPriceMax = 66;
+        public const int PriceBaseLow = 40;
+        public const int PriceBaseMid = 80;
+        public const int PriceBaseHigh = 120;
+        public const int PriceBaseHeal = 60;
+        public const int LowPriceMin = 40;
+        public const int LowPriceMax = 40;
+        public const int MidPriceMin = 80;
+        public const int MidPriceMax = 80;
+        public const int HighPriceMin = 120;
+        public const int HighPriceMax = 120;
         public const int ElasticWLow = 56;
         public const int ElasticWMid = 32;
         public const int ElasticWHigh = 12;
@@ -90,8 +90,8 @@ namespace RogueShooter.Build
             int low = lowAnchor > 0 ? lowAnchor : PriceBaseLow;
             switch (role)
             {
+                case ShopSlotRole.Heal: return low * 3 / 2;
                 case ShopSlotRole.Mid:
-                case ShopSlotRole.Heal:
                     return low * 2;
                 case ShopSlotRole.High:
                     return low * 3;
@@ -110,19 +110,19 @@ namespace RogueShooter.Build
             return RollShelves(rng);
         }
 
-        public static ShopShelf[] RollShelves(Random rng)
+        public static ShopShelf[] RollShelves(Random rng, RewardRegressionWeights weights = null)
         {
             if (rng == null)
                 rng = new Random();
             int low = RollLowAnchor(rng);
             var shelves = new ShopShelf[ShelfCount];
             var used = new HashSet<string>();
-            shelves[0] = FillSlot(ShopSlotRole.Low, false, low, used, rng);
-            shelves[1] = FillSlot(ShopSlotRole.Mid, false, low, used, rng);
-            shelves[2] = FillSlot(ShopSlotRole.High, false, low, used, rng);
-            shelves[3] = FillSlot(ShopSlotRole.Heal, false, low, used, rng);
-            shelves[4] = FillSlot(RollElasticRole(rng), true, low, used, rng);
-            shelves[5] = FillSlot(RollElasticRole(rng), true, low, used, rng);
+            shelves[0] = FillSlot(ShopSlotRole.Low, false, low, used, weights, rng);
+            shelves[1] = FillSlot(ShopSlotRole.Mid, false, low, used, weights, rng);
+            shelves[2] = FillSlot(ShopSlotRole.High, false, low, used, weights, rng);
+            shelves[3] = FillSlot(ShopSlotRole.Heal, false, low, used, weights, rng);
+            shelves[4] = FillSlot(RollElasticRole(rng), true, low, used, weights, rng);
+            shelves[5] = FillSlot(RollElasticRole(rng), true, low, used, weights, rng);
             return shelves;
         }
 
@@ -174,9 +174,11 @@ namespace RogueShooter.Build
             }
         }
 
-        static ShopShelf FillSlot(ShopSlotRole role, bool elastic, int lowAnchor, HashSet<string> used, Random rng)
+        static ShopShelf FillSlot(ShopSlotRole role, bool elastic, int lowAnchor, HashSet<string> used, RewardRegressionWeights weights, Random rng)
         {
             RewardRow row;
+            var nonHealUsed=new HashSet<string>(used);
+            foreach(var item in RewardCatalog.All)if(string.Equals(item.Stat,"heal",StringComparison.OrdinalIgnoreCase))nonHealUsed.Add(item.Id);
             if (role == ShopSlotRole.Heal)
             {
                 if (!TryPickHeal(used, rng, out row))
@@ -187,12 +189,12 @@ namespace RogueShooter.Build
                 RewardTier tier = role == ShopSlotRole.High ? RewardTier.High
                     : role == ShopSlotRole.Mid ? RewardTier.Mid
                     : RewardTier.Low;
-                if (!RewardCatalog.TryPickEqual(tier, used, rng, out row))
+                if (!RewardCatalog.TryPickWeighted(tier, nonHealUsed, weights, rng, out row))
                 {
                     for (int r = 0; r < RewardCatalog.All.Length; r++)
                     {
                         RewardRow cand = RewardCatalog.All[r];
-                        if (used.Contains(cand.Id))
+                        if (nonHealUsed.Contains(cand.Id))
                             continue;
                         if (!RewardCatalog.CanOffer(cand, tier))
                             continue;
@@ -202,7 +204,7 @@ namespace RogueShooter.Build
                 }
             }
 
-            used.Add(row.Id);
+            RewardCatalog.ExcludeFamily(used, row.Id);
             return new ShopShelf
             {
                 Id = row.Id,

@@ -10,7 +10,7 @@ namespace RogueShooter.Build
     public static class Crit2Dps
     {
         public const float BaseAtk = 100f;
-        public const float BaseChargeSeconds = 1f;
+        public const float BaseChargeSeconds = .7f;
         public const float AssumedWeakRate = 0.30f;
         public const float AssumedCritRate = 0.30f; // DPS-align assume; gameplay start crit=0
         public const float DefaultWeakMul = 2f;
@@ -25,6 +25,8 @@ namespace RogueShooter.Build
             public float WeakMul;
             public float WindowBonus;
             public float Dps;
+            public float WithRecoveryDps;
+            public float FocusDps;
             public int OwnedCount;
         }
 
@@ -56,10 +58,10 @@ namespace RogueShooter.Build
                             critRate += row.Value;
                             break;
                         case "crit_damage":
-                            critMul = DefaultCritMul * (1f + row.Value);
+                            critMul *= (1f + row.Value);
                             break;
                         case "weak_damage":
-                            weakMul = DefaultWeakMul * (1f + row.Value);
+                            weakMul *= (1f + row.Value);
                             break;
                         case "crit_window":
                             window += row.Value;
@@ -70,8 +72,8 @@ namespace RogueShooter.Build
 
             if (critRate > 1f)
                 critRate = 1f;
-            if (charge < 0.05f)
-                charge = 0.05f;
+            if (charge < .4f)
+                charge = .4f;
 
             float weakFactor = AssumedWeakRate * weakMul + (1f - AssumedWeakRate) * 1f;
             float critFactor = critRate * critMul + (1f - critRate) * 1f;
@@ -86,6 +88,8 @@ namespace RogueShooter.Build
                 WeakMul = weakMul,
                 WindowBonus = window,
                 Dps = dps,
+                WithRecoveryDps = BaseAtk*dmgProd*weakFactor*critFactor/(charge+RogueShooter.Player.ChargeShotRules.RecoverSeconds),
+                FocusDps = BaseAtk*dmgProd*weakMul*critFactor/.5f,
                 OwnedCount = n
             };
         }

@@ -59,7 +59,7 @@ namespace RogueShooter.Maze
             Stage1Maze maze = Stage1MazeGen.Generate(seed);
             MazePacing pace = Stage1MazeGen.MeasurePacing(maze, MazeRules.PlayMoveSpeed);
             var sb = new StringBuilder();
-            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (36x28 / pitch 58/50 gap22)");
+            sb.AppendLine("# Stage1MazeSampler layout seed=" + seed + " (28x22 / pitch 50/44 gap22)");
             sb.Append("moveSpeed=").Append(MazeRules.PlayMoveSpeed.ToString("0"));
             sb.Append(" rooms=").Append(MazeRules.CombatWidth.ToString("0")).Append("x")
               .Append(MazeRules.CombatHeight.ToString("0"));
@@ -127,7 +127,7 @@ namespace RogueShooter.Maze
                 }
             }
 
-            sb.AppendLine("# ASCII topology (col,row) Pitch 58/50  N口 fixed  CONN follows Altar");
+            sb.AppendLine("# ASCII topology (col,row) Pitch 50/44  N口 fixed  CONN follows Altar");
             sb.AppendLine(AsciiTopology(maze.TemplateId));
             return sb.ToString();
         }
@@ -186,7 +186,7 @@ namespace RogueShooter.Maze
         {
             return string.Join("\n", new[]
             {
-                "# S1 maze I/Z/C templates (36×28 / pitch 58×50 gap 22)",
+                "# S1 maze I/Z/C templates (28×22 / pitch 50/44 gap 22)",
                 "# Quota Chest×2 + Altar×1 + Normal×2 + START + CONN",
                 "# START neighbor = fixed Normal (N口). Not shuffled.",
                 "# Remaining 4 combat slots shuffle Altar×1 + Chest×2 + Normal×1.",
@@ -250,7 +250,7 @@ namespace RogueShooter.Maze
             sb.Append(" corridor=").Append(MazeRules.CorridorWidth.ToString("0.#"));
             sb.Append(" segMax=").Append(MazeRules.CorridorSegMax.ToString("0"));
             sb.AppendLine();
-            sb.AppendLine("ACCEPTANCE rooms=36x28 pitch=58/50 gap=22u startN=fixedNormal connFollowsAltar no-walk-clock");
+            sb.AppendLine("ACCEPTANCE rooms=28x22 pitch=50/44 gap=22u startN=fixedNormal connFollowsAltar no-walk-clock");
             sb.AppendLine("quota Chest×2+Altar×1+Normal×2+START+CONN");
             sb.AppendLine();
             sb.AppendLine("seed,tpl,first_u,first_s,short_u,short_s,max_seg_u,max_seg_s,start_n,conn_altar,gap_ok");

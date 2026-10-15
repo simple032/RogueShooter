@@ -1,6 +1,5 @@
 using RogueShooter.Player;
 using RogueShooter.Spawning;
-using RogueShooter.Vision;
 
 namespace RogueShooter.Ai
 {
@@ -10,10 +9,10 @@ namespace RogueShooter.Ai
     /// </summary>
     public static class EnemyCombatRules
     {
-        /// <summary>Forwards to the single source <see cref="CameraViewService.PlayOrthoSize"/>.</summary>
-        public static float PlayOrthoSize => CameraViewService.PlayOrthoSize;
+        public const float PlayOrthoSize = RogueShooter.Vision.CameraViewService.PlayOrthoSize; // producer retune; keep in sync with CameraViewService
         public const float DefaultAspect = 16f / 9f;
         public const float OrbSpeedWalkMul = 2f; // player_move × 2 → orb 12 (not mage walk × 2)
+        public const float OrbRangeCameraWidthFrac = 0.7f;
         public const float ShieldRaiseDelaySeconds = 1f;
         public const float ShieldMoveMul = 0.50f; // 4.5 → 2.25 (−50%)
         public const float ShieldFrontDamageMul = 0.50f;
@@ -32,13 +31,32 @@ namespace RogueShooter.Ai
         public const int LungeDamageMinEasyStub = 30;
         public const int LungeDamageMaxEasyStub = 40;
 
+        // Shield lunge. Not the deleted normal-mob thrust. Off on stage 1.
+        public const float ShieldLungeWarnSeconds = 1.20f;
+        public const float ShieldLungeTrackSeconds = 0.50f;
+        public const float ShieldLungeDistance = 6f;
+        public const float ShieldLungeSpeed = 8f;
+        public const float ShieldLungeRecoverSeconds = 1.00f;
+        public const float ShieldLungeWarnRange = 6f;
+
+        public const float MeleeWindupSeconds = .50f;
+        public const float MeleeStartRange = 1.10f;
+        public const float MeleeStrikeRange = 1.65f;
+        public const float MeleeStrikeAngle = 120f;
+        public const float DogMeleeStartRange=1f,DogMeleeStrikeRange=1.30f,DogMeleeStrikeAngle=75f,DogMeleeWindupSeconds=.35f;
+        public static float MeleeStartRangeFor(string kind)=>kind==EnemyKindIds.Dog?DogMeleeStartRange:kind==EnemyKindIds.Shield?1.45f:MeleeStartRange;
+        public static float MeleeStrikeRangeFor(string kind)=>kind==EnemyKindIds.Dog?DogMeleeStrikeRange:kind==EnemyKindIds.Shield?2.20f:MeleeStrikeRange;
+        public static float MeleeStrikeAngleFor(string kind)=>kind==EnemyKindIds.Dog?DogMeleeStrikeAngle:MeleeStrikeAngle;
+        public static float MeleeRecoveryFor(string kind)=>kind==EnemyKindIds.Dog?.20f:MeleeRecoverSeconds;
+        public static float MeleeWindupFor(string kind)=>kind==EnemyKindIds.Dog?DogMeleeWindupSeconds:MeleeWindupSeconds;
+        public const float MeleeRecoverSeconds = .18f;
         public const float MeleeHitRadius = 0.70f;
         public const float OrbHitRadiusStub = 0.40f;
 
         // DRAFT play-scale walk from balance_enemy_move_draft.csv (player = 6).
         public const float WalkPlayerStub = 6.00f;
         public const float WalkNormalStub = 4.50f;
-        public const float WalkDogStub = 7.20f;
+        public const float WalkDogStub = 5.40f;
         public const float WalkMageStub = 3.60f;
         public const float WalkShieldStub = 4.50f;
         public const float WalkShieldedStub = 2.25f;
@@ -54,13 +72,9 @@ namespace RogueShooter.Ai
             return 2f * orthographicSize * aspect;
         }
 
-        /// <summary>
-        /// L5: orb max travel in logic units = min(<see cref="L5Rules.OrbRangeU"/>, speed × flight time).
-        /// Replaces camera_width × 0.7 (14.9u at ortho 6); independent of the camera.
-        /// </summary>
-        public static float OrbMaxRange(float orbSpeed)
+        public static float OrbMaxRange(float orthographicSize, float aspect)
         {
-            return L5Rules.OrbMaxRange(orbSpeed);
+            return CameraWidth(orthographicSize, aspect) * OrbRangeCameraWidthFrac;
         }
 
         public static float OrbSpeed(float walkSpeed)
@@ -128,6 +142,9 @@ namespace RogueShooter.Ai
             return kindId == EnemyKindIds.CultMage || kindId == EnemyKindIds.GrandMage;
         }
 
+        public static int OrbCount(string kindId, StageId stage)
+        { return kindId==EnemyKindIds.CultMage && stage==StageId.S3 ? 3 : OrbCount(kindId); }
+
         public static int OrbCount(string kindId)
         {
             if (kindId == EnemyKindIds.GrandMage)
@@ -138,11 +155,13 @@ namespace RogueShooter.Ai
         }
 
         /// <summary>
-        /// Lunge belongs to shield soldiers only. Normals do not lunge on any stage.
-        /// S1 does not spawn shields; the rule is ready for when they appear.
+        /// Shield lunge is for later stages. Stage 1 does not run it.
+        /// Normals do not lunge. Damage is the shield's own attack, not the old thrust band.
         /// </summary>
         public static bool CanLunge(string kindId, StageId stage)
         {
+            if (stage == StageId.S1)
+                return false;
             return kindId == EnemyKindIds.Shield;
         }
     }

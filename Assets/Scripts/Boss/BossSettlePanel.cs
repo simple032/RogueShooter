@@ -34,10 +34,11 @@ namespace RogueShooter.Boss
             int h = 200;
             float x = (Screen.width - w) * 0.5f;
             float y = (Screen.height - h) * 0.5f;
-            GUI.Box(new Rect(x, y, w, h), "");
+            DrawBoneFrame(new Rect(x, y, w, h));
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold };
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 14 };
+            var bone = new Color(0.91f, 0.88f, 0.82f);
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, normal = { textColor = bone } };
+            var style = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = bone } };
             string headline = Report.Outcome == BossSettleOutcome.Win ? "通关 · 结算" : "失败 · 结算";
             GUI.Label(new Rect(x + 16, y + 12, w - 32, 28), headline, title);
             GUI.Label(new Rect(x + 16, y + 48, w - 32, 22), "胜负：" + Report.OutcomeLabel, style);
@@ -49,6 +50,15 @@ namespace RogueShooter.Boss
                 + "  (T" + Report.EnterTimeTier + "→T" + Report.EndTimeTier + ")", style);
             GUI.Label(new Rect(x + 16, y + 158, w - 32, 22),
                 "dmg " + Report.EnterDmgMul.ToString("0.00") + "→" + Report.EndDmgMul.ToString("0.00"), style);
+        }
+
+        static void DrawBoneFrame(Rect rect)
+        {
+            var sprite = Resources.Load<Sprite>("JianHaiReward/jh_ui_panel_bone");
+            if (sprite != null && sprite.texture != null)
+                GUI.DrawTexture(rect, sprite.texture, ScaleMode.StretchToFill);
+            else
+                GUI.Box(rect, "");
         }
     }
 }
